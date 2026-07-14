@@ -18,6 +18,19 @@ A comprehensive PHP library for converting MIDI files into MusicXML, and renderi
 *   **Percussion & Drums:** Special handling for drum tracks (Channel 10) with appropriate notation.
 *   **Batch Processing:** Includes examples for processing all tracks of a MIDI file into a single ZIP archive of PDFs.
 
+## MusicXML 4.0 Compliance
+
+The object model in this library, primarily located within the `MusicXML\Model` namespace, is designed to accurately reflect the official MusicXML 4.0 specification. Each PHP class, such as `Accidental`, `Note`, `MeasurePartwise`, and others, corresponds directly to an element defined in the MusicXML standard.
+
+This 1:1 mapping approach ensures that the generated XML output is well-structured, valid, and broadly compatible with various music notation software that supports MusicXML (such as Sibelius, Finale, MuseScore, etc.). When you work with the PHP objects in this library, you are essentially building a MusicXML document programmatically.
+
+For a complete and detailed reference of all elements, their attributes, and expected values, please refer to the official element reference from W3C MusicXML 4.0. For instance, the `Accidental` class in this library corresponds to the `<accidental>` element described in the documentation. You can find a complete list of all elements at:
+
+*   **MusicXML 4.0 Element Reference**
+
+As a specific example, the `<accidental-text>` element can be found in this documentation.
+
+
 ## Installation
 
 Install the library via Composer:
