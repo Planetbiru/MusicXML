@@ -1128,10 +1128,10 @@ class MusicXMLFromMidi extends MusicXMLBase
             {
                 $tempoList[$time] = array('rawtime' => $message['rawtime'], 'tempo' => $message['value'], 'bpm' => round((60000000 / $message['value'])));
             }
-            if($message['event'] == 'KeySig')
+            else if($message['event'] == 'KeySig')
             {
                 $fifths = isset($message['fifths']) ? (int)$message['fifths'] : 0;
-                $keySignatureList[$time] = array('fifths' => $fifths, 'mode' => $message['mode']);
+                $keySignatureList[$time] = array('fifths' => $fifths, 'mode' => $message['mode']); // Store as an array
             }
         }
         return new MidiEvent($tempoList, $keySignatureList);
@@ -1300,8 +1300,10 @@ class MusicXMLFromMidi extends MusicXMLBase
             // Pastikan Key Signature hanya ditambahkan jika bukan track perkusi
             if(!empty($keySignatureList) && $channelId != 10) {
                 // Ambil hanya Key Signature terakhir dalam birama ini untuk mencegah elemen ganda
-                $lastKS = end($keySignatureList);
-                $attributes->key = array($this->getKey($lastKS['fifths'], $lastKS['mode']));
+                $lastKS = array_pop($keySignatureList);
+                $fifths = isset($lastKS['fifths']) ? (int)$lastKS['fifths'] : 0;
+                $mode = isset($lastKS['mode']) ? $lastKS['mode'] : 'major';
+                $attributes->key = array($this->getKey($fifths, $mode));
                 $hasAttributes = true;
             }
         }

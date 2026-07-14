@@ -26,39 +26,72 @@ class MusicConverter
 {
     /**
      * The font family to use for text rendering (e.g., 'Times', 'Arial').
+     * 
      * @var string
      */
     private $fontFamily = 'Times';
+
     /**
      * The target output format ('pdf' or 'svg').
+     * 
      * @var string
      */
     private $format = 'pdf';
+
     /**
      * If true, consecutive empty measures will be collapsed into a single multi-measure rest.
+     * 
      * @var bool
      */
     private $compressEmptyMeasures = false;
+
     /**
      * If true, tempo change markings will be displayed on the score.
+     * 
      * @var bool
      */
     private $showTempoChanges = true;
+
     /**
-     * If true, uses an alternative algorithm for filling gaps with rests.
+     * Flag to determine which rest filling method to use. If true, uses an alternative algorithm for filling gaps with rests.
+     * 
      * @var bool
      */
-    private $useRestFilling = false; // Flag to determine which rest filling method to use
+    private $useRestFilling = false;
+
     /**
      * The font size for lyrics, in points.
+     * 
      * @var float
      */
     private $lyricFontSize = 6.0;
+
     /**
      * The vertical height of a single staff system in millimeters, including space for lyrics.
      * @var int
      */
     private $systemHeight = 28;
+
+    /**
+     * Maps a pitch class (0-11) to its diatonic step index within an octave.
+     * Used for calculating a note's vertical position on the staff.
+     * 
+     * @var int[]
+     */
+    private $pitchClasses = array(
+        0 => 0,  // C
+        1 => 0,  // C#
+        2 => 1,  // D
+        3 => 1,  // D#
+        4 => 2,  // E
+        5 => 3,  // F
+        6 => 3,  // F#
+        7 => 4,  // G
+        8 => 4,  // G#
+        9 => 5,  // A
+        10 => 5,  // A#
+        11 => 6   // B
+    );
 
     /**
      * MusicConverter constructor.
@@ -78,6 +111,30 @@ class MusicConverter
         $this->systemHeight = $systemHeight;
     }
 
+    /**
+     * Converts MIDI data into a MusicXML string.
+     *
+     * This is a direct conversion method that produces the raw MusicXML content,
+     * which can then be used for further processing or saved to a file.
+     *
+     * @param string $midiData  The binary content of a MIDI file.
+     * @param string $songTitle The title for the musical work.
+     * @param string $version   The MusicXML version to use (e.g., "4.0").
+     * @param string $format    The output format, either 'xml' (default) or 'mxl' (compressed).
+     * @return string The generated MusicXML or MXL content as a string.
+     * @throws Exception If the MIDI data is invalid.
+     */
+    public function midiToMusicXML($midiData, $songTitle = "Untitled", $version = "4.0", $format = "musicxml")
+    {
+        if (empty($midiData)) {
+            throw new Exception("Invalid input MIDI data.");
+        }
+        $converter = new MusicXMLFromMidi();
+        $converter->setUseRestFilling($this->useRestFilling);
+        $midi = $converter->loadMidiString($midiData);
+        $xmlStr = $converter->midiToMusicXml($midi, $songTitle, $version, $format);
+        return $xmlStr;
+    }
 
     /**
      * Converts MIDI data into a PDF file.
@@ -129,7 +186,6 @@ class MusicConverter
         }
 
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges);
-
 
         // 4. Render the part to PDF
         return $this->renderPartToPdf($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
@@ -1300,27 +1356,12 @@ class MusicConverter
      */
     private function getTrebleStep($noteNumber)
     {
-        $pitchClasses = array(
-             0 => 0,  // C
-             1 => 0,  // C#
-             2 => 1,  // D
-             3 => 1,  // D#
-             4 => 2,  // E
-             5 => 3,  // F
-             6 => 3,  // F#
-             7 => 4,  // G
-             8 => 4,  // G#
-             9 => 5,  // A
-            10 => 5,  // A#
-            11 => 6   // B
-        );
-        
         $pc = $noteNumber % 12;
         $oct = (int) floor($noteNumber / 12);
         
         // E4 (MIDI 64): pc = 4, oct = 5.
         // Let's calculate: (5 * 7) + 2 - 37 = 0.
-        return ($oct * 7) + $pitchClasses[$pc] - 37;
+        return ($oct * 7) + $this->pitchClasses[$pc] - 37;
     }
 
     /**
@@ -1331,27 +1372,12 @@ class MusicConverter
      */
     private function getBassStep($noteNumber)
     {
-        $pitchClasses = array(
-             0 => 0,  // C
-             1 => 0,  // C#
-             2 => 1,  // D
-             3 => 1,  // D#
-             4 => 2,  // E
-             5 => 3,  // F
-             6 => 3,  // F#
-             7 => 4,  // G
-             8 => 4,  // G#
-             9 => 5,  // A
-            10 => 5,  // A#
-            11 => 6   // B
-        );
-        
         $pc = $noteNumber % 12;
         $oct = (int) floor($noteNumber / 12);
         
         // G2 (MIDI 43): pc = 7, oct = 3.
         // Let's calculate: (3 * 7) + 4 - 25 = 0.
-        return ($oct * 7) + $pitchClasses[$pc] - 25;
+        return ($oct * 7) + $this->pitchClasses[$pc] - 25;
     }
 
     /**
@@ -1362,27 +1388,12 @@ class MusicConverter
      */
     private function getAltoStep($noteNumber)
     {
-        $pitchClasses = array(
-             0 => 0,  // C
-             1 => 0,  // C#
-             2 => 1,  // D
-             3 => 1,  // D#
-             4 => 2,  // E
-             5 => 3,  // F
-             6 => 3,  // F#
-             7 => 4,  // G
-             8 => 4,  // G#
-             9 => 5,  // A
-            10 => 5,  // A#
-            11 => 6   // B
-        );
-        
         $pc = $noteNumber % 12;
         $oct = (int) floor($noteNumber / 12);
         
         // F3 (MIDI 53): pc = 5, oct = 4.
         // Let's calculate: (4 * 7) + 3 - 31 = 0.
-        return ($oct * 7) + $pitchClasses[$pc] - 31;
+        return ($oct * 7) + $this->pitchClasses[$pc] - 31;
     }
 
     /**

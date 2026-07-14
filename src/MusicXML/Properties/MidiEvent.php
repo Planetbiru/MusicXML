@@ -5,12 +5,16 @@ namespace MusicXML\Properties;
 class MidiEvent 
 {
     /**
+     * Tempo list
+     * 
      * @var int[]
      */
     private $tempoList = array();
 
     /**
-     * @var TimeSignature[]
+     * An associative array of key signature events, keyed by time. e.g., `['fifths' => 0, 'mode' => 'major']`
+     * 
+     * @var array[]
      */
     private $keySignatureList = array();
 
