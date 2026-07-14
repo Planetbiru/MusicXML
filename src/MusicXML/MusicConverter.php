@@ -13,12 +13,41 @@ use SimpleXMLElement;
  */
 class MusicConverter
 {
+    /**
+     * The font family to use for text rendering (e.g., 'Times', 'Arial').
+     * @var string
+     */
     private $fontFamily = 'Times';
+    /**
+     * The target output format ('pdf' or 'svg').
+     * @var string
+     */
     private $format = 'pdf';
+    /**
+     * If true, consecutive empty measures will be collapsed into a single multi-measure rest.
+     * @var bool
+     */
     private $compressEmptyMeasures = false;
+    /**
+     * If true, tempo change markings will be displayed on the score.
+     * @var bool
+     */
     private $showTempoChanges = true;
+    /**
+     * If true, uses an alternative algorithm for filling gaps with rests.
+     * @var bool
+     */
     private $useRestFilling = false; // Flag to determine which rest filling method to use
+    /**
+     * The font size for lyrics, in points.
+     * @var float
+     */
     private $lyricFontSize = 6.0;
+    /**
+     * The vertical height of a single staff system in millimeters, including space for lyrics.
+     * @var int
+     */
+    private $systemHeight = 28;
 
     /**
      * MusicConverter constructor.
@@ -26,14 +55,17 @@ class MusicConverter
      * @param bool $compressEmptyMeasures Whether to compress multiple empty measures into a single multi-measure rest.
      * @param bool $showTempoChanges Whether to display tempo change markings on the score.
      * @param bool $useRestFilling Flag to control the rest filling algorithm.
+     * @param float $lyricFontSize Lyric font size
+     * @param float $systemHeight System height
      * @return void
      */
-    public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0)
+    public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0, $systemHeight = 28)
     {
         $this->compressEmptyMeasures = $compressEmptyMeasures;
         $this->showTempoChanges = $showTempoChanges;
         $this->useRestFilling = $useRestFilling;
         $this->lyricFontSize = $lyricFontSize;
+        $this->systemHeight = $systemHeight;
     }
 
 
@@ -63,7 +95,6 @@ class MusicConverter
         $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
 
-        
         return $this->musicXmlToPdf($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
     }
 
@@ -640,7 +671,7 @@ class MusicConverter
 
                 // Check if we need to break to a new page
                 $isMultiPageSvg = ($pdf instanceof SheetMusicSVG && !$pdf->isSinglePageMode());
-                if (($pdf instanceof SheetMusicPDF || $isMultiPageSvg) && ($systemY + 28 > 265)) {
+                if (($pdf instanceof SheetMusicPDF || $isMultiPageSvg) && ($systemY + $this->systemHeight > 265)) {
                     $pdf->AddPage();
                     // For multi-page SVG, start a new page group
                     if ($isMultiPageSvg) {
@@ -731,7 +762,7 @@ class MusicConverter
                     'x' => round($currentMeasureX, 2),
                     'y' => round($systemY - 8, 2), // Approx top of staff
                     'width' => round($measureWidth, 2),
-                    'height' => round(28, 2) // Approx height of staff + lyrics
+                    'height' => round($this->systemHeight, 2) // Approx height of staff + lyrics
                 ));
             }
 
@@ -822,7 +853,7 @@ class MusicConverter
 
                 // Move to next system if we hit measures limit per system
                 if ($layoutIdx % $measuresPerSystem == $measuresPerSystem - 1) {
-                    $systemY += 28;
+                    $systemY += $this->systemHeight;
 
                     if ($pdf instanceof SheetMusicSVG) {
                         $systemEndX = $currentMeasureX + $measureWidth;
@@ -1185,7 +1216,7 @@ class MusicConverter
 
             // Move to next system if we hit measures limit per system
             if ($layoutIdx % $measuresPerSystem == $measuresPerSystem - 1) {
-                $systemY += 28;
+                $systemY += $this->systemHeight;
 
                 if ($pdf instanceof SheetMusicSVG) {
                     $systemEndX = $currentMeasureX + $measureWidth;
@@ -1343,5 +1374,27 @@ class MusicConverter
     {
         $stepMap = array('C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11);
         return 12 * ($octave + 1) + $stepMap[strtoupper($step)];
+    }
+
+    /**
+     * Get the value of systemHeight
+     * 
+     * @return float
+     */
+    public function getSystemHeight()
+    {
+        return $this->systemHeight;
+    }
+
+    /**
+     * Set the value of systemHeight
+     * 
+     * @param float $systemHeight System height
+     */
+    public function setSystemHeight($systemHeight)
+    {
+        $this->systemHeight = $systemHeight;
+
+        return $this;
     }
 }
