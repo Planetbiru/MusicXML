@@ -120,8 +120,34 @@ This metadata allows you to build interactive web applications where:
 
 This makes the library ideal for creating:
 *   Karaoke-style lyric and note displays.
-*   Interactive music learning tools.
+*   Interactive music learning tools and applications.
 *   Sheet music viewers with synchronized audio playback.
+
+### Standalone Example: `vocal-training.php`
+
+The library includes a powerful, self-contained example in `d:\MagicServer\www\MusicXML\example\vocal-training.php`. This file demonstrates how to build a complete interactive sheet music player for the web.
+
+**How It Works:**
+
+1.  **Backend (PHP):**
+    *   It loads a MIDI file (`example.mid`).
+    *   It uses `MidiFilter` to get a list of all tracks and to apply transposition.
+    *   It uses `MusicConverter` to render the selected MIDI track into an interactive SVG.
+    *   The final MIDI data (for playback) and the SVG data (for display) are passed to the frontend.
+
+2.  **Frontend (JavaScript):**
+    *   **MIDI Playback:** It uses the MIDI.js library (loaded via its CDN) to play the MIDI audio directly in the browser.
+    *   **Score Synchronization:** The core logic is in `vocal-training.js`. It uses the `MIDIjs.player_callback` function, which fires approximately 10 times per second during playback.
+    *   **Real-time Updates:** On each callback, the script:
+        *   Calculates the current position (tick) in the music.
+        *   Highlights the currently playing note(s) by adding a `.active` CSS class to the corresponding SVG elements.
+        *   Moves a red vertical line (`#playhead-line`) across the staff to show the exact playback position.
+        *   Automatically scrolls the score down as the music progresses to keep the current system in view.
+    *   **Interactive Controls:** The example includes fully functional controls for:
+        *   **Play / Pause / Resume:** Simulates pause/resume since MIDI.js lacks a native function.
+        *   **Seeking:** The user can drag the timeline slider to any point in the song. Playback will resume from the selected position.
+        *   **Track Selection & Transposition:** The page can be reloaded to show a different track or apply a different transposition.
+        *   **Audio-Visual Sync Compensation:** A slider allows the user to adjust the visual offset to compensate for any audio latency, ensuring the playhead and note highlights are perfectly synchronized with the sound.
 
 ## Dependencies
 
