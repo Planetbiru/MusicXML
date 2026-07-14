@@ -1,0 +1,35 @@
+{
+    "name": "planetbiru/musicxml",
+    "description": "A PHP library to convert MIDI files to MusicXML, and render them as PDF or SVG.",
+    "type": "library",
+    "keywords": [
+        "midi",
+        "musicxml",
+        "pdf",
+        "svg",
+        "music",
+        "notation",
+        "fpdf"
+    ],
+    "homepage": "https://www.planetbiru.com",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Planetbiru",
+            "homepage": "https://www.planetbiru.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.6",
+        "fpdf/fpdf": "^1.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "MusicXML\\": "src/MusicXML/",
+            "Midi\\": "src/Midi/"
+        }
+    },
+    "config": {
+        "vendor-dir": "vendor"
+    }
+}
