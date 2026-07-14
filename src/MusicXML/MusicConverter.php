@@ -6,10 +6,21 @@ use Exception;
 use SimpleXMLElement;
 
 /**
- * The MusicConverter class serves as a high-level facade for converting MIDI data
- * into various sheet music formats, such as PDF and SVG. It orchestrates the
- * process by first converting MIDI to an intermediate MusicXML representation,
- * and then rendering that XML into the desired final format.
+ * A high-level facade for converting MIDI or MusicXML data into sheet music.
+ *
+ * This class orchestrates the conversion process from a source format (MIDI or MusicXML)
+ * into a visual representation like PDF or SVG. It simplifies complex operations,
+ * such as part detection, rendering, and layout, into straightforward method calls.
+ *
+ * Basic Usage:
+ * ```php
+ * require 'vendor/autoload.php';
+ * use MusicXML\MusicConverter;
+ *
+ * $converter = new MusicConverter();
+ * $pdfContent = $converter->midiToPdf(file_get_contents('song.mid'), 'My Song');
+ * file_put_contents('song.pdf', $pdfContent);
+ * ```
  */
 class MusicConverter
 {
@@ -52,12 +63,11 @@ class MusicConverter
     /**
      * MusicConverter constructor.
      *
-     * @param bool $compressEmptyMeasures Whether to compress multiple empty measures into a single multi-measure rest.
-     * @param bool $showTempoChanges Whether to display tempo change markings on the score.
-     * @param bool $useRestFilling Flag to control the rest filling algorithm.
-     * @param float $lyricFontSize Lyric font size
-     * @param float $systemHeight System height
-     * @return void
+     * @param bool  $compressEmptyMeasures If true, consecutive empty measures are collapsed into a single multi-measure rest.
+     * @param bool  $showTempoChanges      If true, tempo change markings (e.g., "Tempo: = 120") are displayed on the score.
+     * @param bool  $useRestFilling        If true, uses an alternative algorithm for filling gaps with rests.
+     * @param float $lyricFontSize         The font size for lyrics, in points.
+     * @param int   $systemHeight          The vertical height of a single staff system in millimeters, including space for lyrics.
      */
     public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0, $systemHeight = 28)
     {
@@ -70,13 +80,16 @@ class MusicConverter
 
 
     /**
-     * Convert MIDI file content to PDF file content using pure PHP FPDF renderer
+     * Converts MIDI data into a PDF file.
      *
-     * @param string $midiData Raw MIDI string data
-     * @param string $songTitle Song title for the score
-     * @param string $composer Composer name for the score
-     * @param int|string|null $targetChannelOrPartId Optional specific MIDI channel number (1-16) or MusicXML Part ID to render
-     * @param int $mainMelody Optional main melody channel (1-16) to determine if lyrics should be shown.
+     * This method handles the full pipeline: MIDI -> MusicXML -> PDF. It automatically
+     * detects the most suitable part to render unless a specific channel or part is specified.
+     *
+     * @param string          $midiData              The binary content of a MIDI file.
+     * @param string          $songTitle             The title to be displayed on the sheet music.
+     * @param string          $composer              The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+     * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
      * @return string Raw PDF data string
      * @throws Exception
      */
@@ -99,13 +112,13 @@ class MusicConverter
     }
 
     /**
-     * Convert MusicXML string content to PDF file content using pure PHP FPDF renderer
+     * Converts a MusicXML string into a PDF file.
      *
-     * @param string $xmlStr MusicXML string content
-     * @param string $songTitle Song title for the score
-     * @param string $composer Composer name for the score
-     * @param int|string|null $targetChannelOrPartId Optional specific MIDI channel number (1-16) or MusicXML Part ID to render
-     * @param bool $showLyric Optional flag to force display of lyrics.
+     * @param string          $xmlStr                The string content of a MusicXML file.
+     * @param string          $songTitle             The title to be displayed on the sheet music.
+     * @param string          $composer              The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+     * @param bool            $showLyric             If true, forces lyrics to be displayed if they exist in the selected part.
      * @return string Raw PDF data string
      * @throws Exception
      */
@@ -123,14 +136,17 @@ class MusicConverter
     }
 
     /**
-     * Convert MIDI file content to SVG file content using pure PHP SVG renderer
+     * Converts MIDI data into an SVG image.
      *
-     * @param string $midiData Raw MIDI string data
-     * @param string $songTitle Song title for the score
-     * @param string $composer Composer name for the score
-     * @param int|string|null $targetChannelOrPartId Optional specific MIDI channel number (1-16) or MusicXML Part ID to render
-     * @param int $mainMelody Optional main melody channel (1-16) to determine if lyrics should be shown.
-     * @param bool $singlePage If true, renders a single, continuous SVG. If false, renders as separate pages.
+     * This method handles the full pipeline: MIDI -> MusicXML -> SVG. The resulting SVG is interactive,
+     * with `data-*` attributes on notes and measures for easy synchronization with an audio player.
+     *
+     * @param string          $midiData              The binary content of a MIDI file.
+     * @param string          $songTitle             The title to be displayed on the sheet music.
+     * @param string          $composer              The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+     * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param bool            $singlePage            If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
      * @return string Raw SVG data string
      * @throws Exception
      */
@@ -153,14 +169,17 @@ class MusicConverter
     }
 
     /**
-     * Convert MusicXML string content to SVG file content using pure PHP SVG renderer
+     * Converts a MusicXML string into an SVG image.
      *
-     * @param string $xmlStr MusicXML string content
-     * @param string $songTitle Song title for the score
-     * @param string $composer Composer name for the score
-     * @param int|string|null $targetChannelOrPartId Optional specific MIDI channel number (1-16) or MusicXML Part ID to render
-     * @param bool $showLyric Optional flag to force display of lyrics.
-     * @param bool $singlePage Optional flag to render as a single page
+     * The resulting SVG is interactive, with `data-*` attributes on notes and measures
+     * for easy synchronization with an audio player.
+     *
+     * @param string          $xmlStr                The string content of a MusicXML file.
+     * @param string          $songTitle             The title to be displayed on the sheet music.
+     * @param string          $composer              The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+     * @param bool            $showLyric             If true, forces lyrics to be displayed if they exist in the selected part.
+     * @param bool            $singlePage            If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
      * @return string Raw SVG data string
      * @throws Exception
      */
@@ -177,11 +196,11 @@ class MusicConverter
     }
 
     /**
-     * Internal helper to parse MusicXML, select the most appropriate part, and extract the tempo map.
+     * Parses MusicXML, selects the most appropriate part, and extracts the tempo map.
      *
-     * @param string $xmlStr The MusicXML string content.
+     * @param string          $xmlStr                The MusicXML string content.
      * @param int|string|null $targetChannelOrPartId The desired channel (1-16) or part ID (e.g., "P1").
-     * @param bool $showTempoChanges Whether to extract the full tempo map or just the initial tempo.
+     * @param bool            $showTempoChanges      If true, extracts all tempo changes. If false, only the initial tempo is used.
      * @return array An array containing the SimpleXMLElement, the resolved part ID, and the tempo map.
      * @throws Exception If the MusicXML content is invalid.
      */
@@ -338,9 +357,12 @@ class MusicConverter
     }
 
     /**
-     * Detect the best part to render (prefer track with lyrics, then track with most notes)
+     * Detects the most suitable part to render from the MusicXML data.
      *
-     * @param SimpleXMLElement $xml Data parsed from MusicXML
+     * The logic prioritizes the part with the most lyric events. If no parts have lyrics,
+     * it falls back to the part with the highest number of note events.
+     *
+     * @param SimpleXMLElement $xml The parsed MusicXML object.
      * @return string Part ID
      */
     private function detectBestPart($xml)
@@ -430,14 +452,14 @@ class MusicConverter
     }
 
     /**
-     * Render the selected part to a PDF file
+     * Renders the selected part to a PDF file.
      *
-     * @param SimpleXMLElement $xml Data parsed from MusicXML
-     * @param string $partId Part ID to render
-     * @param string $songTitle Song title for the score
-     * @param string $composer Composer name for the score
-     * @param array $tempoMap Optional tempo map for measures
-     * @param bool $showLyric Whether to display lyrics on the score.
+     * @param SimpleXMLElement $xml       The parsed MusicXML object.
+     * @param string           $partId    The ID of the part to render.
+     * @param string           $songTitle The title for the score.
+     * @param string           $composer  The composer's name for the score.
+     * @param array            $tempoMap  An associative array mapping measure indices to BPM values.
+     * @param bool             $showLyric If true, lyrics will be rendered if present.
      * @return string Raw PDF data string
      * @throws Exception
      */
@@ -458,13 +480,13 @@ class MusicConverter
     /**
      * Renders the selected part to an SVG string.
      *
-     * @param SimpleXMLElement $xml Data parsed from MusicXML.
-     * @param string $partId Part ID to render.
-     * @param string $songTitle Song title for the score.
-     * @param string $composer Composer name for the score.
-     * @param array $tempoMap Optional tempo map for measures.
-     * @param bool $showLyric Whether to display lyrics on the score.
-     * @param bool $singlePage If true, renders a single, continuous SVG.
+     * @param SimpleXMLElement $xml        The parsed MusicXML object.
+     * @param string           $partId     The ID of the part to render.
+     * @param string           $songTitle  The title for the score.
+     * @param string           $composer   The composer's name for the score.
+     * @param array            $tempoMap   An associative array mapping measure indices to BPM values.
+     * @param bool             $showLyric  If true, lyrics will be rendered if present.
+     * @param bool             $singlePage If true, generates a single continuous SVG.
      * @return string Raw SVG data string.
      */
     private function renderPartToSvg($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
@@ -483,13 +505,13 @@ class MusicConverter
      * Renders a single part from the MusicXML data onto the provided PDF or SVG canvas.
      * This is the core rendering engine that iterates through measures and notes.
      *
-     * @param SheetMusicPDF|SheetMusicSVG $pdf The rendering canvas object (FPDF or SVG wrapper).
-     * @param SimpleXMLElement $xml The parsed MusicXML data.
-     * @param string $partId The ID of the part to render.
-     * @param string $songTitle The title of the song.
-     * @param string $composer The composer of the song.
-     * @param array $tempoMap An associative array mapping measure indices to BPM values.
-     * @param bool $showLyric A flag to control lyric rendering.
+     * @param SheetMusicPDF|SheetMusicSVG $pdf       The rendering canvas object (FPDF or SVG wrapper).
+     * @param SimpleXMLElement            $xml       The parsed MusicXML data.
+     * @param string                      $partId    The ID of the part to render.
+     * @param string                      $songTitle The title of the song.
+     * @param string                      $composer  The composer of the song.
+     * @param array                       $tempoMap  An associative array mapping measure indices to BPM values.
+     * @param bool                        $showLyric A flag to control lyric rendering.
      * @return SheetMusicPDF|SheetMusicSVG The canvas object after rendering.
      */
     private function renderPart($pdf, $xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
@@ -1377,9 +1399,9 @@ class MusicConverter
     }
 
     /**
-     * Get the value of systemHeight
-     * 
-     * @return float
+     * Gets the configured height for each staff system.
+     *
+     * @return int The height in millimeters.
      */
     public function getSystemHeight()
     {
@@ -1387,9 +1409,10 @@ class MusicConverter
     }
 
     /**
-     * Set the value of systemHeight
-     * 
-     * @param float $systemHeight System height
+     * Sets the height for each staff system.
+     *
+     * @param int $systemHeight The height in millimeters.
+     * @return self
      */
     public function setSystemHeight($systemHeight)
     {

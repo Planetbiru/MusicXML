@@ -41,7 +41,15 @@ composer require planetbiru/musicxml
 
 ## Usage
 
-The library is designed to be straightforward. The main entry point is the `MusicXML\MusicConverter` class.
+The `MusicConverter` class is the main entry point and the easiest way to use this library. Think of it as the primary "conversion engine" that does all the heavy lifting for you.
+
+When you provide a MIDI file, `MusicConverter` automatically performs the following steps behind the scenes:
+
+1.  **Reads & Analyzes MIDI:** It understands all the data from the MIDI file, such as notes, tempo, instruments, and lyrics.
+2.  **Converts to MusicXML:** It translates that MIDI data into the MusicXML format, which is the standard "language" for digital music notation.
+3.  **Renders to Visuals:** It draws the MusicXML structure into your desired visual format, either a print-ready PDF or an interactive SVG for the web.
+
+You don't need to worry about the technical details of each step; you just need to call a single function.
 
 ### Basic Example: Convert MIDI to PDF
 
@@ -92,8 +100,8 @@ use MusicXML\MusicConverter;
 
 $converter = new MusicConverter();
 
-// Render only channel 4 (e.g., the piano part)
-$pdfContent = $converter->midiToPdf($midiData, "Piano Part", "The Composer", 4);
+// Render only track 4 (e.g., the piano part)
+$pdfContent = $converter->midiToPdf($midiData, "My Song", "The Composer", 4);
 file_put_contents('output/piano-part.pdf', $pdfContent);
 ```
 
