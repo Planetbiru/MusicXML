@@ -7,5 +7,4 @@
 
 ### Known Issues
 - This feature is still under development.
-- There are known issues with note duration accuracy during the conversion from MusicXML back to MIDI.
-- Some notes may be missing in the final MIDI output.
+- There is a known issue where some drum kit instruments may be swapped during conversion.

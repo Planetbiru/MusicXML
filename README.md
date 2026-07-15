@@ -3,13 +3,23 @@
 [![Latest Stable Version](https://img.shields.io/packagist/v/planetbiru/musicxml.svg)](https://packagist.org/packages/planetbiru/musicxml)
 [![License](https://img.shields.io/packagist/l/planetbiru/musicxml.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive PHP library for converting MIDI files into MusicXML, and rendering them as beautiful, printable sheet music in PDF or SVG formats. This library is written in pure PHP and has minimal dependencies, making it easy to integrate into any project.
+A comprehensive PHP library for handling MusicXML and MIDI files. It supports conversion between formats and can render MusicXML into beautiful, printable sheet music in PDF or SVG formats. This library is written in pure PHP and has minimal dependencies, making it easy to integrate into any project.
+
+## Conversion Workflows
+
+The library supports the following conversion workflows:
+
+*   **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
+*   **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
+*   **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
+*   **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
 
 ## Key Features
 
 *   **MIDI to MusicXML:** Core functionality to parse MIDI data and convert it into a standard MusicXML structure.
-*   **PDF Rendering:** Generate high-quality PDF sheet music using a built-in FPDF-based rendering engine. No external binaries required.
-*   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music, perfect for web display.
+*   **MusicXML to MIDI:** Convert MusicXML object models back into binary MIDI files, enabling a full roundtrip conversion process.
+*   **PDF Rendering:** Generate high-quality PDF sheet music from MusicXML data using a built-in FPDF-based rendering engine. No external binaries required.
+*   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music from MusicXML data, perfect for web display.
     *   **Interactive:** The generated SVG includes `data-*` attributes for easy synchronization with an audio player, enabling features like note highlighting and a moving playhead.
 *   **Track & Channel Filtering:** Easily select a specific track or channel from a MIDI file to render.
 *   **Automatic Part Detection:** Intelligently detects the most suitable part to render (e.g., the main melody with lyrics).
