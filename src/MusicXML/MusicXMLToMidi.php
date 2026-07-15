@@ -309,8 +309,13 @@ class MusicXMLToMidi
                                 }
                             } else {
                                 // This is a new note or the start of a tie.
+                                // Introduce a small gap (articulation) to prevent notes from having zero duration
+                                // when they are consecutive. A 1-tick gap is usually sufficient.
+                                $articulationGap = 1;
+                                $effectiveDuration = ($durationTicks > $articulationGap) ? $durationTicks - $articulationGap : 0;
+
                                 $noteOnEvent = array('time' => $noteGroupStartTime, 'type' => 'On', 'note' => $noteNumber, 'velocity' => $velocity);
-                                $noteOffEvent = array('time' => $noteGroupStartTime + $durationTicks, 'type' => 'Off', 'note' => $noteNumber, 'velocity' => 0);
+                                $noteOffEvent = array('time' => $noteGroupStartTime + $effectiveDuration, 'type' => 'Off', 'note' => $noteNumber, 'velocity' => 0);
 
                                 $timeline[] = $noteOnEvent;
 
@@ -324,8 +329,8 @@ class MusicXMLToMidi
                             }
 
                             // Add lyric event if present
-                            if (isset($element->lyric) && is_array($element->lyric) && !empty($element->lyric) && isset($element->lyric[0]->text[0]->textContent)) {
-                                $lyricText = $element->lyric[0]->text[0]->textContent;
+                            if (isset($element->lyric) && isset($element->lyric) && isset($element->lyric->text) && isset($element->lyric->text->textContent)) {
+                                $lyricText = $element->lyric->text->textContent;
                                 // Add Lyric meta event at the same time as the Note On event
                                 $timeline[] = array('time' => $noteGroupStartTime, 'type' => 'Lyric', 'text' => $lyricText);
                             }
@@ -343,14 +348,21 @@ class MusicXMLToMidi
         // Final sort of all events before adding them to the MIDI track.
         // Sort timeline by time, then by type (Off before On at the same time)
         usort($timeline, function($a, $b) {
-            if ($a['time'] == $b['time']) {
-                if ($a['type'] === $b['type']) return 0;
-                // At the same time, process Lyric, then Note Off, then Note On.
-                if ($a['type'] === 'Lyric') return -1;
-                if ($b['type'] === 'Lyric') return 1;
-                return ($a['type'] === 'Off') ? -1 : 1;
-            } // NOSONAR
-            return $a['time'] < $b['time'] ? -1 : 1;
+            // Primary sort: by time (tick)
+            if ($a['time'] != $b['time']) {
+                return $a['time'] < $b['time'] ? -1 : 1;
+            }
+
+            // Secondary sort: by event type, for events at the same time.
+            // This is crucial for MIDI correctness. The desired order is:
+            // 1. Lyric (Meta)
+            // 2. Note Off
+            // 3. Note On
+            $typeOrder = array('Lyric' => 0, 'Off' => 1, 'On' => 2);
+            $aOrder = isset($typeOrder[$a['type']]) ? $typeOrder[$a['type']] : 99;
+            $bOrder = isset($typeOrder[$b['type']]) ? $typeOrder[$b['type']] : 99;
+
+            return $aOrder - $bOrder;
         });
 
         // Add sorted events to the MIDI track
