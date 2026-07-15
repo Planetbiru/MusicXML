@@ -209,6 +209,20 @@ class Midi
 	}
 
 	/**
+	 * Adds new track, returns new track count. Alias for newTrack().
+	 *
+	 * @return integer
+	 */
+	public function addTrack()
+	{
+		if (!isset($this->tracks)) {
+			$this->tracks = array();
+		}
+		array_push($this->tracks, array());
+		return count($this->tracks);
+	}
+
+	/**
 	 * Returns track $tn as array of msg strings
 	 *
 	 * @param int $tn
@@ -432,6 +446,69 @@ class Midi
 		}
 		$this->tracks = $tracks;
 		$this->_findTempo();
+	}
+
+	/**
+	 * Adds a Time Signature meta event to a track.
+	 *
+	 * @param int $time The absolute time in ticks for the event.
+	 * @param int $beats The numerator of the time signature.
+	 * @param int $beatType The denominator of the time signature.
+	 * @param int $tn The track number to add the event to (default is 0).
+	 * @param int $mc MIDI clocks per metronome click (default is 24).
+	 * @param int $c 32nd notes per 24 MIDI clocks (default is 8).
+	 */
+	public function addTimeSignature($time, $beats, $beatType, $tn = 0, $mc = 24, $c = 8)
+	{
+		$msg = "$time TimeSig $beats/$beatType $mc $c";
+		$this->insertMsg($tn, $msg);
+	}
+
+	/**
+	 * Adds a Program Change event to a track.
+	 *
+	 * @param int $tn The track number.
+	 * @param int $time The absolute time in ticks for the event.
+	 * @param int $channel The MIDI channel (1-16).
+	 * @param int $program The MIDI program number (1-128).
+	 */
+	public function addProgramChange($tn, $time, $channel, $program)
+	{
+		// MIDI program is 0-127, but MusicXML is 1-128.
+		// The existing class seems to handle 0-based internally for PrCh messages.
+		$p = $program > 0 ? $program - 1 : 0;
+		$msg = "$time PrCh ch=$channel p=$p";
+		$this->insertMsg($tn, $msg);
+	}
+
+	/**
+	 * Adds a Note On event to a track.
+	 *
+	 * @param int $tn The track number.
+	 * @param int $time The absolute time in ticks for the event.
+	 * @param int $channel The MIDI channel (1-16).
+	 * @param int $note The MIDI note number (0-127).
+	 * @param int $velocity The note velocity (0-127).
+	 */
+	public function addNoteOn($tn, $time, $channel, $note, $velocity = 100)
+	{
+		$msg = "$time On ch=$channel n=$note v=$velocity";
+		$this->insertMsg($tn, $msg);
+	}
+
+	/**
+	 * Adds a Note Off event to a track.
+	 *
+	 * @param int $tn The track number.
+	 * @param int $time The absolute time in ticks for the event.
+	 * @param int $channel The MIDI channel (1-16).
+	 * @param int $note The MIDI note number (0-127).
+	 * @param int $velocity The note-off velocity (0-127, often 0).
+	 */
+	public function addNoteOff($tn, $time, $channel, $note, $velocity = 0)
+	{
+		$msg = "$time Off ch=$channel n=$note v=$velocity";
+		$this->insertMsg($tn, $msg);
 	}
 
 	/**
@@ -1018,47 +1095,53 @@ class Midi
 	 */
 	public function getMid()
 	{
-		$tracks = $this->tracks;
-		$tc = count($tracks);
+		$tc = count($this->tracks);
 		$type = ($tc > 1) ? 1 : 0;
 		$midStr = "MThd\0\0\0\6\0" . chr($type) . $this->_getBytes($tc, 2) . $this->_getBytes($this->timebase, 2);
-		## echo "".$this->timebase." ".__LINE__."\r\n";
+
 		for ($i = 0; $i < $tc; $i++) {
-			$track = $tracks[$i];
+			$track = $this->tracks[$i];
 			$mc = count($track);
 			$time = 0;
-			$midStr .= "MTrk";
-			$trackStart = strlen($midStr);
-
-			$last = '';
+			$trackData = '';
+			$lastStatus = null;
 
 			for ($j = 0; $j < $mc; $j++) {
 				$line = $track[$j];
 				$t = $this->_getTime($line);
 				$dt = $t - $time;
 
-				// A: IGNORE EVENTS WITH INCORRECT TIMESTAMP
 				if ($dt < 0) {
 					continue;
 				}
 
 				$time = $t;
-				$midStr .= $this->_writeVarLen($dt);
+				$trackData .= $this->_writeVarLen($dt);
 
-				// repetition, same event, same channel, omit first byte (smaller file size)
-				$str = $this->_getMsgStr($line);
-				$start = ord($str[0]);
-				if ($start >= 0x80 && $start <= 0xEF && $start == $last) {
-					$str = substr($str, 1);
+				$eventBinary = $this->_getMsgStr($line);
+				$statusByte = ord($eventBinary[0]);
+
+				// Implement running status correctly
+				if ($statusByte === $lastStatus && $statusByte >= 0x80 && $statusByte <= 0xEF) {
+					$trackData .= substr($eventBinary, 1);
+				} else {
+					$trackData .= $eventBinary;
 				}
-				$last = $start;
-
-				$midStr .= $str;
+				$lastStatus = ($statusByte >= 0x80 && $statusByte <= 0xEF) ? $statusByte : null;
 			}
-			$trackLen = strlen($midStr) - $trackStart;
-			$midStr = substr($midStr, 0, $trackStart) . $this->_getBytes($trackLen, 4) . substr($midStr, $trackStart);
+			$midStr .= "MTrk" . $this->_getBytes(strlen($trackData), 4) . $trackData;
 		}
 		return $midStr;
+	}
+
+	/**
+	 * Returns binary MIDI string. Alias for getMid().
+	 *
+	 * @return string
+	 */
+	public function getMidData()
+	{
+		return $this->getMid();
 	}
 
 	/**
@@ -1375,88 +1458,50 @@ class Midi
 	 */
 	protected function _getMsgStr($line) //NOSONAR
 	{
-		$msg = explode(' ', $line);
-		switch ($msg[1]) {
+		$parts = explode(' ', $line, 3);
+		$command = $parts[1];
+		$params = isset($parts[2]) ? $parts[2] : '';
+
+		switch ($command) {
 			case 'PrCh': // 0x0C
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // prog
+				sscanf($params, "ch=%d p=%d", $ch, $p);
+				return chr(0xC0 + ($ch ?? 1) - 1) . chr($p ?? 0);
 
-				$ch = isset($ch) ? $ch : 0;
-				$p = isset($p) ? $p : 0;
-
-				return chr(0xC0 + $ch - 1) . chr($p);
 			case 'On': // 0x09
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // note
-				eval("\$" . $msg[4] . ';'); // vel
+				sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
+				return chr(0x90 + ($ch ?? 1) - 1) . chr($n ?? 0) . chr($v ?? 0);
 
-				$ch = isset($ch) ? $ch : 0;
-				$n = isset($n) ? $n : 0;
-				$v = isset($v) ? $v : 0;
-
-				return chr(0x90 + $ch - 1) . chr($n) . chr($v);
 			case 'Off': // 0x08
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // note
-				eval("\$" . $msg[4] . ';'); // vel
+				sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
+				return chr(0x80 + ($ch ?? 1) - 1) . chr($n ?? 0) . chr($v ?? 0);
 
-				$ch = isset($ch) ? $ch : 0;
-				$n = isset($n) ? $n : 0;
-				$v = isset($v) ? $v : 0;
-
-				return chr(0x80 + $ch - 1) . chr($n) . chr($v);
 			case 'PoPr': // 0x0A = PolyPressure
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // note
-				eval("\$" . $msg[4] . ';'); // val
+				sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
+				return chr(0xA0 + ($ch ?? 1) - 1) . chr($n ?? 0) . chr($v ?? 0);
 
-				$ch = isset($ch) ? $ch : 0;
-				$n = isset($n) ? $n : 0;
-				$v = isset($v) ? $v : 0;
-
-				return chr(0xA0 + $ch - 1) . chr($n) . chr($v);
 			case 'Par': // 0x0B = ControllerChange
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // controller
-				eval("\$" . $msg[4] . ';'); // val
+				sscanf($params, "ch=%d c=%d v=%d", $ch, $c, $v);
+				return chr(0xB0 + ($ch ?? 1) - 1) . chr($c ?? 0) . chr($v ?? 0);
 
-				$ch = isset($ch) ? $ch : 0;
-				$c = isset($c) ? $c : 0;
-				$v = isset($v) ? $v : 0;
-
-				return chr(0xB0 + $ch - 1) . chr($c) . chr($v);
 			case 'ChPr': // 0x0D = ChannelPressure
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // val
+				sscanf($params, "ch=%d v=%d", $ch, $v);
+				return chr(0xD0 + ($ch ?? 1) - 1) . chr($v ?? 0);
 
-				$ch = isset($ch) ? $ch : 0;
-				$v = isset($v) ? $v : 0;
-
-				return chr(0xD0 + $ch - 1) . chr($v);
 			case 'Pb': // 0x0E = PitchBend
-				eval("\$" . $msg[2] . ';'); // chan
-				eval("\$" . $msg[3] . ';'); // val (2 Bytes!)
-
-				$a = isset($a) ? $a : 0;
-				$v = isset($v) ? $v : 0;
-
+				sscanf($params, "ch=%d v=%d", $ch, $v);
+				$v = $v ?? 0;
 				$a = $v & 0x7f; // Bits 0..6
 				$b = ($v >> 7) & 0x7f; // Bits 7..13
+				return chr(0xE0 + ($ch ?? 1) - 1) . chr($a) . chr($b);
 
-				$ch = isset($ch) ? $ch : 0;
-				$a = isset($a) ? $a : 0;
-				$b = isset($b) ? $b : 0;
-
-				return chr(0xE0 + $ch - 1) . chr($a) . chr($b);
 				// META EVENTS
 			case 'Seqnr': // 0x00 = sequence_number
-				$num = chr($msg[2]);
-				if ($msg[2] > 255) {
-					$this->_err("code broken around Seqnr event");
-				}
+				$num = chr((int)$params);
 				return "\xFF\x00\x02\x00$num";
+
 			case 'Meta':
-				$type = $msg[2];
+				$meta_parts = explode(' ', $line, 4); // 0:time, 1:Meta, 2:type, 3:data
+				$type = $meta_parts[2];
 				switch ($type) {
 					case 'Text': //0x01: // Meta Text
 					case 'Copyright': //0x02: // Meta Copyright
@@ -1467,63 +1512,64 @@ class Midi
 					case 'Cue': //0x07: // Meta Cue
 						$texttypes = array('Text', 'Copyright', 'TrkName', 'InstrName', 'Lyric', 'Marker', 'Cue');
 						$byte = chr(array_search($type, $texttypes) + 1);
-						$start = strpos($line, '"') + 1;
-						$end = strrpos($line, '"');
-						$txt = substr($line, $start, $end - $start);
-						$len = $this->_writeVarLen(strlen($txt)); // NEW
+						$txt = trim($meta_parts[3], '"');
+						$len = $this->_writeVarLen(strlen($txt));
 						return "\xFF$byte$len$txt";
 					case 'TrkEnd': //0x2F
 						return "\xFF\x2F\x00";
 					case '0x20': // 0x20 = ChannelPrefix
-						$v = chr($msg[3]);
+						$v = chr((int)$meta_parts[3]);
 						return "\xFF\x20\x01$v";
 					case '0x21': // 0x21 = ChannelPrefixOrPort
-						$v = chr($msg[3]);
+						$v = chr((int)$meta_parts[3]);
 						return "\xFF\x21\x01$v";
 					default:
 						$this->_err("unknown meta event: $type");
 						break;
 				}
+				break;
+
 			case 'Tempo': // 0x51
-				$tempo = $this->_getBytes((int)$msg[2], 3);
+				$tempo = $this->_getBytes((int)$params, 3);
 				return "\xFF\x51\x03$tempo";
+
 			case 'SMPTE': // 0x54 = SMPTE offset
-				$h = chr($msg[2]);
-				$m = chr($msg[3]);
-				$s = chr($msg[4]);
-				$f = chr($msg[5]);
-				$fh = chr($msg[6]);
-				return "\xFF\x54\x05$h$m$s$f$fh";
+				sscanf($params, "%d %d %d %d %d", $h, $m, $s, $f, $fh);
+				return "\xFF\x54\x05" . chr($h ?? 0) . chr($m ?? 0) . chr($s ?? 0) . chr($f ?? 0) . chr($fh ?? 0);
+
 			case 'TimeSig': // 0x58
-				$zt = explode('/', $msg[2]);
-				$z = chr($zt[0]);
-				$t = chr(log($zt[1]) / log(2));
-				$mc = chr($msg[3]);
-				$c = chr($msg[4]);
+				sscanf($params, "%d/%d %d %d", $z_val, $t_val, $mc_val, $c_val);
+				$z = chr($z_val ?? 4);
+				$t = chr(log($t_val ?? 4) / log(2));
+				$mc = chr($mc_val ?? 24);
+				$c = chr($c_val ?? 8);
 				return "\xFF\x58\x04$z$t$mc$c";
+
 			case 'KeySig': // 0x59
-				$vz = chr($msg[2]);
-				$g = chr(($msg[3] == 'major') ? 0 : 1);
+				sscanf($params, "%d %s", $vz_val, $g_val);
+				$vz = chr($vz_val ?? 0);
+				$g = chr(($g_val === 'major') ? 0 : 1);
 				return "\xFF\x59\x02$vz$g";
+
 			case 'SeqSpec': // 0x7F = Sequencer specific data (Bs: 0 SeqSpec 00 00 41)
-				$cnt = count($msg) - 2;
+				$hex_parts = explode(' ', $params);
 				$data = '';
-				for ($i = 0; $i < $cnt; $i++) {
-					$data .= $this->_hex2bin($msg[$i + 2]);
+				foreach ($hex_parts as $hex) {
+					$data .= $this->_hex2bin($hex);
 				}
-				$len = $this->_writeVarLen(strlen($data)); // NEW
+				$len = $this->_writeVarLen(strlen($data));
 				return "\xFF\x7F$len$data";
+
 			case 'SysEx': // 0xF0 = SysEx
-				$start = strpos($line, 'f0');
-				$end = strrpos($line, 'f7');
-				$data = substr($line, $start + 3, $end - $start - 1);
+				$data = str_replace('f0 ', '', $params);
+				$data = str_replace(' f7', '', $data);
 				$data = $this->_hex2bin(str_replace(' ', '', $data));
 				$len = chr(strlen($data));
 				return "\xF0$len" . $data;
 
 			default:
-				@$this->_err('unknown event: ' . $msg[1]);
-				break;
+				@$this->_err('unknown event: ' . $command);
+				return '';
 		}
 	}
 
@@ -2077,21 +2123,23 @@ class Midi
 	 */
 	protected function _writeVarLen($value)
 	{
-		$buf = $value & 0x7F;
-		$str = '';
-		while ($value >>= 7) {
-			$buf <<= 8;
-			$buf |= (($value & 0x7F) | 0x80);
+		$buffer = $value & 0x7F;
+
+		while (($value >>= 7) > 0) {
+			$buffer <<= 8;
+			$buffer |= (($value & 0x7F) | 0x80);
 		}
+
+		$output = '';
 		while (true) {
-			$str .= chr($buf % 256);
-			if ($buf & 0x80) {
-				$buf >>= 8;
+			$output .= chr($buffer & 0xFF);
+			if ($buffer & 0x80) {
+				$buffer >>= 8;
 			} else {
 				break;
 			}
 		}
-		return $str;
+		return $output;
 	}
 
 	/**
