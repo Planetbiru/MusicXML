@@ -4,6 +4,8 @@ namespace MusicXML;
 
 /**
  * SheetMusicPDF class extending FPDF to draw music notation elements
+ * 
+ * @author Kamshory
  */
 class SheetMusicPDF extends \Fpdf\Fpdf
 {

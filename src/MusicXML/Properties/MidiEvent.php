@@ -2,10 +2,16 @@
 
 namespace MusicXML\Properties;
 
+/**
+ * A data transfer object for storing MIDI control events within a measure.
+ * This class holds collections of tempo and key signature changes.
+ * 
+ * @author Kamshory
+ */
 class MidiEvent 
 {
     /**
-     * Tempo list
+     * An associative array of tempo events, keyed by time. e.g., `['rawtime' => 0, 'tempo' => 500000, 'bpm' => 120]`
      * 
      * @var int[]
      */
@@ -19,10 +25,10 @@ class MidiEvent
     private $keySignatureList = array();
 
     /**
-     * Constructor
+     * MidiEvent constructor.
      *
-     * @param array $tempoList
-     * @param array $keySignatureList
+     * @param array $tempoList A list of tempo events.
+     * @param array $keySignatureList A list of key signature events.
      */
     public function __construct($tempoList, $keySignatureList)
     {
@@ -31,7 +37,7 @@ class MidiEvent
     }
 
     /**
-     * Get the value of tempoList
+     * Gets the list of tempo events.
      */ 
     public function getTempoList()
     {
@@ -39,9 +45,9 @@ class MidiEvent
     }
 
     /**
-     * Set the value of tempoList
+     * Sets the list of tempo events.
      * 
-     * @param int[] $tempoList
+     * @param int[] $tempoList An associative array of tempo events.
      * @return  self
      */ 
     public function setTempoList($tempoList)
@@ -52,7 +58,7 @@ class MidiEvent
     }
 
     /**
-     * Get the value of keySignatureList
+     * Gets the list of key signature events.
      */ 
     public function getKeySignatureList()
     {
@@ -60,9 +66,9 @@ class MidiEvent
     }
 
     /**
-     * Set the value of keySignatureList
+     * Sets the list of key signature events.
      *
-     * @param TimeSignature[] $keySignatureList
+     * @param array[] $keySignatureList An associative array of key signature events.
      * @return  self
      */ 
     public function setKeySignatureList($keySignatureList)

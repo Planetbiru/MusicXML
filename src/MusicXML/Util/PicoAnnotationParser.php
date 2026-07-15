@@ -7,6 +7,15 @@ use ReflectionClass;
 use ReflectionMethod;
 use ReflectionProperty;
 
+/**
+ * A simple annotation parser for PHP docblocks.
+ *
+ * This class uses reflection to read the doc comment of a class, method, or
+ * property and extracts annotations (e.g., `@var`, `@Element`). It can parse
+ * simple flags, key-value pairs, and JSON-like values.
+ *
+ * @author Kamshory
+ */
 class PicoAnnotationParser
 {
     /**

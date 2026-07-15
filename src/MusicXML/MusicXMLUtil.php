@@ -19,6 +19,14 @@ use MusicXML\Properties\BeamNote;
 use MusicXML\Properties\Coordinate;
 use MusicXML\Properties\TimeSignature;
 
+/**
+ * A utility class providing static helper methods for MusicXML creation and data manipulation.
+ *
+ * This class contains functions for calculating note types, handling durations, creating
+ * complex MusicXML elements like directions (tempo), and determining musical properties like clefs.
+ * 
+ * @author Kamshory
+ */
 class MusicXMLUtil
 {
     /**

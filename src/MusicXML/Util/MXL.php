@@ -7,7 +7,15 @@ use MusicXML\Exceptions\FilePermissionExcetion;
 use ZipArchive;
 
 /**
- * MusicXML compressor
+ * Handles the creation of compressed MusicXML (.mxl) files.
+ *
+ * This utility class takes a standard MusicXML string and packages it into the
+ * .mxl format, which is a ZIP archive containing the main .musicxml file
+ * and the required `META-INF/container.xml` descriptor. It provides a
+ * straightforward way to convert uncompressed MusicXML data into the
+ * standard compressed format for distribution and storage.
+ * 
+ * @author Kamshory
  */
 class MXL
 {
@@ -57,10 +65,11 @@ class MXL
     }  
     
     /**
-     * Get media type
+     * Constructs the media-type string required for the container.xml file.
+     * Per the MXL specification, this is the base MIME type with '+xml' appended.
      *
-     * @param string $mimeType
-     * @return string
+     * @param string $mimeType The base MIME type (e.g., 'application/vnd.recordare.musicxml').
+     * @return string The full media-type for the container.
      */
     private function getMediaType($mimeType)
     {
@@ -68,9 +77,13 @@ class MXL
     }
     
     /**
-     * Delete file
+     * Safely deletes a file if it exists.
      *
-     * @param string $filename
+     * This method is registered as a shutdown function to ensure that the
+     * temporary ZIP archive is removed after the script finishes execution,
+     * even if errors occur.
+     *
+     * @param string $filename The full path to the file to be deleted.
      * @return void
      */
     private function unlink($filename)

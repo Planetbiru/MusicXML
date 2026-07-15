@@ -11,7 +11,9 @@ use ReflectionClass;
 
 /**
  * MusicXMLWrtiter to write MusicXML document using annotation
- * See https://github.com/kamshory/PHPMusicXML
+ * See https://github.com/Planetbiru/MusicXML
+ * 
+ * @author Kamshory
  */
 class MusicXMLWriter extends \stdClass // NOSONAR
 {

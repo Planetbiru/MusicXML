@@ -9,6 +9,8 @@ namespace MusicXML;
  * This class provides a fluent interface for creating SVG documents, mimicking the
  * FPDF library's methods for drawing shapes, text, and lines. It supports both
  * single-page (continuous) and multi-page (stacked) SVG output.
+ * 
+ * @author Kamshory
  */
 class SheetMusicSVG
 {

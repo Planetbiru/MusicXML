@@ -2,27 +2,33 @@
 
 namespace MusicXML\Properties;
 
+/**
+ * A data transfer object representing the attack and release times of a note.
+ * These values are typically relative to the start of a measure.
+ * 
+ * @author Kamshory
+ */
 class AttackRelease
 {
     /**
-     * Attack
+     * The attack time of the note, typically in beats or a similar metric.
      *
      * @var integer
      */
     private $attack;
     
     /**
-     * Release
+     * The release time of the note, typically in beats or a similar metric.
      *
      * @var integer
      */
     private $release;
     
     /**
-     * Constructor
+     * AttackRelease constructor.
      * 
-     * @param float $attack
-     * @param float $release
+     * @param float $attack The note's starting time.
+     * @param float $release The note's ending time.
      */
     public function __construct($attack, $release)
     {
@@ -33,7 +39,7 @@ class AttackRelease
     
 
     /**
-     * Get attack
+     * Gets the attack time.
      *
      * @return  integer
      */ 
@@ -43,7 +49,7 @@ class AttackRelease
     }
 
     /**
-     * Set attack
+     * Sets the attack time.
      *
      * @param  integer  $attack  Attack
      *
@@ -57,7 +63,7 @@ class AttackRelease
     }
 
     /**
-     * Get release
+     * Gets the release time.
      *
      * @return  integer
      */ 
@@ -67,7 +73,7 @@ class AttackRelease
     }
 
     /**
-     * Set release
+     * Sets the release time.
      *
      * @param  integer  $release  Release
      *

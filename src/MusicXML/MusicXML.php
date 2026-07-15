@@ -6,6 +6,15 @@ use DOMDocument;
 use MusicXML\Map\ModelMap;
 use MusicXML\Map\NodeType;
 
+/**
+ * A high-level class for interacting with MusicXML files.
+ *
+ * This class provides functionality to load and parse MusicXML files into
+ * a structured object model. It serves as a primary entry point for
+ * reading existing MusicXML documents.
+ * 
+ * @author Kamshory
+ */
 class MusicXML extends MusicXMLBase
 {
     /**

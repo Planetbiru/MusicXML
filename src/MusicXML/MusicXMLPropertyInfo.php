@@ -2,6 +2,15 @@
 
 namespace MusicXML;
 
+/**
+ * A data transfer object (DTO) that holds parsed annotation information for a class property.
+ *
+ * This class stores details about how a property should be serialized into MusicXML,
+ * including whether it's an element, attribute, or text content, along with its
+ * name and type.
+ * 
+ * @author Kamshory
+ */
 class MusicXMLPropertyInfo //NOSONAR
 {
     /**
