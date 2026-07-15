@@ -83,64 +83,90 @@ class MidiFilter
      * @return string
      */
     public function transposeAndMute($midiData, $semitones = 0, $muteChannels = []) {
-        // Gunakan MidiVolume untuk mengakses fungsionalitas terkait volume
-        $midi = new MidiVolume();
-        $midi->parseMidi($midiData);
-        
-        $tracks = $midi->getTracks();
-        $trackCount = count($tracks);
+        if (substr($midiData, 0, 4) !== 'MThd') {
+            throw new Exception("Not a valid MIDI file.");
+        }
 
-        // Iterasi pertama: Transpose nada dan hapus event volume yang ada
-        for ($i = 0; $i < $trackCount; $i++) {
-            $messageCount = count($tracks[$i]);
-            for ($j = $messageCount - 1; $j >= 0; $j--) { // Iterasi mundur agar aman saat menghapus
-                $msg = explode(' ', $tracks[$i][$j]);
-                
-                if (isset($msg[1]) && ($msg[1] == 'On' || $msg[1] == 'Off')) {
-                    $channel = 0;
-                    $note = 0;
+        $headerLength = unpack('N', substr($midiData, 4, 4))[1];
+        $headerChunk = substr($midiData, 0, 8 + $headerLength);
 
-                    // Extract channel and note from message parts
-                    foreach ($msg as $part) {
-                        if (strpos($part, 'ch=') === 0) {
-                            $channel = (int)substr($part, 3);
-                        }
-                        if (strpos($part, 'n=') === 0) {
-                            $note = (int)substr($part, 2);
-                        }
-                    }
+        $modifiedTracksData = '';
+        $offset = 8 + $headerLength;
+        $totalLength = strlen($midiData);
 
-                    // Transpose if not on channel 10 (drum channel)
-                    if ($channel != 10 && $semitones != 0) {
-                        $newNote = max(0, min(127, $note + $semitones));
-                        $tracks[$i][$j] = preg_replace('/n=\d+/', 'n=' . $newNote, $tracks[$i][$j]);
+        while ($offset < $totalLength) {
+            if ($offset + 8 > $totalLength || substr($midiData, $offset, 4) !== 'MTrk') {
+                // If we don't find an MTrk header, something is wrong, but we can try to stop gracefully.
+                break;
+            }
+
+            $trackLength = unpack('N', substr($midiData, $offset + 4, 4))[1];
+            $trackBody = substr($midiData, $offset + 8, $trackLength);
+
+            $newTrackBody = '';
+            $p = 0;
+            $bodyLen = strlen($trackBody);
+            $runningStatus = 0;
+
+            while ($p < $bodyLen) {
+                // Read and preserve delta-time
+                $dtStart = $p;
+                $this->readVarLen($trackBody, $p);
+                $dtBytes = substr($trackBody, $dtStart, $p - $dtStart);
+
+                if ($p >= $bodyLen) {
+                    // Append trailing delta-time if any
+                    $newTrackBody .= $dtBytes;
+                    break;
+                }
+
+                $statusByte = ord($trackBody[$p]);
+                $isDataByte = ($statusByte & 0x80) === 0;
+                $eventStart = $p;
+
+                // Handle running status
+                if ($isDataByte) {
+                    $statusByte = $runningStatus;
+                } else {
+                    $runningStatus = $statusByte;
+                    $eventStart = $p;
+                    $p++;
+                }
+
+                $messageType = $statusByte & 0xF0;
+                $channel = ($statusByte & 0x0F) + 1;
+
+                // Note On / Note Off
+                if (($messageType === 0x90 || $messageType === 0x80) && $channel != 10 && $semitones != 0) {
+                    $note = ord($trackBody[$p]);
+                    $newNote = max(0, min(127, $note + $semitones));
+                    $newTrackBody .= $dtBytes . chr($statusByte) . chr($newNote) . $trackBody[$p + 1];
+                    $p += 2;
+                }
+                // Control Change (Volume)
+                else if ($messageType === 0xB0) {
+                    $controller = ord($trackBody[$p]);
+                    if ($controller === 7 && in_array($channel, $muteChannels)) {
+                        $newTrackBody .= $dtBytes . chr($statusByte) . $trackBody[$p] . chr(0);
+                    } else {
+                        $newTrackBody .= $dtBytes . chr($statusByte) . $trackBody[$p] . $trackBody[$p + 1];
                     }
-                } 
-                // Hapus semua event volume (c=7) pada channel yang akan dimatikan
-                else if (isset($msg[1]) && $msg[1] == 'Par') {
-                    $channel = 0;
-                    $controller = -1;
-                    foreach ($msg as $part) {
-                        if (strpos($part, 'ch=') === 0) $channel = (int)substr($part, 3);
-                        if (strpos($part, 'c=') === 0) $controller = (int)substr($part, 2);
-                    }
-                    if ($controller == 7 && in_array($channel, $muteChannels)) {
-                        array_splice($tracks[$i], $j, 1);
-                    }
+                    $p += 2;
+                }
+                // Other events (copy as is)
+                else {
+                    $p_before_len = $p;
+                    $dataLen = $this->getEventLength($statusByte, $trackBody, $p); // p will be advanced by this call
+                    
+                    // Copy the original event data, including status byte if it was present
+                    $newTrackBody .= $dtBytes . substr($trackBody, $eventStart, $p - $eventStart);
                 }
             }
-            // Set ulang array track di objek midi setelah modifikasi
-            $midi->setTrack($i, $tracks[$i]);
+            $modifiedTracksData .= 'MTrk' . pack('N', strlen($newTrackBody)) . $newTrackBody;
+            $offset += 8 + $trackLength;
         }
 
-        // Iterasi kedua: Sisipkan event volume=0 di awal setiap channel yang dimatikan.
-        // Menggunakan setChannelVolume akan menempatkannya di posisi yang benar (tick 0)
-        // dan menangani event yang mungkin sudah ada (meskipun sudah kita hapus).
-        foreach ($muteChannels as $ch) {
-            $midi->setChannelVolume($ch, 0);
-        }
-        
-        return $midi->getMid();
+        return $headerChunk . $modifiedTracksData;
     }
 
     /**
@@ -650,6 +676,45 @@ class MidiFilter
     }
 
     /**
+     * Gets the length of a MIDI event in bytes, including the status byte.
+     *
+     * @param int $statusByte The status byte of the event.
+     * @param string $body The track body data.
+     * @param int &$p The current position pointer.
+     * @return int The length of the event.
+     */
+    private function getEventLength($statusByte, $body, &$p)
+    {
+        $type = $statusByte & 0xF0;
+        if ($type === 0xC0 || $type === 0xD0) {
+            $len = 1;
+            $p += $len;
+            return $len;
+        }
+        if ($type >= 0x80 && $type <= 0xEF) {
+            $len = 2;
+            $p += $len;
+            return $len;
+        }
+        if ($statusByte === 0xFF) { // Meta
+            $p++; // skip meta type
+            $len = $this->readVarLen($body, $p);
+            $p += $len;
+            return 0; // Length is variable, pointer is already advanced, so we don't need to return a length to skip
+        }
+        if ($statusByte === 0xF0 || $statusByte === 0xF7) { // SysEx
+            // $p is at start of data for F0, or it's just F7
+            if ($statusByte === 0xF7) {
+                return 0; // F7 is a single byte event
+            }
+            $len = $this->readVarLen($body, $p);
+            $p += $len;
+            return 0; // Length is variable, pointer is already advanced
+        }
+        return 0; // Should not happen for valid MIDI
+    }
+
+    /**
      * Reads a variable-length quantity from a string and advances the pointer.
      *
      * @param string $str The binary string to read from.
@@ -666,5 +731,33 @@ class MidiFilter
             } while ($c & 0x80);
         }
         return $value;
+    }
+
+    /**
+     * Sets channel volume without adding a TrkEnd event.
+     * This is a modified version of MidiVolume::setChannelVolume to avoid duplicate TrkEnd events
+     * when used with the updated Midi::getMid() method.
+     *
+     * @param MidiVolume $midi The MIDI object instance.
+     * @param int $chan The channel number (1-16).
+     * @param int $vol The volume value (0-127).
+     * @return void
+     */
+    private function setChannelVolume($midi, $chan, $vol)
+    {
+        $tracks = $midi->getTracks();
+        $track = isset($tracks[0]) ? $tracks[0] : array();
+        $i = 0;
+        $cnt = count($track);
+        while ($i < $cnt) {
+            $msg = explode(" ", $track[$i]);
+            if ($msg[0] != 0 || $msg[1] == 'On') break;
+            // remove existing volume controller for specified channel
+            if ($msg[1] == 'Par' && isset($msg[2]) && $msg[2] == "ch=$chan" && isset($msg[3]) && $msg[3] == 'c=7')
+                array_splice($track, $i, 1);
+            else $i++;
+        }
+        array_splice($track, $i, 0, "0 Par ch=$chan c=7 v=$vol");
+        $midi->setTrack(0, $track);
     }
 }
