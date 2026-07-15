@@ -23,8 +23,8 @@ class Backup extends MusicXMLWriter
 
     /**
      * Duration
-     * @Attribute
-     * @var integer
+     * @Element
+     * @var \MusicXML\Model\Duration
      */
     public $duration;
 }

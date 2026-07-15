@@ -2,8 +2,8 @@
 
 namespace MusicXML;
 
-use DOMDocument;
-use DOMNode;
+use \DOMDocument;
+use \DOMNode;
 use Midi\MidiMeasure;
 use MusicXML\Exceptions\FileNotFoundException;
 use MusicXML\Model\Accidental;
@@ -525,13 +525,16 @@ class MusicXMLFromMidi extends MusicXMLBase
         else if($eventName == 'Meta' && isset($message[2]) && ($message[2] == 'Lyric' || $message[2] == 'Text'))
         {
             $line = implode(' ', $message);
+            // The channel for meta events like lyrics is often 0 or associated with a specific track index.
+            // We'll store lyrics globally under a special key (e.g., -1) or associate with the lyric channel if known.
+            $lyricStorageChannel = 0; // Store all lyrics from meta tracks in a common pool (channel 0)
             if (preg_match('/"(.*)"/', $line, $matches)) {
                 $lyricText = $matches[1];
-                if (!isset($this->lyrics[$ch])) $this->lyrics[$ch] = array();
-                if (isset($this->lyrics[$ch][$abstime])) {
-                    $this->lyrics[$ch][$abstime] .= ' ' . $lyricText; // Gabungkan lirik jika ada di timestamp yang sama
+                if (!isset($this->lyrics[$lyricStorageChannel])) $this->lyrics[$lyricStorageChannel] = array();
+                if (isset($this->lyrics[$lyricStorageChannel][$abstime])) {
+                    $this->lyrics[$lyricStorageChannel][$abstime] .= ' ' . $lyricText; // Gabungkan lirik jika ada di timestamp yang sama
                 } else {
-                    $this->lyrics[$ch][$abstime] = $lyricText;
+                    $this->lyrics[$lyricStorageChannel][$abstime] = $lyricText;
                 }
             }
         }
@@ -625,8 +628,14 @@ class MusicXMLFromMidi extends MusicXMLBase
         $abstime = 0;
         $dt = 0;
         $last = 0;
-        $i = 0;
-        $j = 0;
+        $i  = 0;
+        $j  = 0;
+        $ch = 0; // Default value
+        $n  = 0; // Default value
+        $p  = 0; // Default value
+        $v  = 0; // Default value
+        $c  = 0; // Default value
+
         for ($i = 0; $i < $tc; $i++) {
             $xml .= "<Track Number=\"$i\">\n";
             $track = $tracks[$i];
@@ -645,14 +654,10 @@ class MusicXMLFromMidi extends MusicXMLBase
                 $xml .= '    ';
                 switch ($msg[1]) {
                     case 'PrCh':
-                        eval("\$" . $msg[2] . ';'); // $ch
-                        eval("\$" . $msg[3] . ';'); // $p
-                        $ch = isset($ch) ? $ch : 0;
-                        $p = isset($p) ? $p : 0;
+                        sscanf($track[$j], "%d PrCh ch=%d p=%d", $t, $ch, $p);
 
                         $instrument = MusicXMLUtil::getInstrumentName($p, $ch); // $p is program ID, $ch is channel ID
 
-                        $partId = "P" . $ch;
                         $p1 = $p + 1;
                         $instrumentId = $ch == 10 ? "P" . $ch . "-I" . $p1 : "P" . $ch . "-I1";
                         $channelId = $ch;
@@ -661,7 +666,7 @@ class MusicXMLFromMidi extends MusicXMLBase
 
                         $this->addPartList(
                             $channelId,
-                            $partId,
+                            "P" . $ch,
                             $programId,
                             $instrumentId,
                             $instrument,
@@ -674,13 +679,8 @@ class MusicXMLFromMidi extends MusicXMLBase
 
                     case 'On':
                     case 'Off':
-                        eval("\$" . $msg[2] . ';'); // $ch
-                        eval("\$" . $msg[3] . ';'); // $n
-                        eval("\$" . $msg[4] . ';'); // $v
+                        sscanf($track[$j], "%d {$msg[1]} ch=%d n=%d v=%d", $t, $ch, $n, $v);
 
-                        $ch = isset($ch) ? $ch : 0;
-                        $n = isset($n) ? $n : 0;
-                        $v = isset($v) ? $v : 0;
                         if ($ch == 10 && !isset($this->channel10[$n + 1])) {
                             $this->channel10[$n + 1] = array('note' => $n, 'ch' => $ch, 'n' => $n, 'v' => $v, 'message' => $msg);
                         }
@@ -691,14 +691,7 @@ class MusicXMLFromMidi extends MusicXMLBase
                         break;
 
                     case 'PoPr':
-                        eval("\$" . $msg[2] . ';'); // $ch
-                        eval("\$" . $msg[3] . ';'); // $n
-                        eval("\$" . $msg[4] . ';'); // $v
-
-                        $ch = isset($ch) ? $ch : 0;
-                        $n = isset($n) ? $n : 0;
-                        $v = isset($v) ? $v : 0;
-
+                        sscanf($track[$j], "%d PoPr ch=%d n=%d v=%d", $t, $ch, $n, $v);
                         // add event
                         $this->addEvent($msg[1], $msg, $timebase, $abstime, $n, $ch, $v); // $n is note number, $v is pressure
 
@@ -706,13 +699,7 @@ class MusicXMLFromMidi extends MusicXMLBase
                         break;
 
                     case 'Par':
-                        eval("\$" . $msg[2] . ';'); // ch
-                        eval("\$" . $msg[3] . ';'); // c
-                        eval("\$" . $msg[4] . ';'); // v
-
-                        $ch = isset($ch) ? $ch : 0;
-                        $c = isset($c) ? $c : 0;
-                        $v = isset($v) ? $v : 0;
+                        sscanf($track[$j], "%d Par ch=%d c=%d v=%d", $t, $ch, $c, $v);
 
                         $partId = "P" . $ch;
                         if ($c == 7 && (!isset($this->partVolume[$partId]))) {
@@ -742,22 +729,14 @@ class MusicXMLFromMidi extends MusicXMLBase
                         break;
 
                     case 'ChPr':
-                        eval("\$" . $msg[2] . ';'); // ch
-                        eval("\$" . $msg[3] . ';'); // v
-
-                        $ch = isset($ch) ? $ch : 0;
-                        $v = isset($v) ? $v : 0;
+                        sscanf($track[$j], "%d ChPr ch=%d v=%d", $t, $ch, $v);
                         // add event, $v is pressure
                         $this->addEvent($msg[1], $msg, $timebase, $abstime, 0, $ch, $v);
                         $xml .= "<ChannelKeyPressure Channel=\"$ch\" Pressure=\"$v\"/>\n";
                         break;
 
                     case 'Pb':
-                        eval("\$" . $msg[2] . ';'); // ch
-                        eval("\$" . $msg[3] . ';'); // v
-
-                        $ch = isset($ch) ? $ch : 0;
-                        $v = isset($v) ? $v : 0;
+                        sscanf($track[$j], "%d Pb ch=%d v=%d", $t, $ch, $v);
                         $this->addEvent($msg[1], $msg, $timebase, $abstime, 0, $ch, $v); // $v is pitch bend value
                         $xml .= "<PitchBendChange Channel=\"$ch\" Value=\"$v\"/>\n";
                         break;
@@ -903,14 +882,14 @@ class MusicXMLFromMidi extends MusicXMLBase
      *
      * @param MidiMeasure $midi The parsed MIDI data object.
      * @param string $title The title of the work.
-     * @param DOMDocument $domdoc The parent DOMDocument to which the new nodes will be appended.
      * @param string $version The MusicXML version string to set in the score-partwise element.
-     * @return DOMNode The root DOMNode of the generated score-partwise element.
+     * @return \DOMNode The root DOMNode of the generated score-partwise element.
      */
-    public function convertMidiToMusicXML($midi, $title, $domdoc, $version = "4.0")
+    public function midiToScorePartwiseObject($midi, $title, $version = "4.0")
     {
 
         $this->resetProperties();
+        
         $timebase = $midi->getTimebase();
         $scorePartwise = new ScorePartwise();
         $scorePartwise->version = $version;
@@ -1029,17 +1008,34 @@ class MusicXMLFromMidi extends MusicXMLBase
             // Clear tie continuation for the specific part before processing
             unset($this->tieContinue[$channelId]);
 
-            $part = new PartPartwise();
-            $part->id = $partId;
-            $part->measure = array();
+            $partObject = new PartPartwise();
+            $partObject->id = $partId;
+            $partObject->measure = array();
             for ($measureIndex = 0; $measureIndex < $totalMeasure; $measureIndex++) {
                 $measure = $this->getMeasure($partId, $channelId, $measureIndex, $timebase, $lyricChannelId);
-                $part->measure[] = $measure;
+                $partObject->measure[] = $measure;
             }
-            $scorePartwise->part[] = $part;
+            $scorePartwise->part[] = $partObject;
         }
         // end part
 
+        return $scorePartwise;
+    }
+
+    /**
+     * Converts a MidiMeasure object into a MusicXML score-partwise DOM structure.
+     * This is the core conversion logic that builds the entire MusicXML hierarchy
+     * from the parsed MIDI data.
+     *
+     * @param MidiMeasure $midi The parsed MIDI data object.
+     * @param string $title The title of the work.
+     * @param \DOMDocument $domdoc The parent DOMDocument to which the new nodes will be appended.
+     * @param string $version The MusicXML version string to set in the score-partwise element.
+     * @return DOMNode The root DOMNode of the generated score-partwise element.
+     */
+    public function convertMidiToMusicXML($midi, $title, $domdoc, $version = "4.0")
+    {
+        $scorePartwise = $this->midiToScorePartwiseObject($midi, $title, $version);
         return $scorePartwise->toXml($domdoc, self::SCORE_PARTWISE);
     }
 
@@ -1215,14 +1211,17 @@ class MusicXMLFromMidi extends MusicXMLBase
      */
     public function fixDuration($rawDuration, $divisions, $timebase)
     {
-        if ($timebase <= 0) {
+        if ($timebase <= 0 || $rawDuration <= 0) {
             return 0;
         }
         // Quantize the raw MIDI ticks first for better rhythmic alignment
         $quantizedTicks = $this->quantize($rawDuration, $timebase);
-        $xmlDuration = (int) round($quantizedTicks * $divisions / $timebase);
-        // Ensure that a note with a very short but non-zero duration gets at least 1 division
-        return ($xmlDuration == 0 && $quantizedTicks > 0) ? 1 : $xmlDuration;
+
+        // Use floating point for precision and avoid rounding to zero for very short notes.
+        // The MusicXML consumer should handle the final interpretation.
+        $xmlDuration = ($quantizedTicks * $divisions) / $timebase;
+
+        return (int) round($xmlDuration);
     }
 
     /**
@@ -1327,7 +1326,7 @@ class MusicXMLFromMidi extends MusicXMLBase
         // Selalu proses elemen birama untuk memastikan durasi birama terisi dengan nada atau tanda istirahat,
         // dan untuk menangani lirik meskipun tidak ada nada yang terdengar di birama ini untuk channel tersebut.
         $midiEventMessages = $this->hasMessage($channelId, $measureIndex) ? $this->measures[$channelId][$measureIndex] : array();
-        $noteMessages = MusicXMLUtil::getNotes($midiEventMessages);
+        $noteMessages = MusicXMLUtil::getNotes($midiEventMessages); // This should be a copy, not a reference
         
         // Urutkan pesan nada berdasarkan waktu absolut untuk deteksi chord dan pemrosesan sekuensial
         usort($noteMessages, function($a, $b) {
@@ -1413,10 +1412,10 @@ class MusicXMLFromMidi extends MusicXMLBase
             $measureStart = $measureIndex * $measureLength;
             $measureEnd = $measureStart + $measureLength;
             
+            // Check both the designated lyric channel and the global lyric pool (channel 0)
             $sources = array();
             if (isset($this->lyrics[$channelId])) $sources[] = $this->lyrics[$channelId];
-            if (isset($this->lyrics[0])) $sources[] = $this->lyrics[0];
-            
+            if ($channelId != 0 && isset($this->lyrics[0])) $sources[] = $this->lyrics[0];
             foreach ($sources as $source) {
                 foreach ($source as $abs => $txt) {
                     if ($abs >= $measureStart && $abs < $measureEnd) {
@@ -1464,7 +1463,6 @@ class MusicXMLFromMidi extends MusicXMLBase
         $absMeasureStart = $measureIndex * $measureLengthTicks;
         // Identifikasi lirik yang akan diproses untuk channel dan birama ini
         $lyricCarrier = $this->getLyricsForMeasure($measureIndex, $measureLengthTicks, $channelId, $lyricChannelId);
-
         $lyricDivisions = array();
         foreach ($lyricCarrier as $abs => $txt) {
             $xmlPos = (int) round(($abs - $absMeasureStart) * $divisions / $timebase);
@@ -1543,6 +1541,7 @@ class MusicXMLFromMidi extends MusicXMLBase
                 $note->duration = new Duration($xmlDuration);
                 $note->type = new Type(MusicXMLUtil::getNoteType($xmlDuration, $divisions));
                 $dotsCount = MusicXMLUtil::getNoteDots($xmlDuration, $divisions);
+                
                 if ($dotsCount > 0) {
                     $note->dot = array_fill(0, $dotsCount, new Dot());
                 }
@@ -1551,6 +1550,7 @@ class MusicXMLFromMidi extends MusicXMLBase
                     $note->defaultX = $this->measureOnsets[$measureIndex][$absTime];
                 }
 
+                $note->notations[0]->tied = array(new Tied(array('type'=>'stop')));
                 $measure->elements[] = $note;
                 if ($firstTie) $xmlCursor += $xmlDuration;
                 $prevAbstime = $measureIndex * $measureLengthTicks;
@@ -1578,12 +1578,14 @@ class MusicXMLFromMidi extends MusicXMLBase
         foreach ($noteMessages as $idx => $message) {
             $duration = isset($message['duration']) ? $message['duration'] : 0;
             $duration = $this->quantize($duration, $timebase); // Quantize duration
-            
+
             if ($this->isAudible($message, $duration)) {
                 
                 $offsetTicks = $message['abstime'] % $measureLengthTicks;
                 $xmlStart = (int) round($offsetTicks * $divisions / $timebase);
-                $isChord = ($idx > 0 && $message['abstime'] == $prevAbstime); // A chord is notes starting at the exact same time.
+                // A chord is notes starting at almost the same time.
+                // Allow a small tolerance (e.g., 4 ticks) to account for quantization artifacts.
+                $isChord = ($prevAbstime != -1 && abs($message['abstime'] - $prevAbstime) < 4);
 
                 if (!$isChord && $xmlStart > $xmlCursor) {
                     // Isi celah dengan tanda istirahat, pecah jika ada lirik di antaranya
@@ -1772,7 +1774,6 @@ class MusicXMLFromMidi extends MusicXMLBase
         if ($xmlEnd <= $xmlStart) return; // No gap to fill
         $measureLength = $timebase * $this->timeSignature->getBeats();
         $absMeasureStart = $measureIndex * $measureLength;
-        
         // Identifikasi batas-batas di dalam celah ini berdasarkan posisi lirik
         $boundaries = array($xmlEnd); 
         $lyricsAt = array();
@@ -2058,6 +2059,7 @@ class MusicXMLFromMidi extends MusicXMLBase
             
             $note->instrument = new Instrument(array('id' => $partId . '-I' . ($noteCode + 1)));
         } else {
+
             $pitch = $this->getPitch($noteCode);
             $note->pitch = $pitch; // Pitched notes for non-percussion channels
             if(isset($pitch->alter))
@@ -2105,13 +2107,14 @@ class MusicXMLFromMidi extends MusicXMLBase
      */
     public function quantize($duration, $timebase)
     {
-        // More aggressive quantization: snap to the nearest 32nd note.
-        // This is crucial for cleaning up human-played MIDI.
-        $quantizeUnit = $timebase / 8; // 8th of a quarter note = 32nd note
-        if ($quantizeUnit > 0) {
-            return (int) (round($duration / $quantizeUnit) * $quantizeUnit);
-        }
-        return $duration;
+        // Less aggressive quantization to prevent rounding short notes to zero.
+        // Snap to the nearest 64th note.
+        $quantizeUnit = $timebase / 16; // 16th of a quarter note = 64th note
+        if ($quantizeUnit <= 0) return $duration;
+
+        $quantized = (int) (round($duration / $quantizeUnit) * $quantizeUnit);
+        // If quantization results in zero but original duration was positive, return the smallest unit.
+        return ($quantized == 0 && $duration > 0) ? (int)$quantizeUnit : $quantized;
     }
     /**
      * Get CC Volume value for a given channel and tick
