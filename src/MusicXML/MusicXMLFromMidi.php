@@ -525,13 +525,16 @@ class MusicXMLFromMidi extends MusicXMLBase
         else if($eventName == 'Meta' && isset($message[2]) && ($message[2] == 'Lyric' || $message[2] == 'Text'))
         {
             $line = implode(' ', $message);
+            // The channel for meta events like lyrics is often 0 or associated with a specific track index.
+            // We'll store lyrics globally under a special key (e.g., -1) or associate with the lyric channel if known.
+            $lyricStorageChannel = 0; // Store all lyrics from meta tracks in a common pool (channel 0)
             if (preg_match('/"(.*)"/', $line, $matches)) {
                 $lyricText = $matches[1];
-                if (!isset($this->lyrics[$ch])) $this->lyrics[$ch] = array();
-                if (isset($this->lyrics[$ch][$abstime])) {
-                    $this->lyrics[$ch][$abstime] .= ' ' . $lyricText; // Gabungkan lirik jika ada di timestamp yang sama
+                if (!isset($this->lyrics[$lyricStorageChannel])) $this->lyrics[$lyricStorageChannel] = array();
+                if (isset($this->lyrics[$lyricStorageChannel][$abstime])) {
+                    $this->lyrics[$lyricStorageChannel][$abstime] .= ' ' . $lyricText; // Gabungkan lirik jika ada di timestamp yang sama
                 } else {
-                    $this->lyrics[$ch][$abstime] = $lyricText;
+                    $this->lyrics[$lyricStorageChannel][$abstime] = $lyricText;
                 }
             }
         }
@@ -1404,10 +1407,11 @@ class MusicXMLFromMidi extends MusicXMLBase
             $measureStart = $measureIndex * $measureLength;
             $measureEnd = $measureStart + $measureLength;
             
+            // Check both the designated lyric channel and the global lyric pool (channel 0)
             $sources = array();
             if (isset($this->lyrics[$channelId])) $sources[] = $this->lyrics[$channelId];
-            if (isset($this->lyrics[0])) $sources[] = $this->lyrics[0];
-            
+            if ($channelId != 0 && isset($this->lyrics[0])) $sources[] = $this->lyrics[0];
+
             foreach ($sources as $source) {
                 foreach ($source as $abs => $txt) {
                     if ($abs >= $measureStart && $abs < $measureEnd) {

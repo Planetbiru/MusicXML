@@ -150,7 +150,11 @@ class MusicXMLWriter extends \stdClass // NOSONAR
                     // If a specific property for this element exists (e.g., a 'work' property for a 'work' element)
                     if (property_exists($this, $propName)) {
                         $reflectionProp = new \ReflectionProperty(get_class($this), $propName);
-                        $docComment = $reflectionProp->getDocComment();
+                        try {
+                            $docComment = $reflectionProp->getDocComment();
+                        } catch (\ReflectionException $e) {
+                            $docComment = false; // Property might not have a doc comment
+                        }
                         $isArray = $docComment && strpos($docComment, '[]') !== false;
 
                         if ($isArray) {

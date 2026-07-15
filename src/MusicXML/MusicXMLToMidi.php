@@ -322,6 +322,13 @@ class MusicXMLToMidi
                                     $timeline[] = $noteOffEvent;
                                 }
                             }
+
+                            // Add lyric event if present
+                            if (isset($element->lyric) && isset($element->lyric->text) && isset($element->lyric->text->textContent)) {
+                                $lyricText = $element->lyric->text->textContent;
+                                // Add Lyric meta event at the same time as the Note On event
+                                $timeline[] = array('time' => $noteGroupStartTime, 'type' => 'Lyric', 'text' => $lyricText);
+                            }
                         }
                     }
 
@@ -338,8 +345,9 @@ class MusicXMLToMidi
         usort($timeline, function($a, $b) {
             if ($a['time'] == $b['time']) {
                 if ($a['type'] === $b['type']) return 0;
-                // Note Off events should come before Note On events at the same tick
-                // to correctly handle re-articulation of the same note.
+                // At the same time, process Lyric, then Note Off, then Note On.
+                if ($a['type'] === 'Lyric') return -1;
+                if ($b['type'] === 'Lyric') return 1;
                 return ($a['type'] === 'Off') ? -1 : 1;
             }
             return $a['time'] < $b['time'] ? -1 : 1;
@@ -349,6 +357,10 @@ class MusicXMLToMidi
         foreach ($timeline as $event) {
             if ($event['type'] == 'On') {
                 $this->midi->addNoteOn($track, $event['time'], $channel, $event['note'], $event['velocity']);
+            } else if ($event['type'] == 'Lyric') {
+                // The Midi class's internal parser expects the text part of the message to be enclosed in quotes. We must escape any quotes within the lyric text itself.
+                $escapedLyricText = str_replace('"', '\"', $event['text']);
+                $this->midi->addMsg($track, $event['time'] . ' Meta Lyric "' . $escapedLyricText . '"');
             } else {
                 $this->midi->addNoteOff($track, $event['time'], $channel, $event['note'], $event['velocity']);
             }
