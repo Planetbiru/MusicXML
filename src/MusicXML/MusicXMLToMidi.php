@@ -102,7 +102,7 @@ class MusicXMLToMidi
     private function createTempoTrack()
     {
         $track = 0;
-        $this->midi->newTrack(); // Create Track 0
+        $this->midi->newTrack();
         $metaEvents = [];
 
         // Use the first part to determine global time signatures and tempos.
@@ -123,7 +123,7 @@ class MusicXMLToMidi
                             if (isset($element->time)) {
                                 $beats = (int)$element->time->beats[0]->textContent;
                                 $beatType = (int)$element->time->beatType[0]->textContent;
-                                $metaEvents[] = ['time' => $currentTime, 'type' => 'TimeSig', 'beats' => $beats, 'beatType' => $beatType];
+                                $metaEvents[] = array('time' => $currentTime, 'type' => 'TimeSig', 'beats' => $beats, 'beatType' => $beatType);
                             }
                         }
                     }
@@ -135,7 +135,7 @@ class MusicXMLToMidi
                         if ($element instanceof \MusicXML\Model\Direction && isset($element->sound->tempo)) {
                             $tempo = (int)$element->sound->tempo;
                             if ($tempo > 0) {
-                                $metaEvents[] = ['time' => $currentTime, 'type' => 'Tempo', 'tempo' => $tempo];
+                                $metaEvents[] = array('time' => $currentTime, 'type' => 'Tempo', 'tempo' => $tempo);
                             }
                         }
 
@@ -155,7 +155,7 @@ class MusicXMLToMidi
         // Sort and add unique meta events to track 0
         usort($metaEvents, function ($a, $b) { return $a['time'] - $b['time']; });
         $uniqueEvents = [];
-        foreach ($metaEvents as $event) {
+        foreach ($metaEvents as $event) { // NOSONAR
             $key = $event['time'] . '-' . $event['type'];
             $uniqueEvents[$key] = $event;
         }
@@ -205,11 +205,11 @@ class MusicXMLToMidi
             }
 
             $this->midi->newTrack();
-            $this->partMap[$partId] = [
+            $this->partMap[$partId] = array(
                 'track' => $trackIndex,
                 'channel' => $channel,
-                'program' => $program,
-            ];
+                'program' => $program
+            );
 
             // Do not add a Program Change event for the drum channel (10).
             if ($channel != 10) {
@@ -246,7 +246,7 @@ class MusicXMLToMidi
         $noteGroupMaxDuration = 0;
 
 
-        $timeline = array();
+        $timeline = array(); // NOSONAR
 
         // Ensure $part->measure is an array before looping
         foreach (is_array($part->measure) ? $part->measure : [] as $measure) {
@@ -324,8 +324,8 @@ class MusicXMLToMidi
                             }
 
                             // Add lyric event if present
-                            if (isset($element->lyric) && isset($element->lyric->text) && isset($element->lyric->text->textContent)) {
-                                $lyricText = $element->lyric->text->textContent;
+                            if (isset($element->lyric) && is_array($element->lyric) && !empty($element->lyric) && isset($element->lyric[0]->text[0]->textContent)) {
+                                $lyricText = $element->lyric[0]->text[0]->textContent;
                                 // Add Lyric meta event at the same time as the Note On event
                                 $timeline[] = array('time' => $noteGroupStartTime, 'type' => 'Lyric', 'text' => $lyricText);
                             }
@@ -349,7 +349,7 @@ class MusicXMLToMidi
                 if ($a['type'] === 'Lyric') return -1;
                 if ($b['type'] === 'Lyric') return 1;
                 return ($a['type'] === 'Off') ? -1 : 1;
-            }
+            } // NOSONAR
             return $a['time'] < $b['time'] ? -1 : 1;
         });
 

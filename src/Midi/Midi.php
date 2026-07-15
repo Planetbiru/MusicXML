@@ -2,7 +2,7 @@
 
 namespace Midi;
 
-use \XMLParser;
+use XMLParser;
 
 /****************************************************************************
 Software: Midi Class
@@ -24,7 +24,7 @@ class Midi
 	 * array of tracks, where each track is array of message strings
 	 * @var array
 	 */
-	protected $tracks = [];
+	protected $tracks = array();
 
 	/**
 	 * timebase = ticks per frame (quarter note)
@@ -1462,35 +1462,52 @@ class Midi
 
 		switch ($command) {
 			case 'PrCh': // 0x0C
-				sscanf($params, "ch=%d p=%d", $ch, $p);
-				return chr(0xC0 + ($ch ?? 1) - 1) . chr($p ?? 0);
+                sscanf($params, "ch=%d p=%d", $ch, $p);
+                $ch = isset($ch) ? $ch : 1;
+                $p = isset($p) ? $p : 0;
+				return chr(0xC0 + $ch - 1) . chr($p);
 
 			case 'On': // 0x09
-				sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
-				return chr(0x90 + ($ch ?? 1) - 1) . chr($n ?? 0) . chr($v ?? 0);
+                sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
+                $ch = isset($ch) ? $ch : 1;
+                $n = isset($n) ? $n : 0;
+                $v = isset($v) ? $v : 0;
+				return chr(0x90 + $ch - 1) . chr($n) . chr($v);
 
 			case 'Off': // 0x08
-				sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
-				return chr(0x80 + ($ch ?? 1) - 1) . chr($n ?? 0) . chr($v ?? 0);
+                sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
+                $ch = isset($ch) ? $ch : 1;
+                $n = isset($n) ? $n : 0;
+                $v = isset($v) ? $v : 0;
+				return chr(0x80 + $ch - 1) . chr($n) . chr($v);
 
 			case 'PoPr': // 0x0A = PolyPressure
-				sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
-				return chr(0xA0 + ($ch ?? 1) - 1) . chr($n ?? 0) . chr($v ?? 0);
+                sscanf($params, "ch=%d n=%d v=%d", $ch, $n, $v);
+                $ch = isset($ch) ? $ch : 1;
+                $n = isset($n) ? $n : 0;
+                $v = isset($v) ? $v : 0;
+				return chr(0xA0 + $ch - 1) . chr($n) . chr($v);
 
 			case 'Par': // 0x0B = ControllerChange
-				sscanf($params, "ch=%d c=%d v=%d", $ch, $c, $v);
-				return chr(0xB0 + ($ch ?? 1) - 1) . chr($c ?? 0) . chr($v ?? 0);
+                sscanf($params, "ch=%d c=%d v=%d", $ch, $c, $v);
+                $ch = isset($ch) ? $ch : 1;
+                $c = isset($c) ? $c : 0;
+                $v = isset($v) ? $v : 0;
+				return chr(0xB0 + $ch - 1) . chr($c) . chr($v);
 
 			case 'ChPr': // 0x0D = ChannelPressure
-				sscanf($params, "ch=%d v=%d", $ch, $v);
-				return chr(0xD0 + ($ch ?? 1) - 1) . chr($v ?? 0);
+                sscanf($params, "ch=%d v=%d", $ch, $v);
+                $ch = isset($ch) ? $ch : 1;
+                $v = isset($v) ? $v : 0;
+				return chr(0xD0 + $ch - 1) . chr($v);
 
 			case 'Pb': // 0x0E = PitchBend
-				sscanf($params, "ch=%d v=%d", $ch, $v);
-				$v = $v ?? 0;
+                sscanf($params, "ch=%d v=%d", $ch, $v);
+                $ch = isset($ch) ? $ch : 1;
+                $v = isset($v) ? $v : 0;
 				$a = $v & 0x7f; // Bits 0..6
 				$b = ($v >> 7) & 0x7f; // Bits 7..13
-				return chr(0xE0 + ($ch ?? 1) - 1) . chr($a) . chr($b);
+				return chr(0xE0 + $ch - 1) . chr($a) . chr($b);
 
 				// META EVENTS
 			case 'Seqnr': // 0x00 = sequence_number
@@ -1532,21 +1549,28 @@ class Midi
 				return "\xFF\x51\x03$tempo";
 
 			case 'SMPTE': // 0x54 = SMPTE offset
-				sscanf($params, "%d %d %d %d %d", $h, $m, $s, $f, $fh);
-				return "\xFF\x54\x05" . chr($h ?? 0) . chr($m ?? 0) . chr($s ?? 0) . chr($f ?? 0) . chr($fh ?? 0);
+                sscanf($params, "%d %d %d %d %d", $h, $m, $s, $f, $fh);
+                $h = isset($h) ? $h : 0; $m = isset($m) ? $m : 0; $s = isset($s) ? $s : 0; $f = isset($f) ? $f : 0; $fh = isset($fh) ? $fh : 0;
+				return "\xFF\x54\x05" . chr($h) . chr($m) . chr($s) . chr($f) . chr($fh);
 
 			case 'TimeSig': // 0x58
-				sscanf($params, "%d/%d %d %d", $z_val, $t_val, $mc_val, $c_val);
-				$z = chr($z_val ?? 4);
-				$t = chr(log($t_val ?? 4) / log(2));
-				$mc = chr($mc_val ?? 24);
-				$c = chr($c_val ?? 8);
+                sscanf($params, "%d/%d %d %d", $z_val, $t_val, $mc_val, $c_val);
+                $z_val = isset($z_val) ? $z_val : 4;
+                $t_val = isset($t_val) ? $t_val : 4;
+                $mc_val = isset($mc_val) ? $mc_val : 24;
+                $c_val = isset($c_val) ? $c_val : 8;
+				$z = chr($z_val);
+				$t = chr(log($t_val) / log(2));
+				$mc = chr($mc_val);
+				$c = chr($c_val);
 				return "\xFF\x58\x04$z$t$mc$c";
 
 			case 'KeySig': // 0x59
-				sscanf($params, "%d %s", $vz_val, $g_val);
-				$vz = chr($vz_val ?? 0);
-				$g = chr(($g_val === 'major') ? 0 : 1);
+                sscanf($params, "%d %s", $vz_val, $g_val);
+                $vz_val = isset($vz_val) ? $vz_val : 0;
+                $g_val = isset($g_val) ? $g_val : 'major';
+				$vz = chr($vz_val);
+				$g = chr(($g_val == 'major') ? 0 : 1);
 				return "\xFF\x59\x02$vz$g";
 
 			case 'SeqSpec': // 0x7F = Sequencer specific data (Bs: 0 SeqSpec 00 00 41)

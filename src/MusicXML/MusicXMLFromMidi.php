@@ -628,9 +628,14 @@ class MusicXMLFromMidi extends MusicXMLBase
         $abstime = 0;
         $dt = 0;
         $last = 0;
-        $i = 0;
-        $j = 0;
+        $i  = 0;
+        $j  = 0;
         $ch = 0; // Default value
+        $n  = 0; // Default value
+        $p  = 0; // Default value
+        $v  = 0; // Default value
+        $c  = 0; // Default value
+
         for ($i = 0; $i < $tc; $i++) {
             $xml .= "<Track Number=\"$i\">\n";
             $track = $tracks[$i];
@@ -1003,14 +1008,14 @@ class MusicXMLFromMidi extends MusicXMLBase
             // Clear tie continuation for the specific part before processing
             unset($this->tieContinue[$channelId]);
 
-            $part = new PartPartwise();
-            $part->id = $partId;
-            $part->measure = array();
+            $partObject = new PartPartwise();
+            $partObject->id = $partId;
+            $partObject->measure = array();
             for ($measureIndex = 0; $measureIndex < $totalMeasure; $measureIndex++) {
                 $measure = $this->getMeasure($partId, $channelId, $measureIndex, $timebase, $lyricChannelId);
-                $part->measure[] = $measure;
+                $partObject->measure[] = $measure;
             }
-            $scorePartwise->part[] = $part;
+            $scorePartwise->part[] = $partObject;
         }
         // end part
 
@@ -1321,7 +1326,7 @@ class MusicXMLFromMidi extends MusicXMLBase
         // Selalu proses elemen birama untuk memastikan durasi birama terisi dengan nada atau tanda istirahat,
         // dan untuk menangani lirik meskipun tidak ada nada yang terdengar di birama ini untuk channel tersebut.
         $midiEventMessages = $this->hasMessage($channelId, $measureIndex) ? $this->measures[$channelId][$measureIndex] : array();
-        $noteMessages = MusicXMLUtil::getNotes($midiEventMessages);
+        $noteMessages = MusicXMLUtil::getNotes($midiEventMessages); // This should be a copy, not a reference
         
         // Urutkan pesan nada berdasarkan waktu absolut untuk deteksi chord dan pemrosesan sekuensial
         usort($noteMessages, function($a, $b) {
@@ -1411,7 +1416,6 @@ class MusicXMLFromMidi extends MusicXMLBase
             $sources = array();
             if (isset($this->lyrics[$channelId])) $sources[] = $this->lyrics[$channelId];
             if ($channelId != 0 && isset($this->lyrics[0])) $sources[] = $this->lyrics[0];
-
             foreach ($sources as $source) {
                 foreach ($source as $abs => $txt) {
                     if ($abs >= $measureStart && $abs < $measureEnd) {
@@ -1459,7 +1463,6 @@ class MusicXMLFromMidi extends MusicXMLBase
         $absMeasureStart = $measureIndex * $measureLengthTicks;
         // Identifikasi lirik yang akan diproses untuk channel dan birama ini
         $lyricCarrier = $this->getLyricsForMeasure($measureIndex, $measureLengthTicks, $channelId, $lyricChannelId);
-
         $lyricDivisions = array();
         foreach ($lyricCarrier as $abs => $txt) {
             $xmlPos = (int) round(($abs - $absMeasureStart) * $divisions / $timebase);
@@ -1771,7 +1774,6 @@ class MusicXMLFromMidi extends MusicXMLBase
         if ($xmlEnd <= $xmlStart) return; // No gap to fill
         $measureLength = $timebase * $this->timeSignature->getBeats();
         $absMeasureStart = $measureIndex * $measureLength;
-        
         // Identifikasi batas-batas di dalam celah ini berdasarkan posisi lirik
         $boundaries = array($xmlEnd); 
         $lyricsAt = array();
