@@ -2,7 +2,7 @@
 
 namespace Midi;
 
-use XMLParser;
+use \XMLParser;
 
 /****************************************************************************
 Software: Midi Class
