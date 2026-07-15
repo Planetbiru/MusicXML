@@ -6,6 +6,7 @@ require __DIR__ . '/../vendor/autoload.php';
 // Gunakan kelas-kelas yang diperlukan
 use MusicXML\MusicXMLFromMidi;
 use MusicXML\MusicXMLToMidi;
+use MusicXML\Util\MXL;
 
 // Definisikan path file dan direktori
 $midiInputFile = __DIR__ . '/example.mid';
@@ -26,20 +27,22 @@ echo "Memulai proses konversi bolak-balik (MIDI -> MusicXML -> MIDI)...\n\n";
 
 try {
     // ========================================================================
-    // Langkah 1: Konversi MIDI ke Objek MusicXML (ScorePartwise)
+    // Langkah 1: Konversi MIDI ke string MusicXML
+    // Ini mensimulasikan sumber data MusicXML Anda yang bisa berasal dari mana saja.
     // ========================================================================
-    echo "1. Mengonversi MIDI ke objek MusicXML...\n";
-    $fromMidiConverter = new MusicXMLFromMidi();
-    $midi = $fromMidiConverter->loadMidiString($midiData);
-    $scorePartwiseObject = $fromMidiConverter->midiToScorePartwiseObject($midi, "Roundtrip Example");
+    echo "1. Mengonversi MIDI ke string MusicXML...\n";
+    $converter = new MusicXMLFromMidi();
+    $midi = $converter->loadMidiString($midiData);
+    
+    $musicXmlContent = $converter->midiToMusicXml($midi, "Example Song (All Tracks)", "4.0", MXL::FORMAT_XML);
     echo "   -> Berhasil!\n\n";
 
     // ========================================================================
-    // Langkah 2: Konversi Objek MusicXML kembali ke MIDI
+    // Langkah 2: Konversi string MusicXML kembali ke data MIDI
     // ========================================================================
-    echo "2. Mengonversi objek MusicXML kembali ke data MIDI...\n";
+    echo "2. Mengonversi string MusicXML kembali ke data MIDI...\n";
     $toMidiConverter = new MusicXMLToMidi();
-    $newMidiData = $toMidiConverter->toMidi($scorePartwiseObject);
+    $newMidiData = $toMidiConverter->fromXmlString($musicXmlContent);
     echo "   -> Berhasil!\n\n";
 
     // Simpan file MIDI hasil konversi

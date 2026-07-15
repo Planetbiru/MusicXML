@@ -4,8 +4,8 @@ namespace MusicXML;
 
 use DateTime;
 use DOMNode;
+use MusicXML\Map\ModelMap;
 use MusicXML\Map\ModelParser;
-use MusicXML\Map\NodeType;
 use MusicXML\Util\PicoAnnotationParser;
 use ReflectionClass;
 
@@ -71,7 +71,7 @@ class MusicXMLWriter extends \stdClass // NOSONAR
      * @param self|array|object|mixed|null $data   Optional initial data. Can be a DOMNode for XML parsing, an array/object for property loading, or a scalar for textContent.
      * @param mixed|null                   $option Optional parameter, currently not used.
      */
-    public function __construct($data = null, $option = null)
+    public function __construct($data = null, $option = null, $level = 0)
     {
         $this->_className = get_class($this);
         $jsonAnnot = new PicoAnnotationParser($this->_className);
@@ -89,7 +89,7 @@ class MusicXMLWriter extends \stdClass // NOSONAR
         {
             if($data instanceof DOMNode)
             {
-                $this->loadXml($data);
+                $this->loadXml($data, $level);
             }
             else if(($data instanceof DateTime || is_string($data) || is_numeric($data) || is_float($data) || is_integer($data)) 
             && property_exists($this->_className, 'textContent'))
@@ -118,22 +118,54 @@ class MusicXMLWriter extends \stdClass // NOSONAR
      *
      * @param \DOMNode $data The DOM node containing attributes and children
      */
-    private function loadXml($data)
+    private function loadXml($data, $level = 0)
     {
-        $maps = $this->mapAttribute();
-        foreach($data->attributes as $attributes )
-        {
-            echo "".$attributes ->nodeName." = ".$attributes ->nodeValue."\r\n";
-        }
-        foreach($data->childNodes as $child)
-        {
-            if($child->nodeType == NodeType::ELEMENT)
-            {
-                // process element
+        // 1. Load attributes from the XML node to the object properties
+        if ($data->hasAttributes()) {
+            foreach ($data->attributes as $attribute) {
+                $attrName = $attribute->nodeName;
+                $propName = $this->camelize($attrName, '-');
+                if (property_exists($this, $propName) && !is_object($this->{$propName})) {
+                    $this->{$propName} = $attribute->nodeValue;
+                }
             }
-            else if($child->nodeType == NodeType::ATTRIBUTE)
-            {
-                // process element
+        }
+
+        // 2. Load child elements (as objects) and text content
+        foreach ($data->childNodes as $child) {
+            if ($child->nodeType === XML_TEXT_NODE) {
+                $trimmedValue = trim($child->nodeValue);
+                if ($trimmedValue !== '' && property_exists($this, 'textContent')) {
+                    $this->textContent = $trimmedValue;
+                }
+            } elseif ($child->nodeType === XML_ELEMENT_NODE) {
+                $childName = $child->nodeName;
+                $propName = $this->camelize($childName, '-');
+
+                // Use ModelMap to find the corresponding class
+                if (isset(ModelMap::CLASS_MAP[$childName])) {
+                    $className = ModelMap::CLASS_MAP[$childName];
+                    $childObject = new $className($child, null, $level + 1); // RECURSIVE CALL
+                    
+                    // If a specific property for this element exists (e.g., a 'work' property for a 'work' element)
+                    if (property_exists($this, $propName)) {
+                        $reflectionProp = new \ReflectionProperty(get_class($this), $propName);
+                        $docComment = $reflectionProp->getDocComment();
+                        $isArray = $docComment && strpos($docComment, '[]') !== false;
+
+                        if ($isArray) {
+                            if (!isset($this->{$propName}) || !is_array($this->{$propName})) {
+                                $this->{$propName} = array();
+                            }
+                            $this->{$propName}[] = $childObject;
+                        } else {
+                            $this->{$propName} = $childObject;
+                        }
+                    } else if (property_exists($this, 'elements')) {
+                        // Fallback for measure content: add to a generic 'elements' array
+                        $this->elements[] = $childObject;
+                    }
+                }
             }
         }
     }

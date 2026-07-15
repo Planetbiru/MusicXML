@@ -1203,14 +1203,17 @@ class MusicXMLFromMidi extends MusicXMLBase
      */
     public function fixDuration($rawDuration, $divisions, $timebase)
     {
-        if ($timebase <= 0) {
+        if ($timebase <= 0 || $rawDuration <= 0) {
             return 0;
         }
         // Quantize the raw MIDI ticks first for better rhythmic alignment
         $quantizedTicks = $this->quantize($rawDuration, $timebase);
-        $xmlDuration = (int) round($quantizedTicks * $divisions / $timebase);
-        // Ensure that a note with a very short but non-zero duration gets at least 1 division
-        return ($xmlDuration == 0 && $quantizedTicks > 0) ? 1 : $xmlDuration;
+
+        // Use floating point for precision and avoid rounding to zero for very short notes.
+        // The MusicXML consumer should handle the final interpretation.
+        $xmlDuration = ($quantizedTicks * $divisions) / $timebase;
+
+        return (int) round($xmlDuration);
     }
 
     /**
@@ -1573,7 +1576,9 @@ class MusicXMLFromMidi extends MusicXMLBase
                 
                 $offsetTicks = $message['abstime'] % $measureLengthTicks;
                 $xmlStart = (int) round($offsetTicks * $divisions / $timebase);
-                $isChord = ($idx > 0 && $message['abstime'] == $prevAbstime); // A chord is notes starting at the exact same time.
+                // A chord is notes starting at almost the same time.
+                // Allow a small tolerance (e.g., 4 ticks) to account for quantization artifacts.
+                $isChord = ($prevAbstime != -1 && abs($message['abstime'] - $prevAbstime) < 4);
 
                 if (!$isChord && $xmlStart > $xmlCursor) {
                     // Isi celah dengan tanda istirahat, pecah jika ada lirik di antaranya
@@ -2048,6 +2053,7 @@ class MusicXMLFromMidi extends MusicXMLBase
             
             $note->instrument = new Instrument(array('id' => $partId . '-I' . ($noteCode + 1)));
         } else {
+
             $pitch = $this->getPitch($noteCode);
             $note->pitch = $pitch; // Pitched notes for non-percussion channels
             if(isset($pitch->alter))
@@ -2095,13 +2101,14 @@ class MusicXMLFromMidi extends MusicXMLBase
      */
     public function quantize($duration, $timebase)
     {
-        // More aggressive quantization: snap to the nearest 32nd note.
-        // This is crucial for cleaning up human-played MIDI.
-        $quantizeUnit = $timebase / 8; // 8th of a quarter note = 32nd note
-        if ($quantizeUnit > 0) {
-            return (int) (round($duration / $quantizeUnit) * $quantizeUnit);
-        }
-        return $duration;
+        // Less aggressive quantization to prevent rounding short notes to zero.
+        // Snap to the nearest 64th note.
+        $quantizeUnit = $timebase / 16; // 16th of a quarter note = 64th note
+        if ($quantizeUnit <= 0) return $duration;
+
+        $quantized = (int) (round($duration / $quantizeUnit) * $quantizeUnit);
+        // If quantization results in zero but original duration was positive, return the smallest unit.
+        return ($quantized == 0 && $duration > 0) ? (int)$quantizeUnit : $quantized;
     }
     /**
      * Get CC Volume value for a given channel and tick

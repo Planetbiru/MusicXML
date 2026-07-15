@@ -121,6 +121,17 @@ class Midi
 	}
 
 	//---------------------------------------------------------------
+	// sets SMF type (0 or 1)
+	//---------------------------------------------------------------
+	/**
+	 * @param int $type
+	 */
+	public function setType($type)
+	{
+		$this->type = $type;
+	}
+
+	//---------------------------------------------------------------
 	// sets tempo by replacing set tempo msg in track 0 (or adding new track 0)
 	//---------------------------------------------------------------
 	/**
@@ -269,7 +280,7 @@ class Midi
 	public function addMsg($tn, $msgStr, $ttype = 0)
 	{
 		//0:absolute, 1:delta
-		$track = $this->tracks[$tn];
+		$track = isset($this->tracks[$tn]) ? $this->tracks[$tn] : array();
 
 		if ($ttype == 1) {
 			$last = $this->_getTime($track[count($track) - 1]);
@@ -1096,7 +1107,7 @@ class Midi
 	public function getMid()
 	{
 		$tc = count($this->tracks);
-		$type = ($tc > 1) ? 1 : 0;
+		$type = ($this->type > 0 || $tc > 1) ? 1 : 0;
 		$midStr = "MThd\0\0\0\6\0" . chr($type) . $this->_getBytes($tc, 2) . $this->_getBytes($this->timebase, 2);
 
 		for ($i = 0; $i < $tc; $i++) {
@@ -1104,31 +1115,18 @@ class Midi
 			$mc = count($track);
 			$time = 0;
 			$trackData = '';
-			$lastStatus = null;
 
 			for ($j = 0; $j < $mc; $j++) {
 				$line = $track[$j];
 				$t = $this->_getTime($line);
 				$dt = $t - $time;
-
-				if ($dt < 0) {
-					continue;
-				}
-
 				$time = $t;
+
 				$trackData .= $this->_writeVarLen($dt);
-
-				$eventBinary = $this->_getMsgStr($line);
-				$statusByte = ord($eventBinary[0]);
-
-				// Implement running status correctly
-				if ($statusByte === $lastStatus && $statusByte >= 0x80 && $statusByte <= 0xEF) {
-					$trackData .= substr($eventBinary, 1);
-				} else {
-					$trackData .= $eventBinary;
-				}
-				$lastStatus = ($statusByte >= 0x80 && $statusByte <= 0xEF) ? $statusByte : null;
+				$trackData .= $this->_getMsgStr($line);
 			}
+			// Ensure every track ends with a TrkEnd event.
+			$trackData .= "\x00\xFF\x2F\x00"; // Delta-time 0, TrkEnd event
 			$midStr .= "MTrk" . $this->_getBytes(strlen($trackData), 4) . $trackData;
 		}
 		return $midStr;

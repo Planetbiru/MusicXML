@@ -46,6 +46,26 @@ class MusicXMLToMidi
     private $partMap = array();
 
     /**
+     * Converts a MusicXML string into a binary MIDI string.
+     * This serves as a convenient entry point when the source is a string.
+     *
+     * @param string $xmlString The MusicXML content as a string.
+     * @param int $timebase The desired timebase (ticks per quarter note) for the MIDI file.
+     * @return string The binary MIDI data.
+     */
+    public function fromXmlString($xmlString, $timebase = 480)
+    {
+        $dom = new \DOMDocument();
+        // Suppress warnings for malformed XML and handle them internally if needed.
+        libxml_use_internal_errors(true);
+        $dom->loadXML($xmlString);
+        libxml_clear_errors();
+
+        $score = new ScorePartwise($dom->documentElement);
+        return $this->toMidi($score, $timebase);
+    }
+
+    /**
      * Converts a ScorePartwise object into a binary MIDI string.
      *
      * @param ScorePartwise $score The MusicXML score object.
@@ -61,9 +81,15 @@ class MusicXMLToMidi
         $this->midi->setTimebase($this->timebase);
 
         $this->buildPartMap();
+
+        // Ensure the MIDI format is set to 1 (multitrack) if there are instrument tracks.
+        // The Midi class might default to 0 if only the tempo track exists initially.
+        $this->midi->setType(1);
+
         $this->createTempoTrack();
 
         foreach ($this->score->part as $part) {
+            
             $this->processPart($part);
         }
 
@@ -76,47 +102,51 @@ class MusicXMLToMidi
     private function createTempoTrack()
     {
         $track = 0;
-        $this->midi->addTrack();
+        $this->midi->newTrack(); // Create Track 0
         $metaEvents = [];
 
-        // Collect all global events (Tempo, TimeSig) from all parts
-        foreach ($this->score->part as $part) {
+        // Use the first part to determine global time signatures and tempos.
+        // In a valid multitrack MIDI/MusicXML, these should be consistent across parts.
+        if (isset($this->score->part[0])) {
+            $firstPart = $this->score->part[0];
             $currentTime = 0;
-            $divisions = 1;
-            foreach ($part->measure as $measure) {
-                if (isset($measure->attributes)) {
-                    $attributes = $measure->attributes;
-                    if (isset($attributes->divisions)) {
-                        $divisions = (int)$attributes->divisions;
-                    }
-                    if ($divisions == 0) $divisions = 1;
+            $divisions = $this->getInitialDivisions($firstPart);
 
-                    if (isset($attributes->time)) {
-                        $beats = (int)$attributes->time->beats[0]->textContent;
-                        $beatType = (int)$attributes->time->beatType[0]->textContent;
-                        $metaEvents[] = ['time' => $currentTime, 'type' => 'TimeSig', 'beats' => $beats, 'beatType' => $beatType];
+            foreach ($firstPart->measure as $measure) {
+                // Process attributes first
+                if (isset($measure->elements)) {
+                    foreach ($measure->elements as $element) {
+                        if ($element instanceof \MusicXML\Model\Attributes) {
+                            if (isset($element->divisions) && !empty($element->divisions->textContent)) {
+                                $divisions = (int)$element->divisions->textContent;
+                            }
+                            if (isset($element->time)) {
+                                $beats = (int)$element->time->beats[0]->textContent;
+                                $beatType = (int)$element->time->beatType[0]->textContent;
+                                $metaEvents[] = ['time' => $currentTime, 'type' => 'TimeSig', 'beats' => $beats, 'beatType' => $beatType];
+                            }
+                        }
                     }
                 }
 
-                foreach ($measure->elements as $element) {
-                    $durationTicks = 0;
-                    if (isset($element->duration)) {
-                        $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions);
-                    }
-
-                    if ($element instanceof \MusicXML\Model\Direction && isset($element->sound->tempo)) {
-                        $tempo = (int)$element->sound->tempo;
-                        if ($tempo > 0) {
-                            $metaEvents[] = ['time' => $currentTime, 'type' => 'Tempo', 'tempo' => $tempo];
+                // Process other elements to advance time
+                if (isset($measure->elements)) {
+                    foreach ($measure->elements as $element) {
+                        if ($element instanceof \MusicXML\Model\Direction && isset($element->sound->tempo)) {
+                            $tempo = (int)$element->sound->tempo;
+                            if ($tempo > 0) {
+                                $metaEvents[] = ['time' => $currentTime, 'type' => 'Tempo', 'tempo' => $tempo];
+                            }
                         }
-                    }
 
-                    if ($element instanceof \MusicXML\Model\Note && !isset($element->chord)) {
-                        $currentTime += $durationTicks;
-                    } elseif ($element instanceof \MusicXML\Model\Backup) {
-                        $currentTime -= $durationTicks;
-                    } elseif ($element instanceof \MusicXML\Model\Forward) {
-                        $currentTime += $durationTicks;
+                        // Advance time based on note, backup, or forward durations
+                        if ($element instanceof Note && !isset($element->chord)) {
+                            $currentTime += $this->convertDurationToTicks($element->duration->textContent, $divisions);
+                        } elseif ($element instanceof \MusicXML\Model\Backup) {
+                            $currentTime -= $this->convertDurationToTicks($element->duration->textContent, $divisions);
+                        } elseif ($element instanceof \MusicXML\Model\Forward) {
+                            $currentTime += $this->convertDurationToTicks($element->duration->textContent, $divisions);
+                        }
                     }
                 }
             }
@@ -149,7 +179,7 @@ class MusicXMLToMidi
         $channelCounter = 1; // Fallback channel counter, starts at 1
 
         foreach ($this->score->partList->scorePart as $scorePart) {
-            $partId = (string) $scorePart->id;
+            $partId = (string)$scorePart->id;
             $channel = null;
             $program = 1;
 
@@ -174,7 +204,7 @@ class MusicXMLToMidi
                 $channel = $channelCounter++;
             }
 
-            $this->midi->addTrack();
+            $this->midi->newTrack();
             $this->partMap[$partId] = [
                 'track' => $trackIndex,
                 'channel' => $channel,
@@ -196,6 +226,7 @@ class MusicXMLToMidi
      */
     private function processPart($part)
     {
+        // file_put_contents("log.txt", print_r($part, true), FILE_APPEND);
         $partId = (string) $part->id;
         if (!isset($this->partMap[$partId])) {
             return; // Skip if part is not in the map
@@ -205,62 +236,111 @@ class MusicXMLToMidi
         $track = $trackInfo['track'];
         $channel = $trackInfo['channel'];
         $currentTime = 0;
-        $divisions = 1; // Default, will be updated
+        $divisions = $this->getInitialDivisions($part); // Get divisions from the first measure
+
+        // Tracks notes that are tied across measures. Key is note number, value is the Note Off event.
+        $activeTies = array();
+
+        // Stores the start time and duration of the current note or chord group.
+        $noteGroupStartTime = 0;
+        $noteGroupMaxDuration = 0;
+
 
         $timeline = array();
 
-        foreach ($part->measure as $measure) {
-            // Update divisions if specified in the measure attributes
-            if (isset($measure->attributes->divisions)) {
-                $divisions = (int) $measure->attributes->divisions;
-            }
-            if ($divisions == 0) $divisions = 1;
+        // Ensure $part->measure is an array before looping
+        foreach (is_array($part->measure) ? $part->measure : [] as $measure) {
+            // Get all elements from the measure. They are already in order in the 'elements' array.
+            $elements = (isset($measure->elements) && is_array($measure->elements)) ? $measure->elements : [];
 
-            foreach ($measure->elements as $element) {
-                if ($element instanceof \MusicXML\Model\Backup) {
-                    $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions);
+            foreach ($elements as $element) {
+                if ($element instanceof \MusicXML\Model\Attributes) {
+                    // Handle mid-measure attribute changes, especially divisions.
+                    if (isset($element->divisions) && !empty($element->divisions->textContent)) {
+                        $newDivisions = (int)$element->divisions->textContent;
+                        if ($newDivisions > 0) {
+                            $divisions = $newDivisions;
+                        }
+                    }
+                } else if ($element instanceof \MusicXML\Model\Backup) {
+                    $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions); // Access textContent of the child Duration object
                     $currentTime -= $durationTicks;
                     if ($currentTime < 0) $currentTime = 0;
                 } else if ($element instanceof \MusicXML\Model\Forward) {
-                    $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions);
+                    $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions); // Access textContent of the child Duration object
                     $currentTime += $durationTicks;
                 } else if ($element instanceof Note) {
                     $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions);
-                    $isChord = isset($element->chord);
+                    $isCurrentNoteAChord = isset($element->chord);
 
-                    if (isset($element->rest)) {
-                        if (!$isChord) {
-                            $currentTime += $durationTicks;
-                        }
-                    } else {
+                    // Determine the start time and duration for this note or chord group
+                    // If it's a new note/chord, advance time and reset group properties.
+                    if (!$isCurrentNoteAChord) {
+                        $currentTime += $noteGroupMaxDuration;
+                        $noteGroupStartTime = $currentTime;
+                        $noteGroupMaxDuration = $durationTicks;
+                    }
+
+                    if (!isset($element->rest)) {
                         $noteNumber = -1;
                         if (isset($element->pitch)) {
                             $noteNumber = $this->getMidiNoteNumber($element->pitch);
                         } elseif (isset($element->unpitched) && $channel == 10) {
                             $noteNumber = $this->getMidiDrumNoteNumber($element->instrument->id);
                         }
-
+                        
                         if ($noteNumber >= 0) {
                             $velocity = isset($element->dynamics) ? (int)($element->dynamics * 1.27) : 100;
-                            
-                            // Add Note On to timeline
-                            $timeline[] = array('time' => $currentTime, 'type' => 'On', 'note' => $noteNumber, 'velocity' => $velocity);
-                            // Add Note Off to timeline
-                            $timeline[] = array('time' => $currentTime + $durationTicks, 'type' => 'Off', 'note' => $noteNumber, 'velocity' => 0);
-                        }
 
-                        if (!$isChord) {
-                            $currentTime += $durationTicks;
+                            // Check for both <tie> and <notations><tied>
+                            $isTieStart = (isset($element->tie) && $element->tie->type == 'start') || (isset($element->notations->tied) && $element->notations->tied[0]->type == 'start');
+                            $isTieStop = (isset($element->tie) && $element->tie->type == 'stop') || (isset($element->notations->tied) && $element->notations->tied[0]->type == 'stop');
+                            // A note can be both a stop and a start of a new tie
+                            $isTieContinue = (isset($element->notations->tied) && count($element->notations->tied) > 1 && $element->notations->tied[0]->type == 'stop' && $element->notations->tied[1]->type == 'start');
+
+                            // If this note is the end of a tie, don't create a new Note On event.
+                            // Instead, extend the duration of the existing tied note.
+                            if ($isTieStop && isset($activeTies[$noteNumber])) {
+                                $activeTies[$noteNumber]['time'] += $durationTicks; // Extend duration
+                                // If this is the end of the tie chain, add the final Note Off
+                                if (!$isTieStart) {
+                                    $timeline[] = $activeTies[$noteNumber]; // Add the final extended Note Off
+                                    unset($activeTies[$noteNumber]);
+                                }
+                            } else {
+                                // This is a new note or the start of a tie.
+                                $noteOnEvent = array('time' => $noteGroupStartTime, 'type' => 'On', 'note' => $noteNumber, 'velocity' => $velocity);
+                                $noteOffEvent = array('time' => $noteGroupStartTime + $durationTicks, 'type' => 'Off', 'note' => $noteNumber, 'velocity' => 0);
+
+                                $timeline[] = $noteOnEvent;
+
+                                // If this note starts a tie, store its Note Off event to be potentially extended later.
+                                if ($isTieStart) {
+                                    $activeTies[$noteNumber] = $noteOffEvent;
+                                } else {
+                                    // If it's a normal note, add its Note Off event immediately.
+                                    $timeline[] = $noteOffEvent;
+                                }
+                            }
                         }
                     }
+
+                    // Update the maximum duration seen in the current chord group.
+                    // This ensures the main time cursor will advance correctly after the group.
+                    // For rests, we also update the max duration to correctly advance time.
+                    $noteGroupMaxDuration = max($noteGroupMaxDuration, $durationTicks);
                 }
             }
         }
 
+        // Final sort of all events before adding them to the MIDI track.
         // Sort timeline by time, then by type (Off before On at the same time)
         usort($timeline, function($a, $b) {
             if ($a['time'] == $b['time']) {
-                return ($a['type'] == 'Off') ? -1 : 1;
+                if ($a['type'] === $b['type']) return 0;
+                // Note Off events should come before Note On events at the same tick
+                // to correctly handle re-articulation of the same note.
+                return ($a['type'] === 'Off') ? -1 : 1;
             }
             return $a['time'] < $b['time'] ? -1 : 1;
         });
@@ -276,6 +356,33 @@ class MusicXMLToMidi
     }
 
     /**
+     * Gets the initial <divisions> value from the first measure of a part.
+     *
+     * @param \MusicXML\Model\PartPartwise $part The part to inspect.
+     * @return int The divisions value, or a default of 1 if not found.
+     */
+    private function getInitialDivisions($part)
+    {
+        if (isset($part->measure[0]) && isset($part->measure[0]->elements)) {
+            foreach ($part->measure[0]->elements as $element) {
+                if ($element instanceof \MusicXML\Model\Attributes) {
+                    if (isset($element->divisions) && !empty($element->divisions->textContent)) {
+                        $divisions = (int)$element->divisions->textContent;
+                        if ($divisions > 0) {
+                            return $divisions;
+                        }
+                    }
+                }
+            }
+        }
+        // Fallback if not found in the first measure, check the whole score (less efficient but safer)
+        if (isset($this->score->part[0]->measure[0]->attributes->divisions)) {
+            return (int) $this->score->part[0]->measure[0]->attributes->divisions;
+        }
+        return 1; // Should not happen with valid MusicXML
+    }
+
+    /**
      * Converts a MusicXML duration (in divisions) to MIDI ticks.
      *
      * @param int $duration The duration in MusicXML divisions.
@@ -287,9 +394,10 @@ class MusicXMLToMidi
         if ($divisions <= 0) {
             return 0;
         }
-        // A MusicXML division is a fraction of a quarter note.
-        // MIDI ticks are also based on a quarter note (timebase).
-        return (int) (($duration * $this->timebase) / $divisions);
+        // The formula is: (musicxml_duration / musicxml_divisions_per_quarter) * midi_ticks_per_quarter
+        // Use floating point for precision during calculation to match the generation logic.
+        $preciseTicks = ((float)$duration / (float)$divisions) * $this->timebase;
+        return (int) round($preciseTicks);
     }
 
     /**
@@ -325,9 +433,21 @@ class MusicXMLToMidi
     private function getMidiDrumNoteNumber($instrumentId)
     {
         $parts = explode('-I', $instrumentId);
-        if (count($parts) == 2) {
+        if (count($parts) == 2 && is_numeric($parts[1])) {
             return (int)$parts[1] - 1; // MusicXML unpitched is 1-based, MIDI is 0-based
         }
         return 35; // Default to Acoustic Bass Drum
+    }
+
+    /**
+     * Helper to camelize strings.
+     *
+     * @param string $input
+     * @param string $separator
+     * @return string
+     */
+    private function camelize($input, $separator = '_')
+    {
+        return lcfirst(str_replace($separator, '', ucwords($input, $separator)));
     }
 }
