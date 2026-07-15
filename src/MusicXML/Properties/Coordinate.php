@@ -2,36 +2,45 @@
 
 namespace MusicXML\Properties;
 
+/**
+ * A data transfer object for storing positional coordinates of a musical element.
+ * 
+ * @author Kamshory
+ */
 class Coordinate
 {
     /**
-     * Default X
+     * The absolute X position.
      * 
      * @var float
      */
     public $defaultX;
     
     /**
-     * Default Y
+     * The absolute Y position.
      * 
      * @var float
      */
     public $defaultY;
     
     /**
-     * Relative X
+     * The X position relative to a parent element.
      * 
      * @var string
      */
     public $relativeX;
     
     /**
-     * Relative Y
+     * The Y position relative to a parent element.
      * 
      * @var string
      */
     public $relativeY;
     
+    /**
+     * Returns a string representation of the coordinate object.
+     * @return string
+     */
     public function __toString()
     {
         return json_encode($this);

@@ -2,6 +2,15 @@
 
 namespace MusicXML\Properties;
 
+/**
+ * Calculates the optimal `divisions` value for a measure.
+ *
+ * This class analyzes the durations and start times of all notes within a measure
+ * to find the smallest common divisor, which becomes the ideal `divisions` value
+ * for accurately representing all rhythms without unnecessary complexity.
+ * 
+ * @author Kamshory
+ */
 class MeasureDivision
 {
     private $minimum = 0;
@@ -10,10 +19,10 @@ class MeasureDivision
     private static $divisors = array();
     
     /**
-     * Constructor
+     * MeasureDivision constructor.
      *
-     * @param int $timebase
-     * @param array $notes
+     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
+     * @param array $notes  An array of note messages from the measure.
      */
     public function __construct($timebase, $notes)
     {
@@ -30,6 +39,13 @@ class MeasureDivision
                 $arr[] = $note['duration'];
             }
         }
+        if(empty($arr))
+        {
+            $this->minimum = 0;
+            $this->maximum = 0;
+            $this->division = $timebase; // Default to timebase if no notes to analyze
+            return;
+        }
         sort($arr);
         $this->minimum = $arr[0];
         $this->maximum = $arr[count($arr) -1];
@@ -37,10 +53,10 @@ class MeasureDivision
     }
     
     /**
-     * Get divisor
+     * Finds all divisors of a given integer.
      *
-     * @param int $n
-     * @return integer[]
+     * @param int $n The integer to find divisors for.
+     * @return integer[] An array of divisors.
      */
     private static function getDivisor($n) {
         $arr = array();
@@ -54,6 +70,16 @@ class MeasureDivision
         return $arr;
     }
     
+    /**
+     * Calculates the best divisions value based on note timings.
+     *
+     * It iterates through the divisors of the timebase to find the smallest
+     * one that can accurately represent all note start times and durations.
+     *
+     * @param int   $timebase The MIDI file's timebase.
+     * @param array $array    An array of note start times and durations in MIDI ticks.
+     * @return int The calculated optimal divisions value.
+     */
     private function calculate($timebase, $array)
     {
         if(!isset(self::$divisors[$timebase]))
@@ -100,7 +126,8 @@ class MeasureDivision
     }
 
     /**
-     * Get the value of division
+     * Gets the calculated optimal divisions value for the measure.
+     * @return int
      */ 
     public function getDivision()
     {
@@ -108,7 +135,8 @@ class MeasureDivision
     }
 
     /**
-     * Get the value of minimum
+     * Gets the minimum note start time or duration found in the measure.
+     * @return int
      */ 
     public function getMinimum()
     {
@@ -116,7 +144,8 @@ class MeasureDivision
     }
 
     /**
-     * Get the value of maximum
+     * Gets the maximum note start time or duration found in the measure.
+     * @return int
      */ 
     public function getMaximum()
     {

@@ -4,6 +4,14 @@ namespace MusicXML\Properties;
 
 use MusicXML\Model\Beam;
 
+/**
+ * Represents a note's participation in a beam group.
+ *
+ * This class holds a `Beam` object and the index of the note element it applies to,
+ * facilitating the construction of correct `begin`, `continue`, and `end` beam notations.
+ * 
+ * @author Kamshory
+ */
 class BeamNote
 {
     const TYPE_BACKWARD_HOOK = "backward hook";
@@ -12,20 +20,20 @@ class BeamNote
     const TYPE_END = "end";
     const TYPE_FORWARD_HOOK = "forward hook";
     /**
-     * Index of element
+     * The index of the note element within its measure's element list.
      *
      * @var integer
      */
     public $index;
     /**
-     * Beam
+     * The Beam object containing type and level information.
      *
      * @var Beam
      */
     public $beam;
     
     /**
-     * Constructor
+     * BeamNote constructor.
      *
      * @param int $number
      * @param int $beamIndex
@@ -39,7 +47,7 @@ class BeamNote
     }
     
     /**
-     * Close beams
+     * Finalizes beam types in a set of BeamNote objects, setting the last one of each level to 'end'.
      *
      * @param self[] $beamNotes
      * @return self[]

@@ -3,7 +3,12 @@
 namespace MusicXML\Properties;
 
 /**
- * Represents a time signature event from a MIDI file.
+ * Represents a time signature parsed from a MIDI message.
+ *
+ * This class extracts the time, beats (numerator), and beat-type (denominator)
+ * from a raw MIDI 'TimeSig' event array.
+ * 
+ * @author Kamshory
  */
 class TimeSignature
 {
@@ -37,7 +42,7 @@ class TimeSignature
     }
 
     /**
-     * Get the value of time
+     * Gets the time of the event in MIDI ticks.
      */ 
     public function getTime()
     {
@@ -45,7 +50,7 @@ class TimeSignature
     }
 
     /**
-     * Set the value of time
+     * Sets the time of the event in MIDI ticks.
      *
      * @param int $time The time of the event in ticks.
      * @return  self
@@ -58,7 +63,7 @@ class TimeSignature
     }
 
     /**
-     * Get the value of beats
+     * Gets the number of beats per measure (numerator).
      */ 
     public function getBeats()
     {
@@ -66,7 +71,7 @@ class TimeSignature
     }
 
     /**
-     * Set the value of beats
+     * Sets the number of beats per measure (numerator).
      *
      * @param int $beats The number of beats per measure.
      * @return  self
@@ -79,7 +84,7 @@ class TimeSignature
     }
 
     /**
-     * Get the value of beatType
+     * Gets the note value that represents one beat (denominator).
      */ 
     public function getBeatType()
     {
@@ -87,7 +92,7 @@ class TimeSignature
     }
 
     /**
-     * Set the value of beatType
+     * Sets the note value that represents one beat (denominator).
      *
      * @param int $beatType The note value that represents one beat (e.g., 4 for a quarter note).
      * @return  self

@@ -56,6 +56,8 @@ use MusicXML\Util\MXL;
 /**
  * Convert MIDI to MusicXML
  * @Reference https://www.w3.org/2021/06/musicxml40/tutorial/midi-compatible-part/
+ * 
+ * @author Kamshory
  */
 class MusicXMLFromMidi extends MusicXMLBase
 {

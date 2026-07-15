@@ -21,6 +21,8 @@ use SimpleXMLElement;
  * $pdfContent = $converter->midiToPdf(file_get_contents('song.mid'), 'My Song');
  * file_put_contents('song.pdf', $pdfContent);
  * ```
+ * 
+ * @author Kamshory
  */
 class MusicConverter
 {

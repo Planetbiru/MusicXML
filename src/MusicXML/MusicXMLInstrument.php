@@ -2,6 +2,14 @@
 
 namespace MusicXML;
 
+/**
+ * Provides constants for MIDI and MusicXML instrument mappings.
+ *
+ * This class contains static arrays that map MIDI program numbers, note numbers,
+ * and drum kit sounds to their corresponding names and MusicXML sound IDs.
+ * 
+ * @author Kamshory
+ */
 class MusicXMLInstrument
 {
     const NOTE_LIST = array(

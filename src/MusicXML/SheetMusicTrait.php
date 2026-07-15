@@ -5,6 +5,8 @@ namespace MusicXML;
 /**
  * Trait containing common drawing methods for music notation elements,
  * shared between SheetMusicPDF and SheetMusicSVG renderers.
+ * 
+ * @author Kamshory
  */
 trait SheetMusicTrait
 {

@@ -9,6 +9,15 @@ use DOMText;
 use MusicXML\MusicXMLWriter;
 use MusicXML\Util\PicoAnnotationParser;
 
+/**
+ * Builds a DOMNode structure from a MusicXMLWriter object based on its annotations.
+ *
+ * This class inspects the properties of a MusicXMLWriter object, reads their
+ * annotations (@Element, @Attribute, @TextContent, etc.), and recursively
+ * constructs an XML tree that conforms to the MusicXML specification.
+ *
+ * @author Kamshory
+ */
 class MusicXMLBuilder
 {
     const ANNOTATION_VAR = "var";

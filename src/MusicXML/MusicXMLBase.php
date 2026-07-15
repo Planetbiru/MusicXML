@@ -50,6 +50,8 @@ use MusicXML\Properties\TimeSignature;
  *
  * This class is intended to be extended by concrete converters
  * such as MIDI-to-MusicXML or other formats.
+ * 
+ * @author Kamshory
  */
 abstract class MusicXMLBase
 {

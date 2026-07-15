@@ -1,6 +1,12 @@
 <?php
 namespace MusicXML\Util;
 
+/**
+ * A utility class for string case conversions.
+ *
+ * Provides static methods to convert strings between different casing styles,
+ * such as snake_case, camelCase, and UpperCamelCase (PascalCase).
+ */
 class StringUtil
 {
     /**

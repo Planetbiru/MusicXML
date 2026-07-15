@@ -4,27 +4,35 @@ namespace MusicXML\Properties;
 
 use MusicXML\Model\MeasurePartwise;
 
+/**
+ * A container class to hold a MeasurePartwise object and its associated note messages.
+ *
+ * This is used as a data transfer object to pass both the constructed measure and the
+ * original note data together between processing steps.
+ * 
+ * @author Kamshory
+ */
 class MeasurePartwiseContainer
 {
     /**
-     * MeasurePartwise
+     * The constructed MeasurePartwise object.
      *
      * @var MeasurePartwise
      */
     private $measurePartwise;
 
     /**
-     * Note message
+     * The array of raw note messages for the measure.
      *
      * @var array
      */
     private $noteMessages;
 
     /**
-     * Constructor
+     * MeasurePartwiseContainer constructor.
      *
-     * @param MeasurePartwise $measurePartwise
-     * @param array $noteMessages
+     * @param MeasurePartwise $measurePartwise The measure object.
+     * @param array $noteMessages The associated note messages.
      */
     public function __construct($measurePartwise, $noteMessages)
     {
@@ -33,7 +41,7 @@ class MeasurePartwiseContainer
     }
 
     /**
-     * Get measurePartwise
+     * Gets the MeasurePartwise object.
      *
      * @return  MeasurePartwise
      */ 
@@ -43,7 +51,7 @@ class MeasurePartwiseContainer
     }
 
     /**
-     * Get note message
+     * Gets the array of note messages.
      *
      * @return  array
      */ 

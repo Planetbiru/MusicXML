@@ -10,60 +10,68 @@ use MusicXML\Model\Tied;
 use MusicXML\Model\Type;
 use MusicXML\MusicXMLUtil;
 
+/**
+ * Represents the "stop" portion of a tied note that crosses a measure boundary.
+ *
+ * This class creates a new note object with the appropriate 'stop' tie notation
+ * and calculates the remaining duration for the note in the new measure.
+ * 
+ * @author Kamshory
+ */
 class TieStop
 {
     /**
-     * Target measure index
+     * The index of the measure where the tie stops.
      *
      * @var integer
      */
     private $targetMeasureIndex = 0;
 
     /**
-     * Origin measure index
+     * The index of the measure where the tie started.
      *
      * @var integer
      */
     private $originMeasureIndex = 0;
 
     /**
-     * Note
+     * The generated Note object representing the end of the tie.
      *
      * @var Note
      */
     private $note = null;
 
     /**
-     * Tie range
+     * The number of measures the tie spans.
      *
      * @var integer
      */
     private $tieRange = 0; 
 
     /**
-     * Duration remaining
+     * The remaining duration of the note in the target measure, in MusicXML divisions.
      *
      * @var integer
      */
     private $durationRemaining = 0;
 
     /**
-     * Time remaining
+     * The remaining duration of the note in the target measure, in MIDI ticks.
      *
      * @var integer
      */
     private $timeRemaining = 0;
 
     /**
-     * Constructor
+     * TieStop constructor.
      *
-     * @param int $targetMeasureIndex
-     * @param int $originMeasureIndex
-     * @param Note $note
-     * @param int $tieRange
-     * @param int $durationRemaining
-     * @param int $timeRemaining
-     * @param int $divisions
+     * @param int  $targetMeasureIndex The index of the measure where the tie stops.
+     * @param int  $originMeasureIndex The index of the measure where the tie started.
+     * @param Note $note               The original note object from which to copy pitch information.
+     * @param int  $tieRange           The number of measures the tie spans.
+     * @param int  $durationRemaining  The remaining duration in MusicXML divisions for the new measure.
+     * @param int  $timeRemaining      The remaining duration in MIDI ticks for the new measure.
+     * @param int  $divisions          The divisions per quarter note for the measure.
      */
     public function __construct($targetMeasureIndex, $originMeasureIndex, $note, $tieRange, $durationRemaining, $timeRemaining, $divisions)
     {
@@ -92,7 +100,7 @@ class TieStop
     }
 
     /**
-     * Get target measure index
+     * Gets the index of the measure where the tie stops.
      *
      * @return  integer
      */ 
@@ -102,7 +110,7 @@ class TieStop
     }
 
     /**
-     * Get origin measure index
+     * Gets the index of the measure where the tie started.
      *
      * @return  integer
      */ 
@@ -112,7 +120,7 @@ class TieStop
     }
 
     /**
-     * Get note
+     * Gets the generated Note object representing the end of the tie.
      *
      * @return  Note
      */ 
@@ -122,7 +130,7 @@ class TieStop
     }
 
     /**
-     * Get tie range
+     * Gets the number of measures the tie spans.
      *
      * @return  integer
      */ 
@@ -132,7 +140,7 @@ class TieStop
     }
 
     /**
-     * Get duration remaining
+     * Gets the remaining duration in MusicXML divisions.
      *
      * @return  integer
      */ 
@@ -142,7 +150,7 @@ class TieStop
     }
 
     /**
-     * Get time remaining
+     * Gets the remaining duration in MIDI ticks.
      *
      * @return  integer
      */ 
