@@ -10,6 +10,8 @@ This library is actively used in production and powers the online sheet music ge
 
 The library supports the following conversion workflows:
 
+![Conversion Compatibility](conversion-compatibility.svg)
+
 * **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
 * **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
 * **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
