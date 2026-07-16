@@ -235,6 +235,26 @@ file_put_contents('output/piano-part.pdf', $pdfContent);
 
 The provided `example/run-examples.php` file contains a complete implementation for iterating through all tracks in a MIDI file, converting each one to a separate PDF, and packaging them into a single ZIP archive. This is useful for creating individual instrumental parts from a full arrangement.
 
+### Building a DAWProject Player
+
+You can leverage the library's roundtrip capabilities to build a fully interactive player for `.dawproject` files, complete with synchronized sheet music and audio playback. This is ideal for creating custom DAW environments or analysis tools on the web.
+
+The workflow involves two parallel conversion paths:
+
+1.  **Audio Generation (`.dawproject` → `MIDI`):**
+    *   Use `dawProjectToMIDI()` to convert the `.dawproject` file into binary MIDI data.
+    *   This MIDI data can then be loaded into a web-based player like MIDI.js for audio playback.
+
+2.  **Visual Score Generation (`.dawproject` → `MIDI` → `MusicXML` → `SVG`):**
+    *   First, convert the `.dawproject` file to MIDI using `dawProjectToMIDI()`.
+    *   Next, convert the resulting MIDI data to MusicXML using `midiToMusicXML()`.
+    *   Finally, render the MusicXML into an interactive SVG using `musicXMLToSVG()`.
+
+By running these two processes, you get both the audio and the visual score from a single `.dawproject` source. The generated SVG will contain the necessary `data-tick` attributes to synchronize the note highlighting and playhead with the audio from the MIDI player, just like in the `vocal-training.php` example.
+
+This powerful workflow allows you to create rich, interactive experiences directly from a modern DAW project format.
+
+
 ### Interactive SVG with Player Synchronization
 
 A powerful feature of this library is its ability to generate SVGs ready for synchronization with an audio player (like a MIDI player). Each note, rest, and measure element in the SVG is tagged with `data-start-tick` and `data-end-tick` attributes.
