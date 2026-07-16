@@ -59,7 +59,7 @@ use MusicXML\Util\MXL;
  * 
  * @author Kamshory
  */
-class MusicXMLFromMidi extends MusicXMLBase
+class MusicXMLFromMIDI extends MusicXMLBase
 {
 
     const DEFAULT_DIVISONS = 4;

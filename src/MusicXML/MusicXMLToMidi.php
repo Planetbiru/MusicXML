@@ -15,7 +15,7 @@ use Midi\Midi; // Assuming a MIDI writing class exists in this namespace
  * 
  * @author Kamshory
  */
-class MusicXMLToMidi
+class MusicXMLToMIDI
 {
     /**
      * The MusicXML score object to be converted.
