@@ -22,6 +22,9 @@ The library supports the following conversion workflows:
     *   This roundtrip capability is powerful for building interactive **MusicXML players**. The workflow is as follows:
         1.  The MusicXML is converted to a MIDI file for audio playback.
         2.  The same MusicXML is converted to an SVG for visual rendering, allowing for synchronized highlighting of notes and lyrics as the audio plays.
+*   **MIDI to DAWProject Conversion:** Added functionality to convert standard MIDI files into the `.dawproject` format, compatible with DAWs like Bitwig Studio.
+*   **DAWProject to MIDI Conversion:** Implemented the reverse conversion, allowing `.dawproject` files to be converted back into standard MIDI files.
+*   **Roundtrip Conversion Capability:** The new features enable a full roundtrip conversion (`MIDI` -> `.dawproject` -> `MIDI`), preserving track structure and instrument information.
 *   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music from MusicXML data, perfect for web display.
     *   **Interactive:** The generated SVG includes `data-*` attributes for easy synchronization with an audio player, enabling features like note highlighting and a moving playhead.
     *   **Page-by-Page Preview:** In addition to a single, continuous scrolling view, the SVG can also be rendered in a multi-page layout, similar to a PDF. This is useful for previewing how the score will look when printed. This behavior is controlled by a parameter in the conversion function.

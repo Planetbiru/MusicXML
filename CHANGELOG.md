@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.0 - 2026-07-17
+
+### Added
+- **MIDI to .dawproject Conversion**: Added functionality to convert standard MIDI files into the `.dawproject` format, compatible with DAWs like Bitwig Studio.
+- **.dawproject to MIDI Conversion**: Implemented the reverse conversion, allowing `.dawproject` files to be converted back into standard MIDI files.
+- **Roundtrip Conversion Capability**: The new features enable a full roundtrip conversion (`MIDI` -> `.dawproject` -> `MIDI`), preserving track structure and instrument information.
+
 ## v1.1.1 - 2026-07-16
 
 ### Changed
