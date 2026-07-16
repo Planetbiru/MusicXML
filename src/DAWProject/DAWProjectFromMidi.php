@@ -273,6 +273,15 @@ class DAWProjectFromMidi
         return $zipData;
     }
 
+    /**
+     * Calculates the final note velocity by combining the initial velocity,
+     * channel volume (CC 7), and channel expression (CC 11).
+     *
+     * @param int $velocity The initial note-on velocity (0-127).
+     * @param int $volume The current channel volume (0-127), typically from CC 7.
+     * @param int $expression The current channel expression (0-127), typically from CC 11.
+     * @return float The final, normalized velocity (0.0 to 1.0).
+     */
     public function getVelocity($velocity, $volume = 100, $expression = 127)
     {
         return ($velocity / 127) * ($volume / 127.0) * ($expression / 127.0);
