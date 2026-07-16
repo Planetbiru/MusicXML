@@ -32,8 +32,8 @@ class MusicXMLUtil
     /**
      * Dget note type
      *
-     * @param int $duration
-     * @param int $divisions
+     * @param int $duration The duration of the note in MusicXML divisions.
+     * @param int $divisions The number of divisions per quarter note.
      * @return string
      */
     public static function getNoteType($duration, $divisions)
@@ -52,9 +52,9 @@ class MusicXMLUtil
     /**
      * Get number of dots for a given duration and divisions
      *
-     * @param int $duration
-     * @param int $divisions
-     * @return integer
+     * @param int $duration The duration of the note in MusicXML divisions.
+     * @param int $divisions The number of divisions per quarter note.
+     * @return int The number of augmentation dots.
      */
     public static function getNoteDots($duration, $divisions)
     {
@@ -105,12 +105,12 @@ class MusicXMLUtil
     /**
      * Get note coordinate
      *
-     * @param int $measureIndex
-     * @param array $message
-     * @param int $divisions
-     * @param int $timebase
-     * @param TimeSignature $timeSignature
-     * @param float $width
+     * @param int $measureIndex The index of the measure.
+     * @param array $message The MIDI event message array.
+     * @param int $divisions The number of divisions per quarter note.
+     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
+     * @param TimeSignature $timeSignature The time signature object for the measure.
+     * @param float $width The width of the measure.
      * @return Coordinate
      */
     public static function getNoteCoordinate($measureIndex, $message, $divisions, $timebase, $timeSignature, $width)
@@ -124,11 +124,11 @@ class MusicXMLUtil
     /**
      * Get note coordinate
      *
-     * @param int $measureIndex
-     * @param array $message
-     * @param int $timebase
-     * @param TimeSignature $timeSignature
-     * @param int $duration
+     * @param int $measureIndex The index of the measure.
+     * @param array $message The MIDI event message array.
+     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
+     * @param TimeSignature $timeSignature The time signature object for the measure.
+     * @param int $duration The duration of the note.
      * @return AttackRelease
      */
     public static function getAttackRelease($measureIndex, $message, $timebase, $timeSignature, $duration)
@@ -143,7 +143,7 @@ class MusicXMLUtil
     /**
      * Get work
      *
-     * @param string $title
+     * @param string $title The title of the work.
      * @return Work
      */
     public static function getWork($title)
@@ -156,7 +156,7 @@ class MusicXMLUtil
     /**
      * Find last On
      *
-     * @param array $messages
+     * @param array $messages An array of note event messages.
      * @return integer
      */
     public static function findLastOn($messages)
@@ -173,8 +173,8 @@ class MusicXMLUtil
     /**
      * Fix duration
      *
-     * @param float $duration
-     * @param int $timebase
+     * @param float $duration The duration to fix.
+     * @param int $timebase The MIDI file's timebase.
      * @return float
      */
     public static function fixDuration($duration, $timebase)
@@ -189,8 +189,8 @@ class MusicXMLUtil
     /**
      * Get last time
      *
-     * @param array $lastTime
-     * @param string $index
+     * @param array $lastTime An array holding the last time values.
+     * @param string $index The index to look up in the array.
      * @return float
      */
     public static function getLastTime($lastTime, $index)
@@ -206,7 +206,7 @@ class MusicXMLUtil
     /**
      * Get directions
      * 
-     * @param array $tempoList
+     * @param array $tempoList A list of tempo events.
      */
     public static function getDirections($tempoList)
     {
@@ -245,8 +245,8 @@ class MusicXMLUtil
     /**
      * Get clef from notes
      *
-     * @param int $min
-     * @param int $max
+     * @param int $min The minimum MIDI note number in the part.
+     * @param int $max The maximum MIDI note number in the part.
      * @return Clef[]
      */
     public static function getClef($min, $max)
@@ -276,7 +276,7 @@ class MusicXMLUtil
     /**
      * Get programs
      *
-     * @param array $midiEventMessages
+     * @param array $midiEventMessages An array of MIDI event messages from a measure.
      * @return array
      */
     public static function getControlEvent($midiEventMessages)
@@ -293,8 +293,8 @@ class MusicXMLUtil
     /**
      * Get minimum duration
      *
-     * @param array $midiEventMessages
-     * @param int $timebase
+     * @param array $midiEventMessages An array of MIDI event messages.
+     * @param int $timebase The MIDI file's timebase.
      * @return float
      */
     public static function getMinimumDuration($midiEventMessages, $timebase)
@@ -311,7 +311,7 @@ class MusicXMLUtil
     /**
      * Get notes
      *
-     * @param array $midiEventMessages
+     * @param array $midiEventMessages An array of MIDI event messages from a measure.
      * @return array
      */
     public static function getNotes($midiEventMessages)
@@ -328,10 +328,10 @@ class MusicXMLUtil
     /**
      * Get index of note of channel
      *
-     * @param array $noteMessages
-     * @param int $time
-     * @param int $timebase
-     * @return integer | false
+     * @param array $noteMessages An array of note event messages.
+     * @param int $time The absolute time in ticks to find a note at.
+     * @param int $timebase The MIDI file's timebase.
+     * @return int|false The index of the note in the array, or false if not found.
      */
     public static function getNoteIndex($noteMessages, $time, $timebase)
     {
@@ -352,9 +352,9 @@ class MusicXMLUtil
     /**
      * Get element index from note index or false if not found
      *
-     * @param MeasurePartwise $measure
-     * @param int $idx
-     * @return integer|boolean
+     * @param MeasurePartwise $measure The measure object to search within.
+     * @param int $idx The sequential index of the note within the measure's notes.
+     * @return int|false The index of the element in the measure's `elements` array, or false if not found.
      */
     public static function getElementIndexFromNoteIndexX($measure, $idx)
     {
@@ -376,8 +376,8 @@ class MusicXMLUtil
     /**
      * Get element index
      *
-     * @param array $noteMessages
-     * @return integer|boolean
+     * @param array $noteMessages The note message array which may contain the 'elementIndex'.
+     * @return int|false The element index if it exists, otherwise false.
      */
     public static function getElementIndexFromNoteIndex($noteMessages)
     {
@@ -391,10 +391,10 @@ class MusicXMLUtil
     /**
      * Get beams
      *
-     * @param array $noteMessages
-     * @param int $timebase
-     * @param TimeSignature $timeSignature
-     * @return BeamNote[] | false
+     * @param array $noteMessages An array of note event messages for the measure.
+     * @param int $timebase The MIDI file's timebase.
+     * @param TimeSignature $timeSignature The time signature of the measure.
+     * @return BeamNote[]|false An array of BeamNote objects or false if no beams are applicable.
      */
     public static function getBeams($noteMessages, $timebase, $timeSignature)
     {
@@ -430,8 +430,8 @@ class MusicXMLUtil
     /**
      * Get instrument  name
      *
-     * @param int $instrumentId
-     * @param int $channelId
+     * @param int $instrumentId The MIDI program ID (0-127).
+     * @param int $channelId The MIDI channel number (1-16).
      * @return array
      */
     public static function getInstrumentName($instrumentId, $channelId)
