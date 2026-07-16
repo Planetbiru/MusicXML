@@ -28,7 +28,7 @@ if (!is_dir($outputDir)) {
 }
 
 $inputMidiPath = __DIR__ . '/example.mid';
-$outputDawProjectPath = $outputDir . '/roundtrip.dawproject';
+$outputDawProjectPath = $outputDir . '/roundtrip.zip';
 $outputMidiPath = $outputDir . '/roundtrip-final.mid';
 
 // 1. Load input MIDI file

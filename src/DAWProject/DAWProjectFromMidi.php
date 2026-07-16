@@ -21,6 +21,12 @@ class DAWProjectFromMidi
      */
     private $ccExpressionMap = array();
 
+    /**
+     * Map of CC Pan events per channel
+     * @var array
+     */
+    private $ccPanMap = array();
+
 
     /**
      * Convert MIDI string to DAWProject ZIP content
@@ -34,9 +40,7 @@ class DAWProjectFromMidi
     {
         $this->ccVolumeMap = array();
         $this->ccExpressionMap = array();
-
-        $currentVolume = array();
-        $currentExpression = array();
+        $this->ccPanMap = array();
 
 
         // Parse MIDI data
@@ -49,23 +53,6 @@ class DAWProjectFromMidi
         $xml->addChild('Application')->addAttribute('name', 'PHPMidi');
         $xml->children()->Application->addAttribute('version', '1.0');
 
-        // Find tempo (default to 120 if none)
-        $bpm = 120.0;
-        $tempoEvents = $midi->getTempoEvents();
-        if (!empty($tempoEvents)) {
-            $bpm = $tempoEvents[0]->bpm;
-        }
-        $transport = $xml->addChild('Transport');
-        $tempo = $transport->addChild('Tempo');
-        $tempo->addAttribute('value', $bpm);
-
-        $structure = $xml->addChild('Structure');
-        $arrangement = $xml->addChild('Arrangement');
-        $arrangement->addAttribute('id', 'A1');
-        $lanes = $arrangement->addChild('Lanes');
-
-        // Helper to convert ticks to beats
-        // beats = ticks / timebase
         $ticksToBeats = function($ticks) use ($timebase) {
             return $ticks / $timebase;
         };
@@ -74,8 +61,43 @@ class DAWProjectFromMidi
         $tracks = $midi->getTracks();
         $trackCount = count($tracks);
 
-        $trackIdCounter = 1;
+        // Add Transport with compact Tempo Automation
+        $transport = $xml->addChild('Transport');
+        $tempoPoints = array();
 
+        // Tempo events are usually in the first track
+        if (isset($tracks[0])) {
+            foreach ($tracks[0] as $evtLine) {
+                $parts = explode(' ', trim($evtLine));
+                if (count($parts) >= 3 && $parts[1] === 'Tempo') {
+                    $tick = intval($parts[0]);
+                    $tempoValue = intval($parts[2]); 
+                    $bpm = 60000000 / $tempoValue;
+                    $timeInBeats = $ticksToBeats($tick);
+                    $tempoPoints[] = sprintf('%.4F,%.4F', $timeInBeats, $bpm);
+                }
+            }
+        }
+
+        // If no tempo events found, add a default one.
+        if (empty($tempoPoints)) {
+            $transport->addChild('Tempo')->addAttribute('value', '120.0');
+        } else {
+            // Set the first tempo as the main tempo and the rest as automation
+            list(, $firstBpm) = explode(',', $tempoPoints[0]);
+            $transport->addChild('Tempo')->addAttribute('value', (string)$firstBpm);
+            $automation = $transport->addChild('Automation');
+            $envelope = $automation->addChild('Envelope');
+            $envelope->addAttribute('target', 'Tempo');
+            $envelope->addAttribute('points', implode(';', $tempoPoints));
+        }
+
+        $structure = $xml->addChild('Structure');
+        $arrangement = $xml->addChild('Arrangement');
+        $arrangement->addAttribute('id', 'A1');
+        $lanes = $arrangement->addChild('Lanes');
+
+        $trackIdCounter = 1;
         for ($i = 0; $i < $trackCount; $i++) {
             $rawTrack = $tracks[$i];
             
@@ -85,9 +107,7 @@ class DAWProjectFromMidi
             $programNumber = 0; // Default to 0 (Acoustic Grand Piano)
             $activeNotes = array(); // Reset active notes for each new track
 
-            // Reset controller states for each track to prevent leakage
-            $currentVolume = array();
-            $currentExpression = array();
+
             
             // Guess track channel
             $trackChannel = 0;
@@ -121,6 +141,10 @@ class DAWProjectFromMidi
                         if (!isset($this->ccExpressionMap[$ch])) $this->ccExpressionMap[$ch] = array();
                         $this->ccExpressionMap[$ch][$tick] = $v;
                     }
+                    if ($c == 10) { // Pan
+                        if (!isset($this->ccPanMap[$ch])) $this->ccPanMap[$ch] = array();
+                        $this->ccPanMap[$ch][$tick] = $v;
+                    }
                 }
 
                 // Find the Program Change event to determine the instrument
@@ -153,15 +177,11 @@ class DAWProjectFromMidi
 
                     $trackChannel = $ch;
 
-                    $currentVolume[$ch] = $this->getVolume($ch, $tick);
-                    $currentExpression[$ch] = $this->getExpression($ch, $tick);
-
 
                     if ($type === 'On') {
-                        $vol2 = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);
                         $activeNotes[$key] = array(
                             'tick' => $tick,
-                            'velocity' => $vol2
+                            'velocity' => $vol
                         );
                     } else {
                         if (isset($activeNotes[$key])) {
@@ -211,6 +231,55 @@ class DAWProjectFromMidi
             $instrumentName = (null != Midi::INSTRUMENT_LIST[$programNumber]) ? Midi::INSTRUMENT_LIST[$programNumber][0] : 'General MIDI';
             $instrumentEl->addAttribute('plugin', $instrumentName);
             $instrumentEl->addAttribute('program', $programNumber);
+
+            // Add Automation for Pan, Volume, Expression
+            $automationEl = $trackEl->addChild('Automation');
+            $automationPoints = array(
+                'Volume' => array(),
+                'Pan' => array(),
+                'Expression' => array()
+            );
+
+            // Collect Volume points
+            if (isset($this->ccVolumeMap[$trackChannel])) {
+                foreach ($this->ccVolumeMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $ticksToBeats($tick);
+                    $normalizedValue = $value / 127.0;
+                    $automationPoints['Volume'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Pan points
+            if (isset($this->ccPanMap[$trackChannel])) {
+                foreach ($this->ccPanMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $ticksToBeats($tick);
+                    $normalizedValue = ($value - 64) / 63.0; // 0-127 -> -1.0 to 1.0 (approx)
+                    $automationPoints['Pan'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Expression points
+            if (isset($this->ccExpressionMap[$trackChannel])) {
+                foreach ($this->ccExpressionMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $ticksToBeats($tick);
+                    $normalizedValue = $value / 127.0;
+                    $automationPoints['Expression'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+
+            if (!empty($automationPoints['Volume'])) {
+                $envelope = $automationEl->addChild('Envelope');
+                $envelope->addAttribute('target', 'Volume');
+                $envelope->addAttribute('points', implode(';', $automationPoints['Volume']));
+            }
+            if (!empty($automationPoints['Pan'])) {
+                $envelope = $automationEl->addChild('Envelope');
+                $envelope->addAttribute('target', 'Pan');
+                $envelope->addAttribute('points', implode(';', $automationPoints['Pan']));
+            }
+            if (!empty($automationPoints['Expression'])) {
+                $envelope = $automationEl->addChild('Envelope');
+                $envelope->addAttribute('target', 'Expression');
+                $envelope->addAttribute('points', implode(';', $automationPoints['Expression']));
+            }
 
             // Add Clips lane to Arrangement Lanes
             $clipsEl = $lanes->addChild('Clips');
