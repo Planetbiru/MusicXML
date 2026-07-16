@@ -5,6 +5,12 @@ namespace MusicXML;
 use MusicXML\Model\ScorePartwise;
 use MusicXML\Model\Note;
 use Midi\Midi; // Assuming a MIDI writing class exists in this namespace
+use MusicXML\Model\Attributes;
+use MusicXML\Model\Backup;
+use MusicXML\Model\Direction;
+use MusicXML\Model\Forward;
+use MusicXML\Model\PartPartwise;
+use MusicXML\Model\Pitch;
 
 /**
  * Converts a MusicXML object model into a MIDI file.
@@ -116,7 +122,7 @@ class MusicXMLToMidi
                 // Process attributes first
                 if (isset($measure->elements)) {
                     foreach ($measure->elements as $element) {
-                        if ($element instanceof \MusicXML\Model\Attributes) {
+                        if ($element instanceof Attributes) {
                             if (isset($element->divisions) && !empty($element->divisions->textContent)) {
                                 $divisions = (int)$element->divisions->textContent;
                             }
@@ -132,7 +138,7 @@ class MusicXMLToMidi
                 // Process other elements to advance time
                 if (isset($measure->elements)) {
                     foreach ($measure->elements as $element) {
-                        if ($element instanceof \MusicXML\Model\Direction && isset($element->sound->tempo)) {
+                        if ($element instanceof Direction && isset($element->sound->tempo)) {
                             $tempo = (int)$element->sound->tempo;
                             if ($tempo > 0) {
                                 $metaEvents[] = array('time' => $currentTime, 'type' => 'Tempo', 'tempo' => $tempo);
@@ -142,9 +148,9 @@ class MusicXMLToMidi
                         // Advance time based on note, backup, or forward durations
                         if ($element instanceof Note && !isset($element->chord)) {
                             $currentTime += $this->convertDurationToTicks($element->duration->textContent, $divisions);
-                        } elseif ($element instanceof \MusicXML\Model\Backup) {
+                        } elseif ($element instanceof Backup) {
                             $currentTime -= $this->convertDurationToTicks($element->duration->textContent, $divisions);
-                        } elseif ($element instanceof \MusicXML\Model\Forward) {
+                        } elseif ($element instanceof Forward) {
                             $currentTime += $this->convertDurationToTicks($element->duration->textContent, $divisions);
                         }
                     }
@@ -222,7 +228,7 @@ class MusicXMLToMidi
     /**
      * Processes a single MusicXML <part> and converts it to a MIDI track.
      *
-     * @param \MusicXML\Model\PartPartwise $part The part to process.
+     * @param PartPartwise $part The part to process.
      */
     private function processPart($part)
     {
@@ -254,7 +260,7 @@ class MusicXMLToMidi
             $elements = (isset($measure->elements) && is_array($measure->elements)) ? $measure->elements : [];
 
             foreach ($elements as $element) {
-                if ($element instanceof \MusicXML\Model\Attributes) {
+                if ($element instanceof Attributes) {
                     // Handle mid-measure attribute changes, especially divisions.
                     if (isset($element->divisions) && !empty($element->divisions->textContent)) {
                         $newDivisions = (int)$element->divisions->textContent;
@@ -262,11 +268,11 @@ class MusicXMLToMidi
                             $divisions = $newDivisions;
                         }
                     }
-                } else if ($element instanceof \MusicXML\Model\Backup) {
+                } else if ($element instanceof Backup) {
                     $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions); // Access textContent of the child Duration object
                     $currentTime -= $durationTicks;
                     if ($currentTime < 0) $currentTime = 0;
-                } else if ($element instanceof \MusicXML\Model\Forward) {
+                } else if ($element instanceof Forward) {
                     $durationTicks = $this->convertDurationToTicks($element->duration->textContent, $divisions); // Access textContent of the child Duration object
                     $currentTime += $durationTicks;
                 } else if ($element instanceof Note) {
@@ -293,10 +299,8 @@ class MusicXMLToMidi
                             $velocity = isset($element->dynamics) ? (int)($element->dynamics * 1.27) : 100;
 
                             // Check for both <tie> and <notations><tied>
-                            $isTieStart = (isset($element->tie) && $element->tie->type == 'start') || (isset($element->notations->tied) && $element->notations->tied[0]->type == 'start');
-                            $isTieStop = (isset($element->tie) && $element->tie->type == 'stop') || (isset($element->notations->tied) && $element->notations->tied[0]->type == 'stop');
-                            // A note can be both a stop and a start of a new tie
-                            $isTieContinue = (isset($element->notations->tied) && count($element->notations->tied) > 1 && $element->notations->tied[0]->type == 'stop' && $element->notations->tied[1]->type == 'start');
+                            $isTieStart = (isset($element->tie) && $element->tie->type == 'start') || is_array(isset($element->notations->tied) && $element->notations->tied[0]->type == 'start');
+                            $isTieStop = (isset($element->tie) && $element->tie->type == 'stop') || is_array(isset($element->notations->tied) && $element->notations->tied[0]->type == 'stop');
 
                             // If this note is the end of a tie, don't create a new Note On event.
                             // Instead, extend the duration of the existing tied note.
@@ -382,14 +386,14 @@ class MusicXMLToMidi
     /**
      * Gets the initial <divisions> value from the first measure of a part.
      *
-     * @param \MusicXML\Model\PartPartwise $part The part to inspect.
+     * @param PartPartwise $part The part to inspect.
      * @return int The divisions value, or a default of 1 if not found.
      */
     private function getInitialDivisions($part)
     {
         if (isset($part->measure[0]) && isset($part->measure[0]->elements)) {
             foreach ($part->measure[0]->elements as $element) {
-                if ($element instanceof \MusicXML\Model\Attributes) {
+                if ($element instanceof Attributes) {
                     if (isset($element->divisions) && !empty($element->divisions->textContent)) {
                         $divisions = (int)$element->divisions->textContent;
                         if ($divisions > 0) {
@@ -427,7 +431,7 @@ class MusicXMLToMidi
     /**
      * Converts a MusicXML <pitch> object to a MIDI note number.
      *
-     * @param \MusicXML\Model\Pitch $pitch The pitch object.
+     * @param Pitch $pitch The pitch object.
      * @return int The MIDI note number (0-127).
      */
     private function getMidiNoteNumber($pitch)
@@ -463,15 +467,5 @@ class MusicXMLToMidi
         return 35; // Default to Acoustic Bass Drum
     }
 
-    /**
-     * Helper to camelize strings.
-     *
-     * @param string $input
-     * @param string $separator
-     * @return string
-     */
-    private function camelize($input, $separator = '_')
-    {
-        return lcfirst(str_replace($separator, '', ucwords($input, $separator)));
-    }
+
 }

@@ -883,7 +883,7 @@ class MusicXMLFromMidi extends MusicXMLBase
      * @param MidiMeasure $midi The parsed MIDI data object.
      * @param string $title The title of the work.
      * @param string $version The MusicXML version string to set in the score-partwise element.
-     * @return \DOMNode The root DOMNode of the generated score-partwise element.
+     * @return ScorePartwise The ScorePartwise of the generated score-partwise element.
      */
     public function midiToScorePartwiseObject($midi, $title, $version = "4.0")
     {
