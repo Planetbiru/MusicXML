@@ -1665,7 +1665,6 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param int $timebase The MIDI file's timebase.
      * @param int $xmlStart The starting position of the gap in XML divisions.
      * @param int $xmlEnd The ending position of the gap in XML divisions.
-     * @param array &$lyricDivisions A reference to the remaining lyrics map for the measure.
      * @param array &$lyricCarrier A reference to the remaining lyrics map for the measure, keyed by absolute time.
      */
     private function fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricCarrier)
