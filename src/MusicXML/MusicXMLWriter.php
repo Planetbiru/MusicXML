@@ -615,22 +615,6 @@ class MusicXMLWriter extends \stdClass // NOSONAR
      * get &raquo; get property value. This method not require database connection.
      * set &raquo; set property value. This method not require database connection.
      * unset &raquo; unset property value. This method not require database connection.
-     * findOneBy &raquo; search data from database and return one record. This method require database connection.
-     * findFirstBy &raquo; search data from database and return first record. This method require database connection.
-     * findLastBy &raquo; search data from database and return last record. This method require database connection.
-     * findBy &raquo; search data from database. This method require database connection.
-     * findAscBy &raquo; search data from database order by primary keys ascending. This method require database connection.
-     * findDescBy &raquo; search data from database order by primary keys descending. This method require database connection.
-     * findAllAsc &raquo; search data from database without filter order by primary keys ascending. This method require database connection.
-     * findAllDesc &raquo; search data from database without filter order by primary keys descending. This method require database connection.
-     * listBy &raquo; search data from database. Similar to findBy but does not contain a connection to the database so objects cannot be saved directly to the database. This method require database connection.
-     * listAscBy &raquo; search data from database order by primary keys ascending. Similar to findAscBy but does not contain a connection to the database so objects cannot be saved directly to the database. This method require database connection.
-     * listDescBy &raquo; search data from database order by primary keys descending. Similar to findDescBy but does not contain a connection to the database so objects cannot be saved directly to the database. This method require database connection.
-     * listAllAsc &raquo; search data from database without filter order by primary keys ascending. Similar to findAllAsc but does not contain a connection to the database so objects cannot be saved directly to the database. This method require database connection.
-     * listAllDesc &raquo; search data from database without filter order by primary keys descending. Similar to findAllDesc but does not contain a connection to the database so objects cannot be saved directly to the database. This method require database connection.
-     * countBy &raquo; count data from database.
-     * existsBy &raquo; check data from database. This method require database connection.
-     * deleteBy &raquo; delete data from database without read it first. This method require database connection.
      * booleanToTextBy &raquo; convert bool value to yes/no or true/false depend on parameters given. Example: $result = booleanToTextByActive("Yes", "No"); If $obj->active is true, $result will be "Yes" otherwise "No". This method not require database connection.
      * booleanToSelectedBy &raquo; Create attribute selected="selected" for form. This method not require database connection.
      * booleanToCheckedBy &raquo; Create attribute checked="checked" for form. This method not require database connection.
