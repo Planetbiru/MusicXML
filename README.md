@@ -254,6 +254,8 @@ By running these two processes, you get both the audio and the visual score from
 
 This powerful workflow allows you to create rich, interactive experiences directly from a modern DAW project format.
 
+> **Note on Lyrics**: The `.dawproject` format does not natively support lyric events. Therefore, any lyrics present in an original MIDI file will be lost during the `MIDI` → `.dawproject` conversion and will not appear in the final generated score.
+
 
 ### Interactive SVG with Player Synchronization
 
