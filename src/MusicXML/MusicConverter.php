@@ -134,7 +134,7 @@ class MusicConverter
         $converter = new MusicXMLFromMidi();
         $converter->setUseRestFilling($this->useRestFilling);
         $midi = $converter->loadMidiString($midiData);
-        $xmlStr = $converter->midiToMusicXml($midi, $songTitle, $version, $format);
+        $xmlStr = $converter->midiToMusicXML($midi, $songTitle, $version, $format);
         return $xmlStr;
     }
 
@@ -164,7 +164,7 @@ class MusicConverter
         $converter = new MusicXMLFromMidi();
         $converter->setUseRestFilling($this->useRestFilling);
         $midi = $converter->loadMidiString($midiData);
-        $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
+        $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
 
         return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
@@ -190,7 +190,7 @@ class MusicConverter
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges);
 
         // 4. Render the part to PDF
-        return $this->renderPartToPdf($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
+        return $this->renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
     }
 
     /**
@@ -220,7 +220,7 @@ class MusicConverter
         $converter = new MusicXMLFromMidi();
         $converter->setUseRestFilling(false); // Enable rest filling for better measure representation
         $midi = $converter->loadMidiString($midiData);
-        $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
+        $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
         
         return $this->musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
@@ -250,7 +250,7 @@ class MusicConverter
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges); //NOSONAR
 
         // 4. Render the part to SVG
-        return $this->renderPartToSvg($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $singlePage);
+        return $this->renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $singlePage);
     }
 
     /**
@@ -521,7 +521,7 @@ class MusicConverter
      * @return string Raw PDF data string
      * @throws Exception
      */
-    private function renderPartToPdf($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
+    private function renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
     {
         $pdf = new SheetMusicPDF('P', 'mm', 'A4');
         $pdf->composer = $composer;
@@ -547,7 +547,7 @@ class MusicConverter
      * @param bool             $singlePage If true, generates a single continuous SVG.
      * @return string Raw SVG data string.
      */
-    private function renderPartToSvg($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
+    private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
     {
         $pdf = new SheetMusicSVG('P', 'mm', 'A4', $singlePage);
         $pdf->composer = $composer;

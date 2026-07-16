@@ -594,7 +594,7 @@ class MusicXMLFromMidi extends MusicXMLBase
      * @param string $format The output format, either 'xml' or 'mxl'.
      * @return string
      */
-    public function midiToMusicXml($midi, $title, $version = "4.0", $format = MXL::FORMAT_XML)
+    public function midiToMusicXML($midi, $title, $version = "4.0", $format = MXL::FORMAT_XML)
     {
         $domdoc = $this->getDOMDocument();
         $domdoc->appendChild($this->convertMidiToMusicXML($midi, $title, $domdoc, $version));
