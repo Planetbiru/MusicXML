@@ -152,10 +152,18 @@ class DAWProjectToMIDI
             if ($trackChannel !== -1) {
                 // Default Volume (CC 7) to 100
                 $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 7, 100);
+                // Default Modulation (CC 1) to 0
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 1, 0);
                 // Default Pan (CC 10) to center (64)
                 $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 10, 64);
                 // Default Expression (CC 11) to max (127)
                 $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 11, 127);
+                // Default Sustain (CC 64) to off (0)
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 64, 0);
+                // Default Reverb (CC 91) to 0
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 91, 0);
+                // Default Chorus (CC 93) to 0
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 93, 0);
             }
 
 
@@ -167,11 +175,33 @@ class DAWProjectToMIDI
                 $pointsStr = (string)$envelope['points'];
                 $controllerNumber = -1;
 
-                if ($target === 'Volume') $controllerNumber = 7;
-                else if ($target === 'Pan') $controllerNumber = 10;
-                else if ($target === 'Expression') $controllerNumber = 11;
+                if ($target === 'PitchBend' && $trackChannel !== -1) {
+                    $points = explode(';', $pointsStr);
+                    foreach ($points as $point) {
+                        if (empty($point)) continue;
+                        list($time, $value) = explode(',', $point);
+                        $tick = $beatsToTicks((float)$time);
+                        // Convert from -1.0..1.0 to 0..16383
+                        $midiValue = (int)round(((float)$value + 1.0) / 2.0 * 16383);
+                        $midiValue = max(0, min(16383, $midiValue));
+                        $lsb = $midiValue & 0x7F;
+                        $msb = ($midiValue >> 7) & 0x7F;
+                        // Pitch Bend event: 0xE0 | channel, LSB, MSB
+                        $trackEvents[$tick][] = pack('C3', 0xE0 | ($trackChannel - 1), $lsb, $msb);
+                    }
+                } else {
+                    if ($target === 'Volume') $controllerNumber = 7;
+                    else if ($target === 'Pan') $controllerNumber = 10;
+                    else if ($target === 'CC11') $controllerNumber = 11; // Expression
+                    else if ($target === 'CC1') $controllerNumber = 1;   // Modulation
+                    else if ($target === 'CC64') $controllerNumber = 64;  // Sustain
+                    else if ($target === 'CC91') $controllerNumber = 91;  // Reverb
+                    else if ($target === 'CC93') $controllerNumber = 93;  // Chorus
 
-                if ($controllerNumber !== -1 && $trackChannel !== -1) {
+                    if ($controllerNumber === -1 || $trackChannel === -1) {
+                        continue;
+                    }
+
                     $points = explode(';', $pointsStr);
                     foreach ($points as $point) {
                         if (empty($point)) continue;
@@ -182,6 +212,9 @@ class DAWProjectToMIDI
                         if ($target === 'Pan') {
                             // Convert from -1.0..1.0 to 0..127
                             $midiValue = (int)round(((float)$value + 1.0) / 2.0 * 127);
+                        } else if ($target === 'CC64') {
+                            // Convert from 0.0/1.0 to 0/127
+                            $midiValue = ((float)$value >= 0.5) ? 127 : 0;
                         } else {
                             // Convert from 0.0..1.0 to 0..127
                             $midiValue = (int)round((float)$value * 127);

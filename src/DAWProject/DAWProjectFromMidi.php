@@ -27,6 +27,36 @@ class DAWProjectFromMidi
      */
     private $ccPanMap = array();
 
+    /**
+     * Map of Pitch Bend events per channel
+     * @var array
+     */
+    private $pitchBendMap = array();
+
+    /**
+     * Map of CC Modulation (CC1) events per channel
+     * @var array
+     */
+    private $ccModulationMap = array();
+
+    /**
+     * Map of CC Sustain Pedal (CC64) events per channel
+     * @var array
+     */
+    private $ccSustainMap = array();
+
+    /**
+     * Map of CC Reverb (CC91) events per channel
+     * @var array
+     */
+    private $ccReverbMap = array();
+
+    /**
+     * Map of CC Chorus (CC93) events per channel
+     * @var array
+     */
+    private $ccChorusMap = array();
+
     private $timebase = 512;
 
     /**
@@ -53,6 +83,11 @@ class DAWProjectFromMidi
         $this->ccVolumeMap = array();
         $this->ccExpressionMap = array();
         $this->ccPanMap = array();
+        $this->pitchBendMap = array();
+        $this->ccModulationMap = array();
+        $this->ccSustainMap = array();
+        $this->ccReverbMap = array();
+        $this->ccChorusMap = array();
 
 
         // Parse MIDI data
@@ -155,6 +190,22 @@ class DAWProjectFromMidi
                         if (!isset($this->ccPanMap[$ch])) $this->ccPanMap[$ch] = array();
                         $this->ccPanMap[$ch][$tick] = $v;
                     }
+                    if ($c == 1) { // Modulation
+                        if (!isset($this->ccModulationMap[$ch])) $this->ccModulationMap[$ch] = array();
+                        $this->ccModulationMap[$ch][$tick] = $v;
+                    }
+                    if ($c == 64) { // Sustain Pedal
+                        if (!isset($this->ccSustainMap[$ch])) $this->ccSustainMap[$ch] = array();
+                        $this->ccSustainMap[$ch][$tick] = $v;
+                    }
+                    if ($c == 91) { // Reverb
+                        if (!isset($this->ccReverbMap[$ch])) $this->ccReverbMap[$ch] = array();
+                        $this->ccReverbMap[$ch][$tick] = $v;
+                    }
+                    if ($c == 93) { // Chorus
+                        if (!isset($this->ccChorusMap[$ch])) $this->ccChorusMap[$ch] = array();
+                        $this->ccChorusMap[$ch][$tick] = $v;
+                    }
                 }
 
                 // Find the Program Change event to determine the instrument
@@ -165,6 +216,17 @@ class DAWProjectFromMidi
                             break; // Found program number for this track
                         }
                     }
+                }
+
+                if ($type === 'Pb') {
+                    $ch = 0;
+                    $v = 0;
+                    foreach ($parts as $p) {
+                        if (strpos($p, 'ch=') === 0) $ch = intval(substr($p, 3));
+                        if (strpos($p, 'v=') === 0) $v = intval(substr($p, 2));
+                    }
+                    if (!isset($this->pitchBendMap[$ch])) $this->pitchBendMap[$ch] = array();
+                    $this->pitchBendMap[$ch][$tick] = $v;
                 }
 
                 if ($type === 'On' || $type === 'Off') {
@@ -247,7 +309,12 @@ class DAWProjectFromMidi
             $automationPoints = array(
                 'Volume' => array(),
                 'Pan' => array(),
-                'Expression' => array()
+                'CC11' => array(), // Expression
+                'PitchBend' => array(),
+                'CC1' => array(), // Modulation
+                'CC64' => array(), // Sustain
+                'CC91' => array(), // Reverb
+                'CC93' => array()  // Chorus
             );
 
             // Collect Volume points
@@ -271,24 +338,56 @@ class DAWProjectFromMidi
                 foreach ($this->ccExpressionMap[$trackChannel] as $tick => $value) {
                     $timeInBeats = $this->ticksToBeats($tick);
                     $normalizedValue = $value / 127.0;
-                    $automationPoints['Expression'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                    $automationPoints['CC11'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Pitch Bend points
+            if (isset($this->pitchBendMap[$trackChannel])) {
+                foreach ($this->pitchBendMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $this->ticksToBeats($tick);
+                    $normalizedValue = ($value - 8192) / 8191.0; // 0-16383 -> -1.0 to 1.0
+                    $automationPoints['PitchBend'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Modulation points
+            if (isset($this->ccModulationMap[$trackChannel])) {
+                foreach ($this->ccModulationMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $this->ticksToBeats($tick);
+                    $normalizedValue = $value / 127.0;
+                    $automationPoints['CC1'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Sustain points
+            if (isset($this->ccSustainMap[$trackChannel])) {
+                foreach ($this->ccSustainMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $this->ticksToBeats($tick);
+                    $normalizedValue = ($value >= 64) ? 1.0 : 0.0; // On/Off
+                    $automationPoints['CC64'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Reverb points
+            if (isset($this->ccReverbMap[$trackChannel])) {
+                foreach ($this->ccReverbMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $this->ticksToBeats($tick);
+                    $normalizedValue = $value / 127.0;
+                    $automationPoints['CC91'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
+                }
+            }
+            // Collect Chorus points
+            if (isset($this->ccChorusMap[$trackChannel])) {
+                foreach ($this->ccChorusMap[$trackChannel] as $tick => $value) {
+                    $timeInBeats = $this->ticksToBeats($tick);
+                    $normalizedValue = $value / 127.0;
+                    $automationPoints['CC93'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
 
-            if (!empty($automationPoints['Volume'])) {
-                $envelope = $automationEl->addChild('Envelope');
-                $envelope->addAttribute('target', 'Volume');
-                $envelope->addAttribute('points', implode(';', $automationPoints['Volume']));
-            }
-            if (!empty($automationPoints['Pan'])) {
-                $envelope = $automationEl->addChild('Envelope');
-                $envelope->addAttribute('target', 'Pan');
-                $envelope->addAttribute('points', implode(';', $automationPoints['Pan']));
-            }
-            if (!empty($automationPoints['Expression'])) {
-                $envelope = $automationEl->addChild('Envelope');
-                $envelope->addAttribute('target', 'Expression');
-                $envelope->addAttribute('points', implode(';', $automationPoints['Expression']));
+            foreach($automationPoints as $target => $points) {
+                if(!empty($points)) {
+                    $envelope = $automationEl->addChild('Envelope');
+                    $envelope->addAttribute('target', $target);
+                    $envelope->addAttribute('points', implode(';', $points));
+                }
             }
 
             // Add Clips lane to Arrangement Lanes
