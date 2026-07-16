@@ -52,7 +52,7 @@ try {
     // Gunakan MusicConverter untuk proses yang lebih sederhana
     $musicConverter = new MusicConverter();
     // Parameter ke-4 adalah targetChannelOrPartId. Kita gunakan channel 4.
-    $pdfContent = $musicConverter->midiToPdf($midiData, "Example Song (Track 4)", "Planetbiru", 4);
+    $pdfContent = $musicConverter->midiToPDF($midiData, "Example Song (Track 4)", "Planetbiru", 4);
     $outputFile = $outputDir . '/example-track-4.pdf';
     
     file_put_contents($outputFile, $pdfContent);
@@ -71,7 +71,7 @@ try {
     $musicConverter = new MusicConverter();
     // Parameter ke-4 adalah targetChannelOrPartId. Kita gunakan channel 4.
     // Parameter terakhir (true) untuk menghasilkan SVG satu halaman (single page).
-    $svgContent = $musicConverter->midiToSvg($midiData, "Example Song (Track 4)", "Planetbiru", 4, 3, true);
+    $svgContent = $musicConverter->midiToSVG($midiData, "Example Song (Track 4)", "Planetbiru", 4, 3, true);
     $outputFile = $outputDir . '/example-track-4.svg';
     
     file_put_contents($outputFile, $svgContent);
@@ -125,7 +125,7 @@ try {
 
         // Gunakan MusicConverter untuk merender MIDI yang sudah difilter ke PDF
         // Kita tidak perlu menentukan target channel lagi karena MIDI sudah difilter.
-        $pdfContent = $musicConverter->midiToPdf($filteredMidiData, $trackName, "Planetbiru", null, 4);
+        $pdfContent = $musicConverter->midiToPDF($filteredMidiData, $trackName, "Planetbiru", null, 4);
 
         // Tambahkan file PDF ke ZIP
         $zip->addFromString(sprintf('%03d - %s.pdf', $trackIndex, $trackName), $pdfContent);

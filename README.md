@@ -66,6 +66,75 @@ When you provide a MIDI file, `MusicConverter` automatically performs the follow
 
 You don't need to worry about the technical details of each step; you just need to call a single function.
 
+### Constructor
+
+`new MusicConverter($compressEmptyMeasures, $showTempoChanges, $useRestFilling, $lyricFontSize, $systemHeight)`
+
+Initializes the converter with optional rendering settings.
+
+- `$compressEmptyMeasures` (bool): If `true`, consecutive empty measures will be collapsed into a single multi-measure rest. Default is `false`.
+- `$showTempoChanges` (bool): If `true`, tempo change markings (e.g., "Tempo: = 120") will be displayed on the score. Default is `true`.
+- `$useRestFilling` (bool): If `true`, uses an alternative algorithm for filling gaps with rests. This can affect how rests are displayed in measures with complex rhythms. Default is `false`.
+- `$lyricFontSize` (float): The font size for lyrics, in points. Default is `6.0`.
+- `$systemHeight` (int): The vertical height of a single staff system in millimeters, including space for lyrics. Default is `28`.
+
+
+### Core Conversion Methods
+
+Here are the main public methods available in the `MusicConverter` class:
+
+#### `midiToMusicXML($midiData, $songTitle, $version, $format)`
+
+Converts MIDI data into a MusicXML string.
+- `$midiData` (string): The binary content of a MIDI file.
+- `$songTitle` (string): The title for the musical work. Defaults to "Untitled".
+- `$version` (string): The MusicXML version to use. Defaults to "4.0".
+- `$format` (string): The output format, either 'xml' (uncompressed) or 'mxl' (compressed). Defaults to "musicxml".
+
+#### `musicXMLToMIDI($musicXmlContent)`
+
+Converts a MusicXML string into a binary MIDI data string.
+- `$musicXmlContent` (string): The MusicXML content as a string.
+
+#### `midiToPDF($midiData, $songTitle, $composer, $targetChannelOrPartId, $mainMelody)`
+
+Renders MIDI data directly into a PDF sheet music string.
+- `$midiData` (string): The binary content of a MIDI file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+- `$mainMelody` (int): The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display. Defaults to 3.
+
+#### `musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric)`
+
+Renders MusicXML data into a PDF sheet music string.
+- `$xmlStr` (string): The string content of a MusicXML file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+- `$showLyric` (bool): If true, forces lyrics to be displayed if they exist in the selected part.
+
+#### `midiToSVG($midiData, $songTitle, $composer, $targetChannelOrPartId, $mainMelody, $singlePage)`
+
+Renders MIDI data directly into an interactive SVG image string.
+- `$midiData` (string): The binary content of a MIDI file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+- `$mainMelody` (int): The MIDI channel number (1-16) considered to be the main melody. Defaults to 3.
+- `$singlePage` (bool): If true (default), generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
+
+#### `musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage)`
+
+Renders MusicXML data into an interactive SVG image string.
+- `$xmlStr` (string): The string content of a MusicXML file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+- `$showLyric` (bool): If true, forces lyrics to be displayed if they exist in the selected part.
+- `$singlePage` (bool): If true (default), generates a single continuous SVG. If false, generates stacked, page-like layouts.
+
+
 ### Basic Example: Convert MIDI to PDF
 
 This example demonstrates the simplest use case: converting a MIDI file into a PDF.
@@ -84,7 +153,7 @@ $converter = new MusicConverter();
 
 // 3. Convert to PDF
 // The converter will automatically detect the best track to render.
-$pdfContent = $converter->midiToPdf($midiData, "My Awesome Song", "The Composer");
+$pdfContent = $converter->midiToPDF($midiData, "My Awesome Song", "The Composer");
 
 // 4. Save the PDF file
 file_put_contents('output/my-song.pdf', $pdfContent);
@@ -104,11 +173,11 @@ use MusicXML\MusicConverter;
 $converter = new MusicConverter();
 
 // Generate a single, continuous SVG (default)
-$singlePageSvg = $converter->midiToSvg($midiData, "My Song SVG", "The Composer", null, 3, true);
+$singlePageSvg = $converter->midiToSVG($midiData, "My Song SVG", "The Composer", null, 3, true);
 file_put_contents('output/my-song-single-page.svg', $singlePageSvg);
 
 // Generate a multi-page SVG to preview the printed layout
-$multiPageSvg = $converter->midiToSvg($midiData, "My Song SVG", "The Composer", null, 3, false);
+$multiPageSvg = $converter->midiToSVG($midiData, "My Song SVG", "The Composer", null, 3, false);
 file_put_contents('output/my-song-multi-page.svg', $multiPageSvg);
 ```
 
@@ -122,7 +191,7 @@ use MusicXML\MusicConverter;
 $converter = new MusicConverter();
 
 // Render only track 4 (e.g., the piano part)
-$pdfContent = $converter->midiToPdf($midiData, "My Song", "The Composer", 4);
+$pdfContent = $converter->midiToPDF($midiData, "My Song", "The Composer", 4);
 file_put_contents('output/piano-part.pdf', $pdfContent);
 ```
 
