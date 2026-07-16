@@ -34,7 +34,7 @@ try {
     $midi = $converter->loadMidiString($midiData);
     
     // Konversi ke format XML
-    $musicXmlContent = $converter->midiToMusicXml($midi, "Example Song (All Tracks)", "4.0", MXL::FORMAT_XML);
+    $musicXmlContent = $converter->midiToMusicXML($midi, "Example Song (All Tracks)", "4.0", MXL::FORMAT_XML);
     
     $outputFile = $outputDir . '/example-all-tracks.xml';
     file_put_contents($outputFile, $musicXmlContent);
