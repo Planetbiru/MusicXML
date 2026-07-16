@@ -298,9 +298,22 @@ class MusicXMLToMidi
                         if ($noteNumber >= 0) {
                             $velocity = isset($element->dynamics) ? (int)($element->dynamics * 1.27) : 100;
 
-                            // Check for both <tie> and <notations><tied>
-                            $isTieStart = (isset($element->tie) && $element->tie->type == 'start') || is_array(isset($element->notations->tied) && $element->notations->tied[0]->type == 'start');
-                            $isTieStop = (isset($element->tie) && $element->tie->type == 'stop') || is_array(isset($element->notations->tied) && $element->notations->tied[0]->type == 'stop');
+                            $isTieStart = false;
+                            $isTieStop = false;
+
+                            if (isset($element->tie) && !is_array($element->tie) && $element->tie->type == 'start') $isTieStart = true;
+                            if (isset($element->tie) && !is_array($element->tie) && $element->tie->type == 'stop') $isTieStop = true;
+
+                            if (isset($element->notations) && is_array($element->notations)) {
+                                foreach ($element->notations as $notation) {
+                                    if (isset($notation->tied) && is_array($notation->tied)) {
+                                        foreach ($notation->tied as $tied) {
+                                            if ($tied->type == 'start') $isTieStart = true;
+                                            if ($tied->type == 'stop') $isTieStop = true;
+                                        }
+                                    }
+                                }
+                            }
 
                             // If this note is the end of a tie, don't create a new Note On event.
                             // Instead, extend the duration of the existing tied note.
