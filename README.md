@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/packagist/l/planetbiru/musicxml.svg)](https://opensource.org/licenses/MIT)
 
 A comprehensive PHP library for handling MusicXML and MIDI files. It supports conversion between formats and can render MusicXML into beautiful, printable sheet music in PDF or SVG formats. This library is written in pure PHP and has minimal dependencies, making it easy to integrate into any project.
+This library is actively used in production and powers the online sheet music generator at [https://composer.planetbiru.com/](https://composer.planetbiru.com/).
 
 ## Conversion Workflows
 
