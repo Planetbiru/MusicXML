@@ -146,7 +146,10 @@ class DAWProjectFromMidi
                             $note = intval(substr($p, strpos($p, '=') + 1));
                         }
                         if (strpos($p, 'v=') === 0) $vol = intval(substr($p, 2));
-                    }      
+                    }
+
+                    $key = "$i-$ch-$note";
+                    
 
                     $trackChannel = $ch;
 
@@ -155,27 +158,29 @@ class DAWProjectFromMidi
 
 
                     if ($type === 'On') {
-                        $vol2 = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);                        
+                        $vol2 = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);
+                        $activeNotes[$key] = array(
+                            'tick' => $tick,
+                            'velocity' => $vol2
+                        );
                     } else {
-                        if (isset($activeNotes[$note])) {
-                            $startTick = $activeNotes[$note]['tick'];
-                            $velocity = $activeNotes[$note]['velocity'];
-                            $vol2 = $this->getVelocity($velocity, $currentVolume[$ch], $currentExpression[$ch]);
-                            unset($activeNotes[$note]);
+                        if (isset($activeNotes[$key])) {
+                            $startTick = $activeNotes[$key]['tick'];
+                            $velocity = $activeNotes[$key]['velocity'];
+                            unset($activeNotes[$key]);
 
                             $durationTicks = $tick - $startTick;
                             if ($durationTicks <= 0) $durationTicks = 1;
+
                             $notes[] = array(
                                 'key' => $note,
                                 'time' => $ticksToBeats($startTick),
                                 'duration' => $ticksToBeats($durationTicks),
-                                'velocity' => $vol2,
+                                'velocity' => $velocity,
                                 'channel' => $ch
                             );
                         }
                     }
-                    
-
                 }
             }
 
@@ -270,7 +275,7 @@ class DAWProjectFromMidi
 
     public function getVelocity($velocity, $volume = 100, $expression = 127)
     {
-        return $velocity * ($volume / 127.0) * ($expression / 127.0);
+        return ($velocity / 127) * ($volume / 127.0) * ($expression / 127.0);
     }
 
     /**
