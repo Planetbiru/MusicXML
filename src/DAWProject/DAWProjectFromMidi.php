@@ -163,7 +163,7 @@ class DAWProjectFromMidi
                         if (isset($activeNotes[$note])) {
                             $startTick = $activeNotes[$note]['tick'];
                             $velocity = $activeNotes[$note]['velocity'];
-                            $velocity = $this->getVelocity($velocity, $currentVolume[$ch], $currentExpression[$ch]);
+                            $velocity = $this->getVelocity($velocity/127, $currentVolume[$ch], $currentExpression[$ch]);
                             unset($activeNotes[$note]);
 
                             $durationTicks = $tick - $startTick;
@@ -270,7 +270,7 @@ class DAWProjectFromMidi
         return $zipData;
     }
 
-    function getVelocity($velocity, $volume = 100, $expression = 127)
+    public function getVelocity($velocity, $volume = 100, $expression = 127)
     {
         return $velocity * ($volume / 127.0) * ($expression / 127.0);
     }
