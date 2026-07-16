@@ -22,6 +22,14 @@ use SimpleXMLElement;
  * file_put_contents('song.pdf', $pdfContent);
  * ```
  * 
+ * **Public Methods**
+ * - midiToMusicXML
+ * - musicXMLToMIDI
+ * - midiToPdf
+ * - musicXmlToPdf
+ * - midiToSvg
+ * - musicXmlToSvg
+ * 
  * @author Kamshory
  */
 class MusicConverter
@@ -136,6 +144,19 @@ class MusicConverter
         $midi = $converter->loadMidiString($midiData);
         $xmlStr = $converter->midiToMusicXml($midi, $songTitle, $version, $format);
         return $xmlStr;
+    }
+
+    /**
+     * Converts a MusicXML string into a binary MIDI data string.
+     *
+     * @param string $musicXmlContent The MusicXML content as a string.
+     * @return string The binary MIDI data.
+     * @throws \Exception if the MusicXML content is invalid or cannot be parsed.
+     */
+    public function musicXMLToMIDI($musicXmlContent)
+    {
+        $toMidiConverter = new MusicXMLToMidi();
+        return $toMidiConverter->fromXmlString($musicXmlContent);
     }
 
     /**

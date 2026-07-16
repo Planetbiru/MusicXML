@@ -2,8 +2,21 @@
 
 namespace MusicXML\Map;
 
+/**
+ * Maps MusicXML element tags to their corresponding PHP model classes.
+ *
+ * This class contains a central mapping used by the parser to instantiate
+ * the correct model object for each XML element encountered.
+ *
+ * @author Kamshory
+ */
 class ModelMap
 {
+    /**
+     * The main class map.
+     * Keys are the MusicXML element tag names (e.g., 'score-partwise'),
+     * and values are the fully qualified class names of the corresponding model classes.
+     */
     const CLASS_MAP = array(
         'accent' => \MusicXML\Model\Accent::class,
         'accidental' => \MusicXML\Model\Accidental::class,
