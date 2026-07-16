@@ -95,7 +95,6 @@ class MusicXMLToMidi
         $this->createTempoTrack();
 
         foreach ($this->score->part as $part) {
-            
             $this->processPart($part);
         }
 
@@ -129,7 +128,12 @@ class MusicXMLToMidi
                             if (isset($element->time)) {
                                 $beats = (int)$element->time->beats[0]->textContent;
                                 $beatType = (int)$element->time->beatType[0]->textContent;
-                                $metaEvents[] = array('time' => $currentTime, 'type' => 'TimeSig', 'beats' => $beats, 'beatType' => $beatType);
+                                $metaEvents[] = array(
+                                    'time' => $currentTime, 
+                                    'type' => 'TimeSig', 
+                                    'beats' => $beats, 
+                                    'beatType' => $beatType
+                                    );
                             }
                         }
                     }
@@ -141,7 +145,11 @@ class MusicXMLToMidi
                         if ($element instanceof Direction && isset($element->sound->tempo)) {
                             $tempo = (int)$element->sound->tempo;
                             if ($tempo > 0) {
-                                $metaEvents[] = array('time' => $currentTime, 'type' => 'Tempo', 'tempo' => $tempo);
+                                $metaEvents[] = array(
+                                    'time' => $currentTime, 
+                                    'type' => 'Tempo', 
+                                    'tempo' => $tempo
+                                    );
                             }
                         }
 
@@ -349,7 +357,11 @@ class MusicXMLToMidi
                             if (isset($element->lyric) && isset($element->lyric) && isset($element->lyric->text) && isset($element->lyric->text->textContent)) {
                                 $lyricText = $element->lyric->text->textContent;
                                 // Add Lyric meta event at the same time as the Note On event
-                                $timeline[] = array('time' => $noteGroupStartTime, 'type' => 'Lyric', 'text' => $lyricText);
+                                $timeline[] = array(
+                                    'time' => $noteGroupStartTime, 
+                                    'type' => 'Lyric', 
+                                    'text' => $lyricText
+                                    );
                             }
                         }
                     }
@@ -449,7 +461,15 @@ class MusicXMLToMidi
      */
     private function getMidiNoteNumber($pitch)
     {
-        $stepMap = ['C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11];
+        $stepMap = [
+            'C' => 0, 
+            'D' => 2, 
+            'E' => 4, 
+            'F' => 5, 
+            'G' => 7, 
+            'A' => 9, 
+            'B' => 11
+        ];
         $step = strtoupper((string) $pitch->step->textContent);
         $octave = (int) $pitch->octave->textContent;
         $alter = isset($pitch->alter) ? (int) $pitch->alter->textContent : 0;
@@ -479,6 +499,5 @@ class MusicXMLToMidi
         }
         return 35; // Default to Acoustic Bass Drum
     }
-
 
 }

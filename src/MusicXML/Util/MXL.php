@@ -65,6 +65,53 @@ class MXL
     }  
     
     /**
+     * Extracts the MusicXML content from a compressed .mxl file data.
+     *
+     * This method reads the binary data of an .mxl file, unzips it in memory,
+     * reads the `META-INF/container.xml` to find the root MusicXML file,
+     * and returns the content of that file as a string.
+     *
+     * @param string $mxlData The binary content of the .mxl file.
+     * @return string|false The MusicXML content as a string, or false on failure.
+     * @throws FilePermissionExcetion if a temporary file cannot be created.
+     * @throws \Exception if the MXL file is invalid or cannot be processed.
+     */
+    public function mxlToXml($mxlData)
+    {
+        // 1. Save MXL data to a temporary file
+        $tmp_dir = sys_get_temp_dir();
+        $tmp_location = tempnam($tmp_dir, "mxl_");
+        if ($tmp_location === false || file_put_contents($tmp_location, $mxlData) === false) {
+            throw new FilePermissionExcetion("Failed to create or write to temporary file for MXL processing.");
+        }
+        // Ensure the temporary file is deleted on script exit
+        register_shutdown_function(array($this, 'unlink'), $tmp_location);
+
+        // 2. Open the temporary file with ZipArchive
+        $zip = new ZipArchive();
+        if ($zip->open($tmp_location) !== true) {
+            throw new \Exception("Failed to open MXL archive.");
+        }
+
+        // 3. Read META-INF/container.xml to find the root file path
+        $containerXml = $zip->getFromName(self::CONTAINER_PATH);
+        if ($containerXml === false) {
+            throw new \Exception("Invalid MXL: " . self::CONTAINER_PATH . " not found.");
+        }
+
+        // 4. Parse container.xml to get the full-path of the musicxml file
+        $doc = new DOMDocument();
+        $doc->loadXML($containerXml);
+        $rootfileNode = $doc->getElementsByTagName('rootfile')->item(0);
+        $musicXmlPath = $rootfileNode->getAttribute('full-path');
+
+        // 5. Extract the MusicXML file content and close the archive
+        $xmlContent = $zip->getFromName($musicXmlPath);
+        $zip->close();
+        return $xmlContent;
+    }
+
+    /**
      * Constructs the media-type string required for the container.xml file.
      * Per the MXL specification, this is the base MIME type with '+xml' appended.
      *
