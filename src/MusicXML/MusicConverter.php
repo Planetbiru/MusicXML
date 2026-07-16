@@ -18,17 +18,17 @@ use SimpleXMLElement;
  * use MusicXML\MusicConverter;
  *
  * $converter = new MusicConverter();
- * $pdfContent = $converter->midiToPdf(file_get_contents('song.mid'), 'My Song');
+ * $pdfContent = $converter->midiToPDF(file_get_contents('song.mid'), 'My Song');
  * file_put_contents('song.pdf', $pdfContent);
  * ```
  * 
  * **Public Methods**
  * - midiToMusicXML
  * - musicXMLToMIDI
- * - midiToPdf
- * - musicXmlToPdf
- * - midiToSvg
- * - musicXmlToSvg
+ * - midiToPDF
+ * - musicXMLToPDF
+ * - midiToSVG
+ * - musicXMLToSVG
  * 
  * @author Kamshory
  */
@@ -139,10 +139,10 @@ class MusicConverter
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
         }
-        $converter = new MusicXMLFromMidi();
+        $converter = new MusicXMLFromMIDI();
         $converter->setUseRestFilling($this->useRestFilling);
         $midi = $converter->loadMidiString($midiData);
-        $xmlStr = $converter->midiToMusicXml($midi, $songTitle, $version, $format);
+        $xmlStr = $converter->midiToMusicXML($midi, $songTitle, $version, $format);
         return $xmlStr;
     }
 
@@ -155,7 +155,7 @@ class MusicConverter
      */
     public function musicXMLToMIDI($musicXmlContent)
     {
-        $toMidiConverter = new MusicXMLToMidi();
+        $toMidiConverter = new MusicXMLToMIDI();
         return $toMidiConverter->fromXmlString($musicXmlContent);
     }
 
@@ -173,7 +173,7 @@ class MusicConverter
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function midiToPdf($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3)
+    public function midiToPDF($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
@@ -182,13 +182,13 @@ class MusicConverter
         $this->format = 'pdf';
 
         // 1. Convert MIDI to MusicXML content using the PHP converter
-        $converter = new MusicXMLFromMidi();
+        $converter = new MusicXMLFromMIDI();
         $converter->setUseRestFilling($this->useRestFilling);
         $midi = $converter->loadMidiString($midiData);
-        $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
+        $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
 
-        return $this->musicXmlToPdf($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+        return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
     }
 
     /**
@@ -202,7 +202,7 @@ class MusicConverter
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function musicXmlToPdf($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    public function musicXMLToPDF($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
     {
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
@@ -211,7 +211,7 @@ class MusicConverter
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges);
 
         // 4. Render the part to PDF
-        return $this->renderPartToPdf($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
+        return $this->renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
     }
 
     /**
@@ -229,7 +229,7 @@ class MusicConverter
      * @return string Raw SVG data string
      * @throws Exception
      */
-    public function midiToSvg($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $singlePage = true)
+    public function midiToSVG($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $singlePage = true)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
@@ -238,13 +238,13 @@ class MusicConverter
         $this->format = 'svg';
 
         // 1. Convert MIDI to MusicXML content using the PHP converter
-        $converter = new MusicXMLFromMidi();
+        $converter = new MusicXMLFromMIDI();
         $converter->setUseRestFilling(false); // Enable rest filling for better measure representation
         $midi = $converter->loadMidiString($midiData);
-        $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
+        $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
         
-        return $this->musicXmlToSvg($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
+        return $this->musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
     }
 
     /**
@@ -262,7 +262,7 @@ class MusicConverter
      * @return string Raw SVG data string
      * @throws Exception
      */
-    public function musicXmlToSvg($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
+    public function musicXMLToSVG($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
     {
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
@@ -271,7 +271,7 @@ class MusicConverter
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges); //NOSONAR
 
         // 4. Render the part to SVG
-        return $this->renderPartToSvg($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $singlePage);
+        return $this->renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $singlePage);
     }
 
     /**
@@ -542,7 +542,7 @@ class MusicConverter
      * @return string Raw PDF data string
      * @throws Exception
      */
-    private function renderPartToPdf($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
+    private function renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
     {
         $pdf = new SheetMusicPDF('P', 'mm', 'A4');
         $pdf->composer = $composer;
@@ -568,7 +568,7 @@ class MusicConverter
      * @param bool             $singlePage If true, generates a single continuous SVG.
      * @return string Raw SVG data string.
      */
-    private function renderPartToSvg($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
+    private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
     {
         $pdf = new SheetMusicSVG('P', 'mm', 'A4', $singlePage);
         $pdf->composer = $composer;

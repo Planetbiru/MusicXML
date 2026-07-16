@@ -4,8 +4,8 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 // Gunakan kelas-kelas yang diperlukan
-use MusicXML\MusicXMLFromMidi;
-use MusicXML\MusicXMLToMidi;
+use MusicXML\MusicXMLFromMIDI;
+use MusicXML\MusicXMLToMIDI;
 use MusicXML\Util\MXL;
 
 // Definisikan path file dan direktori
@@ -31,17 +31,17 @@ try {
     // Ini mensimulasikan sumber data MusicXML Anda yang bisa berasal dari mana saja.
     // ========================================================================
     echo "1. Mengonversi MIDI ke string MusicXML...\n";
-    $converter = new MusicXMLFromMidi();
+    $converter = new MusicXMLFromMIDI();
     $midi = $converter->loadMidiString($midiData);
     
-    $musicXmlContent = $converter->midiToMusicXml($midi, "Example Song (All Tracks)", "4.0", MXL::FORMAT_XML);
+    $musicXmlContent = $converter->midiToMusicXML($midi, "Example Song (All Tracks)", "4.0", MXL::FORMAT_XML);
     echo "   -> Berhasil!\n\n";
 
     // ========================================================================
     // Langkah 2: Konversi string MusicXML kembali ke data MIDI
     // ========================================================================
     echo "2. Mengonversi string MusicXML kembali ke data MIDI...\n";
-    $toMidiConverter = new MusicXMLToMidi();
+    $toMidiConverter = new MusicXMLToMIDI();
     $newMidiData = $toMidiConverter->fromXmlString($musicXmlContent);
     echo "   -> Berhasil!\n\n";
 

@@ -59,7 +59,7 @@ use MusicXML\Util\MXL;
  * 
  * @author Kamshory
  */
-class MusicXMLFromMidi extends MusicXMLBase
+class MusicXMLFromMIDI extends MusicXMLBase
 {
 
     const DEFAULT_DIVISONS = 4;
@@ -594,7 +594,7 @@ class MusicXMLFromMidi extends MusicXMLBase
      * @param string $format The output format, either 'xml' or 'mxl'.
      * @return string
      */
-    public function midiToMusicXml($midi, $title, $version = "4.0", $format = MXL::FORMAT_XML)
+    public function midiToMusicXML($midi, $title, $version = "4.0", $format = MXL::FORMAT_XML)
     {
         $domdoc = $this->getDOMDocument();
         $domdoc->appendChild($this->convertMidiToMusicXML($midi, $title, $domdoc, $version));
@@ -602,7 +602,7 @@ class MusicXMLFromMidi extends MusicXMLBase
         {
             // compress MusicXML
             $mxl = new MXL();
-            return $mxl->xmlToMxl($title, $domdoc->saveXML());
+            return $mxl->xmlToMXL($title, $domdoc->saveXML());
         }
         else
         {
@@ -1665,7 +1665,6 @@ class MusicXMLFromMidi extends MusicXMLBase
      * @param int $timebase The MIDI file's timebase.
      * @param int $xmlStart The starting position of the gap in XML divisions.
      * @param int $xmlEnd The ending position of the gap in XML divisions.
-     * @param array &$lyricDivisions A reference to the remaining lyrics map for the measure.
      * @param array &$lyricCarrier A reference to the remaining lyrics map for the measure, keyed by absolute time.
      */
     private function fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricCarrier)
