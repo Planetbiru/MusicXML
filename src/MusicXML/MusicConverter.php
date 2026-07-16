@@ -18,7 +18,7 @@ use SimpleXMLElement;
  * use MusicXML\MusicConverter;
  *
  * $converter = new MusicConverter();
- * $pdfContent = $converter->midiToPdf(file_get_contents('song.mid'), 'My Song');
+ * $pdfContent = $converter->midiToPDF(file_get_contents('song.mid'), 'My Song');
  * file_put_contents('song.pdf', $pdfContent);
  * ```
  * 
@@ -152,7 +152,7 @@ class MusicConverter
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function midiToPdf($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3)
+    public function midiToPDF($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
@@ -167,7 +167,7 @@ class MusicConverter
         $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
 
-        return $this->musicXmlToPdf($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+        return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
     }
 
     /**
@@ -181,7 +181,7 @@ class MusicConverter
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function musicXmlToPdf($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    public function musicXMLToPDF($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
     {
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
@@ -208,7 +208,7 @@ class MusicConverter
      * @return string Raw SVG data string
      * @throws Exception
      */
-    public function midiToSvg($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $singlePage = true)
+    public function midiToSVG($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $singlePage = true)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
@@ -223,7 +223,7 @@ class MusicConverter
         $xmlStr = $converter->midiToMusicXml($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
         
-        return $this->musicXmlToSvg($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
+        return $this->musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
     }
 
     /**
@@ -241,7 +241,7 @@ class MusicConverter
      * @return string Raw SVG data string
      * @throws Exception
      */
-    public function musicXmlToSvg($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
+    public function musicXMLToSVG($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
     {
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
