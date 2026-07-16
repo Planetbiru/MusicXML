@@ -883,7 +883,7 @@ class MusicXMLFromMidi extends MusicXMLBase
      * @param MidiMeasure $midi The parsed MIDI data object.
      * @param string $title The title of the work.
      * @param string $version The MusicXML version string to set in the score-partwise element.
-     * @return \DOMNode The root DOMNode of the generated score-partwise element.
+     * @return ScorePartwise The ScorePartwise of the generated score-partwise element.
      */
     public function midiToScorePartwiseObject($midi, $title, $version = "4.0")
     {
@@ -1455,23 +1455,15 @@ class MusicXMLFromMidi extends MusicXMLBase
      */
     private function addMeasureElement($measureIndex, $measure, $noteMessages, $partId, $channelId, $divisions, $timebase, $lyricChannelId)
     {
-        $measureLengthTicks = $timebase * $this->timeSignature->getBeats();
-        $xmlMeasureLength = $divisions * $this->timeSignature->getBeats();
+        $measureLengthTicks = (float)($timebase * $this->timeSignature->getBeats());
+        $xmlMeasureLength = (float)($divisions * $this->timeSignature->getBeats());
         $xmlCursor = 0;
-        $prevAbstime = -1;
+        $lastNoteAbstime = -1;
+        $lastNoteXmlEnd = 0;
         
         $absMeasureStart = $measureIndex * $measureLengthTicks;
         // Identifikasi lirik yang akan diproses untuk channel dan birama ini
         $lyricCarrier = $this->getLyricsForMeasure($measureIndex, $measureLengthTicks, $channelId, $lyricChannelId);
-        $lyricDivisions = array();
-        foreach ($lyricCarrier as $abs => $txt) {
-            $xmlPos = (int) round(($abs - $absMeasureStart) * $divisions / $timebase);
-            if (!isset($lyricDivisions[$xmlPos])) {
-                $lyricDivisions[$xmlPos] = $txt;
-            } else {
-                $lyricDivisions[$xmlPos] .= ' ' . $txt;
-            }
-        }
 
         // Check if there is a continued tie from the previous measure for this part
         if (isset($this->tieContinue[$channelId]) && !empty($this->tieContinue[$channelId])) {
@@ -1484,7 +1476,7 @@ class MusicXMLFromMidi extends MusicXMLBase
                 $xmlDuration = $xmlEnd; // Starts at 0
                 if ($xmlDuration <= 0 && $continueDuration > 0) $xmlDuration = 1; // Ensure minimum duration
 
-                $note = new Note();
+                $note = new Note(); //NOSONAR
                 if (isset($tieInfo['dynamics'])) {
                     $note->dynamics = $tieInfo['dynamics'];
                 }
@@ -1518,9 +1510,9 @@ class MusicXMLFromMidi extends MusicXMLBase
                     $note->chord = new Chord();
                 } else {
                     // Lampirkan lirik jika ada di awal birama untuk nada pertama dari grup tie
-                    if (isset($lyricDivisions[0])) {
-                        $note->lyric = array($this->createLyricModel($lyricDivisions[0]));
-                        unset($lyricDivisions[0]);
+                    $lyricText = $this->findLyricForTime($lyricCarrier, $absTime);
+                    if ($lyricText) {
+                        $note->lyric = array($this->createLyricModel($lyricText));
                     }
                 }
 
@@ -1552,8 +1544,8 @@ class MusicXMLFromMidi extends MusicXMLBase
 
                 $note->notations[0]->tied = array(new Tied(array('type'=>'stop')));
                 $measure->elements[] = $note;
-                if ($firstTie) $xmlCursor += $xmlDuration;
-                $prevAbstime = $measureIndex * $measureLengthTicks;
+                if ($firstTie) $lastNoteXmlEnd = $xmlDuration;
+                $lastNoteAbstime = $measureIndex * $measureLengthTicks;
 
                 if ($remainingDuration > $measureLengthTicks) {
                     $this->tieContinue[$channelId][$noteCode]['duration'] -= $measureLengthTicks;
@@ -1564,50 +1556,68 @@ class MusicXMLFromMidi extends MusicXMLBase
             }
         }
 
-
-        // before add current note, if this measure has tie stop, create it first
-        if(isset($this->tieStop[$measureIndex]))
-        {
-            foreach($this->tieStop[$measureIndex] as $tieStop)
-            {
-                // add tie note
-                $measure->elements[] = $tieStop->getNote();
-            }
-        }
-
         foreach ($noteMessages as $idx => $message) {
-            $duration = isset($message['duration']) ? $message['duration'] : 0;
-            $duration = $this->quantize($duration, $timebase); // Quantize duration
-
-            if ($this->isAudible($message, $duration)) {
-                
+            if ($message['event'] == 'On' && $message['value'] > 0) {
                 $offsetTicks = $message['abstime'] % $measureLengthTicks;
                 $xmlStart = (int) round($offsetTicks * $divisions / $timebase);
-                // A chord is notes starting at almost the same time.
-                // Allow a small tolerance (e.g., 4 ticks) to account for quantization artifacts.
-                $isChord = ($prevAbstime != -1 && abs($message['abstime'] - $prevAbstime) < 4);
 
-                if (!$isChord && $xmlStart > $xmlCursor) {
-                    // Isi celah dengan tanda istirahat, pecah jika ada lirik di antaranya
-                    $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlCursor, $xmlStart, $lyricDivisions);
-                    $xmlCursor = $xmlStart;
+                // Increase chord detection tolerance, especially for drums.
+                $chordTolerance = ($channelId == 10) ? 10 : 4;
+                $isChord = ($lastNoteAbstime != -1 && abs($message['abstime'] - $lastNoteAbstime) < $chordTolerance);
+
+                // Fill gap with rests based on absolute positions, not a running cursor.
+                if (!$isChord && $xmlStart > $lastNoteXmlEnd) {
+                    $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $lastNoteXmlEnd, $xmlStart, $lyricCarrier);
                 }
 
-                $note = $this->createSoundNote($partId, $channelId, $message, $divisions, $timebase, $duration);
+                $durationTicks = 0;
+                if (isset($message['duration'])) {
+                    $durationTicks = $message['duration'];
+                }
+
+                // Recalculate duration ONLY for the drum channel to prevent rhythmic shifts.
+                if ($channelId == 10) {
+                    // Find the start time of the next non-chord note to define the boundary for this note's duration.
+                    $nextNoteStartTime = -1;
+                    for ($nextIdx = $idx + 1; $nextIdx < count($noteMessages); $nextIdx++) {
+                        $nextMessage = $noteMessages[$nextIdx];
+                        if ($nextMessage['event'] == 'On' && abs($nextMessage['abstime'] - $message['abstime']) >= $chordTolerance) {
+                            $nextNoteStartTime = $nextMessage['abstime'];
+                            break;
+                        }
+                    }
+
+                    if ($nextNoteStartTime != -1) {
+                        // If a next note exists, duration is the time until that note starts.
+                        $calculatedDuration = $nextNoteStartTime - $message['abstime'];
+                        // Use the shorter of the original duration or the calculated gap.
+                        $durationTicks = min($durationTicks, $calculatedDuration);
+                    } else {
+                        // This is the last note in the measure, let its duration be what it is, but cap at measure end.
+                        $endOfMeasureTime = ($measureIndex + 1) * $measureLengthTicks;
+                        if ($message['abstime'] + $durationTicks > $endOfMeasureTime) {
+                            $durationTicks = $endOfMeasureTime - $message['abstime'];
+                        }
+                    }
+                }
+                
+                if ($durationTicks < 0) $durationTicks = 0;
+                
+                $note = $this->createSoundNote($partId, $channelId, $message, $divisions, $timebase, $durationTicks);
 
                 // Atur koordinat X eksplisit
                 if (isset($this->measureOnsets[$measureIndex][$message['abstime']])) {
                     $note->defaultX = $this->measureOnsets[$measureIndex][$message['abstime']];
                 }
-
+                
                 if ($isChord) {
                     $note->chord = new Chord();
                 }
 
-                $localEndTicks = $offsetTicks + $duration; // End position of the note within the measure's tick-based timeline
+                $localEndTicks = $offsetTicks + $durationTicks; // End position of the note within the measure's tick-based timeline
                 if ($localEndTicks > $measureLengthTicks) {
-                    $durationInMeasure = $measureLengthTicks - $offsetTicks;
-                    $remainingDuration = $duration - $durationInMeasure;
+                    $durationInMeasure = $measureLengthTicks - $offsetTicks; // Ticks inside this measure
+                    $remainingDuration = $durationTicks - $durationInMeasure; // Ticks spilling into the next measure
                     $note = $this->trimNoteDuration($note, $durationInMeasure, $divisions, $timebase); // Trim and add 'start' tie
                     $xmlDuration = $note->duration->textContent;
                     
@@ -1617,36 +1627,25 @@ class MusicXMLFromMidi extends MusicXMLBase
                     );
                 } else {
                     $xmlDuration = $note->duration->textContent;
-                }
+                }                
 
                 // Lampirkan lirik jika ada di awal nada suara ini
                 // Perbaikan: Gabungkan semua lirik yang berada dalam rentang durasi nada ini
-                if (!$isChord) {
-                    $noteXmlEnd = $xmlStart + $xmlDuration;
-                    $lyricsForThisNote = array();
-                    foreach ($lyricDivisions as $xmlPos => $txt) {
-                        if ($xmlPos >= $xmlStart && $xmlPos < $noteXmlEnd) {
-                            $lyricsForThisNote[] = $txt;
-                            unset($lyricDivisions[$xmlPos]);
-                        }
-                    }
-                    if (!empty($lyricsForThisNote)) {
-                        $note->lyric = array($this->createLyricModel(implode(' ', $lyricsForThisNote)));
-                    }
+                $lyricText = $this->findLyricForTime($lyricCarrier, $message['abstime']);
+                if (!$isChord && $lyricText) {
+                    $note->lyric = array($this->createLyricModel($lyricText));
                 }
 
                 $measure->elements[] = $note;
-                if (!$isChord) {
-                    $xmlCursor = $xmlStart + $xmlDuration;
-                }
-                $prevAbstime = $message['abstime']; // Update prevAbstime for chord detection
+                $lastNoteXmlEnd = $xmlStart + (int)$xmlDuration;
                 $noteMessages[$idx]['elementIndex'] = count($measure->elements) - 1;
+                $lastNoteAbstime = $message['abstime'];
             }
         }
 
         // add rest to fill the measure, if needed
-        if ($xmlCursor < $xmlMeasureLength) {
-            $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlCursor, $xmlMeasureLength, $lyricDivisions);
+        if ($lastNoteXmlEnd < $xmlMeasureLength) {
+            $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $lastNoteXmlEnd, $xmlMeasureLength, $lyricCarrier);
         }
 
         return new MeasurePartwiseContainer($measure, $noteMessages);
@@ -1667,15 +1666,51 @@ class MusicXMLFromMidi extends MusicXMLBase
      * @param int $xmlStart The starting position of the gap in XML divisions.
      * @param int $xmlEnd The ending position of the gap in XML divisions.
      * @param array &$lyricDivisions A reference to the remaining lyrics map for the measure.
+     * @param array &$lyricCarrier A reference to the remaining lyrics map for the measure, keyed by absolute time.
      */
-    private function fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricDivisions)
+    private function fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricCarrier)
     {
+        $lyricDivisions = array();
+        $absMeasureStart = $measureIndex * ($timebase * $this->timeSignature->getBeats());
+        foreach ($lyricCarrier as $abs => $txt) {
+            $xmlPos = (int) round(($abs - $absMeasureStart) * $divisions / $timebase);
+            if ($xmlPos >= $xmlStart && $xmlPos < $xmlEnd) {
+                if (!isset($lyricDivisions[$xmlPos])) {
+                    $lyricDivisions[$xmlPos] = $txt;
+                } else {
+                    $lyricDivisions[$xmlPos] .= ' ' . $txt;
+                }
+                // Remove consumed lyric
+                unset($lyricCarrier[$abs]);
+            }
+        }
+
         if ($this->useRestFilling) {
             $this->fillGapWithRestsV2($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, $lyricDivisions);
         } else {
             $this->fillGapWithRestsV1($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, $lyricDivisions);
         }
     }
+
+    /**
+     * Finds and consumes a lyric for a specific absolute time.
+     * @param array &$lyricCarrier The map of lyrics for the measure, keyed by absolute time.
+     * @param int $abstime The absolute time to search for.
+     * @return string|null The lyric text if found, otherwise null.
+     */
+    private function findLyricForTime(&$lyricCarrier, $abstime)
+    {
+        // Allow a small tolerance for matching lyric time to note time
+        $tolerance = 10; 
+        foreach ($lyricCarrier as $lyricTime => $text) {
+            if (abs($lyricTime - $abstime) <= $tolerance) {
+                unset($lyricCarrier[$lyricTime]); // Consume the lyric
+                return $text;
+            }
+        }
+        return null;
+    }
+
 
     /**
      * Fills a time gap within a measure with rests, splitting the gap at lyric boundaries.
