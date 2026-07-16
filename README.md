@@ -24,6 +24,7 @@ The library supports the following conversion workflows:
         2.  The same MusicXML is converted to an SVG for visual rendering, allowing for synchronized highlighting of notes and lyrics as the audio plays.
 *   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music from MusicXML data, perfect for web display.
     *   **Interactive:** The generated SVG includes `data-*` attributes for easy synchronization with an audio player, enabling features like note highlighting and a moving playhead.
+    *   **Page-by-Page Preview:** In addition to a single, continuous scrolling view, the SVG can also be rendered in a multi-page layout, similar to a PDF. This is useful for previewing how the score will look when printed. This behavior is controlled by a parameter in the conversion function.
 *   **PDF Rendering:** Generate high-quality PDF sheet music from MusicXML data using a built-in FPDF-based rendering engine. No external binaries required.
 *   **Track & Channel Filtering:** Easily select a specific track or channel from a MIDI file to render.
 *   **Automatic Part Detection:** Intelligently detects the most suitable part to render (e.g., the main melody with lyrics).
@@ -95,14 +96,20 @@ echo "PDF generated successfully!";
 
 #### Convert to SVG
 
-The process is nearly identical for generating an SVG.
+The process is nearly identical for generating an SVG. You can also control whether the output is a single continuous page or a multi-page layout.
 
 ```php
 use MusicXML\MusicConverter;
 
 $converter = new MusicConverter();
-$svgContent = $converter->midiToSvg($midiData, "My Song SVG", "The Composer");
-file_put_contents('output/my-song.svg', $svgContent);
+
+// Generate a single, continuous SVG (default)
+$singlePageSvg = $converter->midiToSvg($midiData, "My Song SVG", "The Composer", null, 3, true);
+file_put_contents('output/my-song-single-page.svg', $singlePageSvg);
+
+// Generate a multi-page SVG to preview the printed layout
+$multiPageSvg = $converter->midiToSvg($midiData, "My Song SVG", "The Composer", null, 3, false);
+file_put_contents('output/my-song-multi-page.svg', $multiPageSvg);
 ```
 
 #### Select a Specific Track/Channel
