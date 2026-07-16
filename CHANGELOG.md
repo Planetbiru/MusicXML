@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.1
+
+### Fixed
+- Perbaikan docblock untuk fungsi `MusicXMLFromMidi::midiToScorePartwiseObject()`.
+- Perbaikan logika untuk menangani elemen `<tie>` dan `<notations><tied>` pada fungsi `MusicXMLToMidi::processPart()` untuk konversi MusicXML ke MIDI yang lebih akurat.
+
 ## v1.1.0 - 2023-10-27
 
 ### Added
