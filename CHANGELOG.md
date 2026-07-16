@@ -1,10 +1,11 @@
 # Changelog
 
-## v1.1.1
+## v1.1.1 - 2024-05-21
 
 ### Fixed
-- Perbaikan docblock untuk fungsi `MusicXMLFromMidi::midiToScorePartwiseObject()`.
-- Perbaikan logika untuk menangani elemen `<tie>` dan `<notations><tied>` pada fungsi `MusicXMLToMidi::processPart()` untuk konversi MusicXML ke MIDI yang lebih akurat.
+- Fixed docblock for the `MusicXMLFromMidi::midiToScorePartwiseObject()` function.
+- Fixed logic for handling `<tie>` and `<notations><tied>` elements in the `MusicXMLToMidi::processPart()` function for more accurate MusicXML to MIDI conversion.
+- Refactored note placement in `MusicXMLFromMidi::addMeasureElement` to use absolute positioning. This fixes rhythmic shifts by removing the sequential cursor (`$xmlCursor`) and ensuring each note's start time is accurately preserved based on its absolute time from the MIDI.
 
 ## v1.1.0 - 2023-10-27
 
