@@ -2,6 +2,7 @@
 
 namespace DAWProject;
 
+use Midi\Midi;
 use Midi\MidiMeasure;
 use SimpleXMLElement;
 use ZipArchive;
@@ -23,6 +24,7 @@ class DAWProjectFromMidi
         $midi->parseMidi($midiData);
         $timebase = $midi->getTimebase();
 
+
         // 1. Create project.xml
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Project xmlns="http://www.bitwig.com/dawproject" version="1.0"></Project>');
         $xml->addChild('Application')->addAttribute('name', 'PHPMidi');
@@ -43,11 +45,6 @@ class DAWProjectFromMidi
         $arrangement->addAttribute('id', 'A1');
         $lanes = $arrangement->addChild('Lanes');
 
-        // Helper to convert ticks to beats
-        // beats = ticks / timebase
-        $ticksToBeats = function($ticks) use ($timebase) {
-            return $ticks / $timebase;
-        };
 
         // Go through MIDI tracks
         $tracks = $midi->getTracks();
@@ -61,10 +58,14 @@ class DAWProjectFromMidi
             // Collect notes and track name
             $trackName = "Track " . $i;
             $notes = array();
+            $programNumber = 0; // Default to 0 (Acoustic Grand Piano)
             
             // Keep track of active note on events
             $activeNotes = array();
             
+            // Guess track channel
+            $trackChannel = 0;
+
             foreach ($rawTrack as $evtLine) {
                 $parts = explode(' ', trim($evtLine));
                 if (count($parts) < 2) continue;
@@ -75,6 +76,16 @@ class DAWProjectFromMidi
                 if ($type === 'Meta' && isset($parts[2]) && $parts[2] === 'TrkName') {
                     $rawName = implode(' ', array_slice($parts, 3));
                     $trackName = trim($rawName, '" ');
+                }
+
+                // Find the Program Change event to determine the instrument
+                if ($type === 'PrCh') {
+                    foreach ($parts as $p) {
+                        if (strpos($p, 'p=') === 0) {
+                            $programNumber = intval(substr($p, 2));
+                            break; // Found program number for this track
+                        }
+                    }
                 }
 
                 if ($type === 'On' || $type === 'Off') {
@@ -93,6 +104,8 @@ class DAWProjectFromMidi
                         }
                     }
 
+                    $trackChannel = $ch;
+
                     if ($type === 'On' && $vol > 0) {
                         $activeNotes[$note] = array(
                             'tick' => $tick,
@@ -109,14 +122,19 @@ class DAWProjectFromMidi
 
                             $notes[] = array(
                                 'key' => $note,
-                                'time' => $ticksToBeats($startTick),
-                                'duration' => $ticksToBeats($durationTicks),
+                                'time' => $startTick / $timebase,
+                                'duration' => $durationTicks / $timebase,
                                 'velocity' => $velocity / 127.0,
                                 'channel' => $ch
                             );
                         }
                     }
                 }
+            }
+
+            // Skip if track channel is not selected
+            if ($selectedChannels !== null && !in_array($trackChannel, $selectedChannels)) {
+                continue;
             }
 
             // Skip tracks with no notes
@@ -136,6 +154,11 @@ class DAWProjectFromMidi
             
             $channelEl = $trackEl->addChild('Channel');
             $channelEl->addAttribute('id', $channelId);
+
+            $instrumentEl = $trackEl->addChild('Instrument');
+            $instrumentName = (null != Midi::INSTRUMENT_LIST[$programNumber]) ? Midi::INSTRUMENT_LIST[$programNumber][0] : 'General MIDI';
+            $instrumentEl->addAttribute('plugin', $instrumentName);
+            $instrumentEl->addAttribute('program', $programNumber);
 
             // Add Clips lane to Arrangement Lanes
             $clipsEl = $lanes->addChild('Clips');

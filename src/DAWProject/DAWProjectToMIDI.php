@@ -60,12 +60,14 @@ class DAWProjectToMIDI
         $midiData .= pack('n', $timebase);
 
         // 4. Create Tempo Track (Track 0)
-        $bpm = (float)($xml->Transport->Tempo['value'] ?? 120.0);
+        $bpm = (float)(isset($xml->Transport->Tempo['value']) ? $xml->Transport->Tempo['value'] : 120.0);
         $microsecondsPerQuarterNote = (int)(60000000 / $bpm);
 
         $tempoTrack = '';
         // Add song title as track name for track 0
-        $songTitle = (string)($xml->xpath('//daw:MetaData/daw:Title')[0] ?? 'Untitled');
+        $titleNodes = $xml->xpath('//daw:MetaData/daw:Title');
+        $songTitle = isset($titleNodes[0]) ? (string)$titleNodes[0] : 'Untitled';
+
         $tempoTrack .= "\x00\xFF\x03" . chr(mb_strlen($songTitle, '8bit')) . $songTitle;
 
         // Tempo meta event requires a 3-byte value for microseconds per quarter note.
@@ -87,6 +89,8 @@ class DAWProjectToMIDI
             $trackId = (string)$trackNode['id'];
             $trackName = (string)$trackNode['name'];
             $trackEvents = array();
+            $programNumber = isset($trackNode->Instrument['program']) ? (int)$trackNode->Instrument['program'] : 0;
+            $trackChannel = -1; // Initialize channel as not found
 
             // Find clips for this track
             foreach ($arrangementLanes as $clipsNode) {
@@ -101,6 +105,11 @@ class DAWProjectToMIDI
                         $key = (int)$noteNode['key'];
                         $velocity = (int)round((float)$noteNode['vel'] * 127);
                         $channel = (int)$noteNode['channel'];
+
+                        // Capture the channel number for this track (assumes all notes in track use the same channel)
+                        if ($trackChannel === -1) {
+                            $trackChannel = $channel;
+                        }
 
                         $startTimeBeats = $clipStartTimeBeats + (float)$noteNode['time'];
                         $durationBeats = (float)$noteNode['duration'];
@@ -128,7 +137,12 @@ class DAWProjectToMIDI
             $lastTick = 0;
 
             // Add track name meta event
-            $trackContent .= "\x00\xFF\x03" . chr(mb_strlen($trackName, '8bit')) . $trackName;
+            $trackContent .= $this->writeVariableLength(0) . "\xFF\x03" . chr(mb_strlen($trackName, '8bit')) . $trackName;
+
+            // Add Program Change event if a channel was found for this track
+            if ($trackChannel !== -1) {
+                $trackContent .= $this->writeVariableLength(0) . pack('C2', 0xC0 | ($trackChannel - 1), $programNumber);
+            }
 
             foreach ($trackEvents as $tick => $events) {
                 $deltaTime = $tick - $lastTick;
