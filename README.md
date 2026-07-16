@@ -10,10 +10,15 @@ This library is actively used in production and powers the online sheet music ge
 
 The library supports the following conversion workflows:
 
-*   **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
-*   **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
-*   **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
-*   **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
+![Conversion Compatibility](conversion-compatibility.svg)
+
+* **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
+* **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
+* **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
+* **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
+* **MIDI → DAWProject:** Convert MIDI data into DAWProject format (ZIP with project.xml and metadata.xml), preserving tempo, tracks, notes, and instrument mapping for DAW interoperability.
+* **DAWProject → MIDI:** Parse DAWProject files and reconstruct MIDI tracks/events, including tempo, notes, and program changes.
+
 
 ## Key Features
 
@@ -22,6 +27,9 @@ The library supports the following conversion workflows:
     *   This roundtrip capability is powerful for building interactive **MusicXML players**. The workflow is as follows:
         1.  The MusicXML is converted to a MIDI file for audio playback.
         2.  The same MusicXML is converted to an SVG for visual rendering, allowing for synchronized highlighting of notes and lyrics as the audio plays.
+*   **MIDI to DAWProject Conversion:** Added functionality to convert standard MIDI files into the `.dawproject` format, compatible with DAWs like Bitwig Studio.
+*   **DAWProject to MIDI Conversion:** Implemented the reverse conversion, allowing `.dawproject` files to be converted back into standard MIDI files.
+*   **Roundtrip Conversion Capability:** The new features enable a full roundtrip conversion (`MIDI` -> `.dawproject` -> `MIDI`), preserving track structure and instrument information.
 *   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music from MusicXML data, perfect for web display.
     *   **Interactive:** The generated SVG includes `data-*` attributes for easy synchronization with an audio player, enabling features like note highlighting and a moving playhead.
     *   **Page-by-Page Preview:** In addition to a single, continuous scrolling view, the SVG can also be rendered in a multi-page layout, similar to a PDF. This is useful for previewing how the score will look when printed. This behavior is controlled by a parameter in the conversion function.
@@ -91,6 +99,24 @@ Converts MIDI data into a MusicXML string.
 - `$version` (string): The MusicXML version to use. Defaults to "4.0".
 - `$format` (string): The output format, either 'xml' (uncompressed) or 'mxl' (compressed). Defaults to "musicxml".
 
+#### `midiToDAWProject($midiData)`
+
+Converts MIDI data into a `.dawproject` file format. This method takes binary MIDI data and converts it into a ZIP archive containing `project.xml` and `metadata.xml`, which is compatible with DAWs like Bitwig Studio.
+- `$midiData` (string): The binary content of the MIDI file.
+
+#### `dawProjectToMIDI($dawProjectData)`
+
+Converts a `.dawproject` file back into MIDI data. This method reads a `.dawproject` ZIP archive, parses its contents, and reconstructs the corresponding binary MIDI data.
+- `$dawProjectData` (string): The binary content of the `.dawproject` file.
+
+#### `dawProjectToPDF($dawProjectData, $songTitle, $composer, $targetChannelOrPartId, $singlePage)`
+
+Converts a `.dawproject` file into a PDF file. This method first converts the `.dawproject` data into an intermediate MIDI format, and then renders that MIDI data to a PDF.
+- `$dawProjectData` (string): The binary content of the `.dawproject` file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or part ID to render.
+
 #### `musicXMLToMIDI($musicXmlContent)`
 
 Converts a MusicXML string into a binary MIDI data string.
@@ -133,6 +159,16 @@ Renders MusicXML data into an interactive SVG image string.
 - `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
 - `$showLyric` (bool): If true, forces lyrics to be displayed if they exist in the selected part.
 - `$singlePage` (bool): If true (default), generates a single continuous SVG. If false, generates stacked, page-like layouts.
+
+
+#### `dawProjectToSVG($dawProjectData, $songTitle, $composer, $targetChannelOrPartId, $singlePage)`
+
+Converts a `.dawproject` file into an SVG image. This method first converts the `.dawproject` data into an intermediate MIDI format, and then renders that MIDI data to an SVG.
+- `$dawProjectData` (string): The binary content of the `.dawproject` file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or part ID to render.
+- `$singlePage` (bool): If true, generates a single continuous SVG. If false, generates stacked pages.
 
 
 ### Basic Example: Convert MIDI to PDF

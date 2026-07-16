@@ -2,6 +2,8 @@
 
 namespace MusicXML;
 
+use DAWProject\DAWProjectFromMIDI;
+use DAWProject\DAWProjectToMIDI;
 use Exception;
 use SimpleXMLElement;
 
@@ -25,10 +27,14 @@ use SimpleXMLElement;
  * **Public Methods**
  * - midiToMusicXML
  * - musicXMLToMIDI
+ * - midiToDAWProject
+ * - dawProjectToMidi
  * - midiToPDF
  * - musicXMLToPDF
+ * - dawProjectToPDF
  * - midiToSVG
  * - musicXMLToSVG
+ * - dawProjectToSVG
  * 
  * @author Kamshory
  */
@@ -120,6 +126,38 @@ class MusicConverter
         $this->lyricFontSize = $lyricFontSize;
         $this->systemHeight = $systemHeight;
     }
+
+    /**
+     * Converts MIDI data into a .dawproject file format.
+     *
+     * This method takes binary MIDI data and converts it into a ZIP archive
+     * containing `project.xml` and `metadata.xml`, which is compatible with
+     * DAWs like Bitwig Studio.
+     *
+     * @param string $midiData The binary content of the MIDI file.
+     * @return string The binary content of the generated .dawproject (ZIP) file.
+     */
+    public function midiToDAWProject($midiData)
+    {
+        $converter = new DAWProjectFromMIDI();
+        return $converter->convert($midiData);
+    }
+
+    /**
+     * Converts a .dawproject file back into MIDI data.
+     *
+     * This method reads a .dawproject ZIP archive, parses its contents,
+     * and reconstructs the corresponding binary MIDI data.
+     *
+     * @param string $dawProjectData The binary content of the .dawproject file.
+     * @return string The binary content of the generated MIDI file.
+     */
+    public function dawProjectToMIDI($dawProjectData)
+    {
+        $converter = new DAWProjectToMIDI();
+        return $converter->convert($dawProjectData);
+    }
+
 
     /**
      * Converts MIDI data into a MusicXML string.
@@ -272,6 +310,46 @@ class MusicConverter
 
         // 4. Render the part to SVG
         return $this->renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $singlePage);
+    }
+
+    /**
+     * Converts a .dawproject file into a PDF file.
+     *
+     * This method first converts the .dawproject data into an intermediate MIDI format,
+     * and then renders that MIDI data to a PDF.
+     *
+     * @param string $dawProjectData The binary content of the .dawproject file.
+     * @param string $songTitle The title to be displayed on the sheet music.
+     * @param string $composer The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or part ID to render.
+     * @param bool $singlePage (Not used for PDF) Kept for API consistency.
+     * @return string Raw PDF data string.
+     */
+    public function dawProjectToPDF($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $singlePage = true) {
+        $this->format = 'pdf';
+        $converter1 = new DAWProjectFromMIDI();
+        $midiData = $converter1->convert($dawProjectData);
+        return $this->midiToPDF($midiData, $songTitle, $composer, $targetChannelOrPartId, null);
+    }
+    /**
+     * Converts a .dawproject file into an SVG image.
+     *
+     * This method first converts the .dawproject data into an intermediate MIDI format,
+     * and then renders that MIDI data to an SVG.
+     *
+     * @param string $dawProjectData The binary content of the .dawproject file.
+     * @param string $songTitle The title to be displayed on the sheet music.
+     * @param string $composer The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or part ID to render.
+     * @param bool $singlePage If true, generates a single continuous SVG. If false, generates stacked pages.
+     * @return string Raw SVG data string.
+     */
+    public function dawProjectToSVG($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $singlePage = true)
+    {
+        $this->format = 'svg';
+        $converter1 = new DAWProjectFromMIDI();
+        $midiData = $converter1->convert($dawProjectData);
+        return $this->midiToSVG($midiData, $songTitle, $composer, $targetChannelOrPartId, null, $singlePage);
     }
 
     /**

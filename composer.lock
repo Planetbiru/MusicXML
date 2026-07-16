@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "27c018ffa95f75811aa814ad627fe1c0",
+    "content-hash": "830147369220617a4a6b0182c8343d4c",
     "packages": [
         {
             "name": "fpdf/fpdf",
@@ -62,12 +62,12 @@
     ],
     "packages-dev": [],
     "aliases": [],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "stability-flags": [],
-    "prefer-stable": false,
+    "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=7.2"
+        "php": ">=5.6"
     },
     "platform-dev": [],
     "plugin-api-version": "2.6.0"
