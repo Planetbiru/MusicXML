@@ -10,6 +10,19 @@ use ZipArchive;
 class DAWProjectFromMidi
 {
     /**
+     * Map of CC Volume events per channel
+     * @var array
+     */
+    private $ccVolumeMap = array();
+
+    /**
+     * Map of CC Expression events per channel
+     * @var array
+     */
+    private $ccExpressionMap = array();
+
+
+    /**
      * Convert MIDI string to DAWProject ZIP content
      *
      * @param string $midiData
@@ -19,11 +32,17 @@ class DAWProjectFromMidi
      */
     public function convert($midiData, $songTitle = "Untitled", $selectedChannels = null)
     {
+        $this->ccVolumeMap = array();
+        $this->ccExpressionMap = array();
+
+        $currentVolume = array();
+        $currentExpression = array();
+
+
         // Parse MIDI data
         $midi = new MidiMeasure();
         $midi->parseMidi($midiData);
         $timebase = $midi->getTimebase();
-
 
         // 1. Create project.xml
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Project xmlns="http://www.bitwig.com/dawproject" version="1.0"></Project>');
@@ -45,6 +64,11 @@ class DAWProjectFromMidi
         $arrangement->addAttribute('id', 'A1');
         $lanes = $arrangement->addChild('Lanes');
 
+        // Helper to convert ticks to beats
+        // beats = ticks / timebase
+        $ticksToBeats = function($ticks) use ($timebase) {
+            return $ticks / $timebase;
+        };
 
         // Go through MIDI tracks
         $tracks = $midi->getTracks();
@@ -78,6 +102,25 @@ class DAWProjectFromMidi
                     $trackName = trim($rawName, '" ');
                 }
 
+                if ($type === 'Par') {
+                    $ch = 0;
+                    $c = 0;
+                    $v = 0;
+                    foreach ($parts as $p) {
+                        if (strpos($p, 'ch=') === 0) $ch = intval(substr($p, 3));
+                        if (strpos($p, 'c=') === 0) $c = intval(substr($p, 2));
+                        if (strpos($p, 'v=') === 0) $v = intval(substr($p, 2));
+                    }
+                    if ($c == 7) { // Volume
+                        if (!isset($this->ccVolumeMap[$ch])) $this->ccVolumeMap[$ch] = array();
+                        $this->ccVolumeMap[$ch][$tick] = $v;
+                    }
+                    if ($c == 11) { // Expression
+                        if (!isset($this->ccExpressionMap[$ch])) $this->ccExpressionMap[$ch] = array();
+                        $this->ccExpressionMap[$ch][$tick] = $v;
+                    }
+                }
+
                 // Find the Program Change event to determine the instrument
                 if ($type === 'PrCh') {
                     foreach ($parts as $p) {
@@ -106,7 +149,12 @@ class DAWProjectFromMidi
 
                     $trackChannel = $ch;
 
+                    $currentVolume[$ch] = $this->getVolume($ch, $tick);
+                    $currentExpression[$ch] = $this->getExpression($ch, $tick);
+
+
                     if ($type === 'On' && $vol > 0) {
+                        $vol = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);
                         $activeNotes[$note] = array(
                             'tick' => $tick,
                             'velocity' => $vol
@@ -115,6 +163,7 @@ class DAWProjectFromMidi
                         if (isset($activeNotes[$note])) {
                             $startTick = $activeNotes[$note]['tick'];
                             $velocity = $activeNotes[$note]['velocity'];
+                            $velocity = $this->getVelocity($velocity, $currentVolume[$ch], $currentExpression[$ch]);
                             unset($activeNotes[$note]);
 
                             $durationTicks = $tick - $startTick;
@@ -122,9 +171,9 @@ class DAWProjectFromMidi
 
                             $notes[] = array(
                                 'key' => $note,
-                                'time' => $startTick / $timebase,
-                                'duration' => $durationTicks / $timebase,
-                                'velocity' => $velocity / 127.0,
+                                'time' => $ticksToBeats($startTick),
+                                'duration' => $ticksToBeats($durationTicks),
+                                'velocity' => $velocity,
                                 'channel' => $ch
                             );
                         }
@@ -219,5 +268,56 @@ class DAWProjectFromMidi
         @unlink($tempFile);
 
         return $zipData;
+    }
+
+    function getVelocity($velocity, $volume = 100, $expression = 127)
+    {
+        return $velocity * ($volume / 127.0) * ($expression / 127.0);
+    }
+
+    /**
+     * Get CC Volume value for a given channel and tick
+     *
+     * @param int $channelId The MIDI channel ID.
+     * @param int $tick The absolute time in ticks.
+     * @return int
+     */
+    public function getVolume($channelId, $tick)
+    {
+        if (!isset($this->ccVolumeMap[$channelId]) || empty($this->ccVolumeMap[$channelId])) {
+            return 100; // Default volume if not set
+        }
+        $lastVal = 100;
+        foreach ($this->ccVolumeMap[$channelId] as $eventTick => $val) {
+            if ($eventTick <= $tick) {
+                $lastVal = $val;
+            } else {
+                break;
+            }
+        }
+        return $lastVal;
+    }
+
+    /**
+     * Get CC Expression value for a given channel and tick
+     *
+     * @param int $channelId The MIDI channel ID.
+     * @param int $tick The absolute time in ticks.
+     * @return int
+     */
+    public function getExpression($channelId, $tick)
+    {
+        if (!isset($this->ccExpressionMap[$channelId]) || empty($this->ccExpressionMap[$channelId])) {
+            return 127; // Default expression (max) if not set
+        }
+        $lastVal = 127;
+        foreach ($this->ccExpressionMap[$channelId] as $eventTick => $val) {
+            if ($eventTick <= $tick) {
+                $lastVal = $val;
+            } else {
+                break;
+            }
+        }
+        return $lastVal;
     }
 }

@@ -10,10 +10,13 @@ This library is actively used in production and powers the online sheet music ge
 
 The library supports the following conversion workflows:
 
-*   **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
-*   **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
-*   **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
-*   **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
+* **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
+* **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
+* **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
+* **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
+* **MIDI → DAWProject:** Convert MIDI data into DAWProject format (ZIP with project.xml and metadata.xml), preserving tempo, tracks, notes, and instrument mapping for DAW interoperability.
+* **DAWProject → MIDI:** Parse DAWProject files and reconstruct MIDI tracks/events, including tempo, notes, and program changes.
+
 
 ## Key Features
 
