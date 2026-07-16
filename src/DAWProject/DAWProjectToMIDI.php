@@ -59,27 +59,49 @@ class DAWProjectToMIDI
         $midiData .= pack('n', $trackCount);
         $midiData .= pack('n', $timebase);
 
-        // 4. Create Tempo Track (Track 0)
-        $bpm = (float)(isset($xml->Transport->Tempo['value']) ? $xml->Transport->Tempo['value'] : 120.0);
-        $microsecondsPerQuarterNote = (int)(60000000 / $bpm);
-
-        $tempoTrack = '';
-        // Add song title as track name for track 0
-        $titleNodes = $xml->xpath('//daw:MetaData/daw:Title');
-        $songTitle = isset($titleNodes[0]) ? (string)$titleNodes[0] : 'Untitled';
-
-        $tempoTrack .= "\x00\xFF\x03" . chr(mb_strlen($songTitle, '8bit')) . $songTitle;
-
-        // Tempo meta event requires a 3-byte value for microseconds per quarter note.
-        $tempoTrack .= "\x00\xFF\x51\x03" . substr(pack('N', $microsecondsPerQuarterNote), 1, 3);
-        // End of track meta event
-        $tempoTrack .= "\x00\xFF\x2F\x00";
-        $midiData .= "MTrk" . pack('N', strlen($tempoTrack)) . $tempoTrack;
-
         // Helper to convert beats to ticks
         $beatsToTicks = function ($beats) use ($timebase) {
             return (int)round($beats * $timebase);
         };
+
+        // 4. Create Tempo Track (Track 0)
+        $tempoTrack = '';
+        $tempoEvents = array();
+
+        // Add song title as track name for track 0
+        $titleNodes = $xml->xpath('//daw:MetaData/daw:Title');
+        $songTitle = isset($titleNodes[0]) ? (string)$titleNodes[0] : 'Untitled';
+        $tempoTrack .= "\x00\xFF\x03" . chr(mb_strlen($songTitle, '8bit')) . $songTitle;
+
+        // Find tempo automation
+        $tempoEnvelope = $xml->xpath('//daw:Transport/daw:Automation/daw:Envelope[@target="Tempo"]');
+        if (isset($tempoEnvelope[0]['points'])) {
+            $pointsStr = (string)$tempoEnvelope[0]['points'];
+            $points = explode(';', $pointsStr);
+            foreach ($points as $point) {
+                list($time, $bpm) = explode(',', $point);
+                $tick = $beatsToTicks((float)$time);
+                $microseconds = (int)(60000000 / (float)$bpm);
+                $tempoEvents[$tick] = "\xFF\x51\x03" . substr(pack('N', $microseconds), 1, 3);
+            }
+        } else {
+            // Fallback to static tempo if no automation is found
+            $bpm = (float)(isset($xml->Transport->Tempo['value']) ? $xml->Transport->Tempo['value'] : 120.0);
+            $microseconds = (int)(60000000 / $bpm);
+            $tempoEvents[0] = "\xFF\x51\x03" . substr(pack('N', $microseconds), 1, 3);
+        }
+
+        // Add tempo events to track 0
+        $lastTick = 0;
+        foreach ($tempoEvents as $tick => $event) {
+            $deltaTime = $tick - $lastTick;
+            $tempoTrack .= $this->writeVariableLength($deltaTime) . $event;
+            $lastTick = $tick;
+        }
+
+        // End of track meta event
+        $tempoTrack .= $this->writeVariableLength(0) . "\xFF\x2F\x00";
+        $midiData .= "MTrk" . pack('N', strlen($tempoTrack)) . $tempoTrack;
 
         // 5. Create Instrument Tracks
         $tracks = $xml->xpath('//daw:Structure/daw:Track');
@@ -122,6 +144,52 @@ class DAWProjectToMIDI
                         $trackEvents[$startTick][] = pack('C3', 0x90 | ($channel - 1), $key, $velocity);
                         // Note Off event: 0x80 | channel, key, velocity (0)
                         $trackEvents[$endTick][] = pack('C3', 0x80 | ($channel - 1), $key, 0);
+                    }
+                }
+            }
+
+            // Add default controller values at the beginning of the track
+            if ($trackChannel !== -1) {
+                // Default Volume (CC 7) to 100
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 7, 100);
+                // Default Pan (CC 10) to center (64)
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 10, 64);
+                // Default Expression (CC 11) to max (127)
+                $trackEvents[0][] = pack('C3', 0xB0 | ($trackChannel - 1), 11, 127);
+            }
+
+
+            // Process automation for this track
+            $trackNode->registerXPathNamespace('daw', 'http://www.bitwig.com/dawproject');
+            $automationEnvelopes = $trackNode->xpath('.//daw:Automation/daw:Envelope');
+            foreach ($automationEnvelopes as $envelope) {
+                $target = (string)$envelope['target'];
+                $pointsStr = (string)$envelope['points'];
+                $controllerNumber = -1;
+
+                if ($target === 'Volume') $controllerNumber = 7;
+                else if ($target === 'Pan') $controllerNumber = 10;
+                else if ($target === 'Expression') $controllerNumber = 11;
+
+                if ($controllerNumber !== -1 && $trackChannel !== -1) {
+                    $points = explode(';', $pointsStr);
+                    foreach ($points as $point) {
+                        if (empty($point)) continue;
+                        list($time, $value) = explode(',', $point);
+                        $tick = $beatsToTicks((float)$time);
+                        $midiValue = 0;
+
+                        if ($target === 'Pan') {
+                            // Convert from -1.0..1.0 to 0..127
+                            $midiValue = (int)round(((float)$value + 1.0) / 2.0 * 127);
+                        } else {
+                            // Convert from 0.0..1.0 to 0..127
+                            $midiValue = (int)round((float)$value * 127);
+                        }
+                        $midiValue = max(0, min(127, $midiValue));
+
+                        // Controller Change event: 0xB0 | channel, controller, value
+                        $trackEvents[$tick][] = pack('C3', 0xB0 | ($trackChannel - 1), $controllerNumber, $midiValue);
                     }
                 }
             }
