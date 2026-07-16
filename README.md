@@ -97,6 +97,24 @@ Converts MIDI data into a MusicXML string.
 - `$version` (string): The MusicXML version to use. Defaults to "4.0".
 - `$format` (string): The output format, either 'xml' (uncompressed) or 'mxl' (compressed). Defaults to "musicxml".
 
+#### `midiToDAWProject($midiData)`
+
+Converts MIDI data into a `.dawproject` file format. This method takes binary MIDI data and converts it into a ZIP archive containing `project.xml` and `metadata.xml`, which is compatible with DAWs like Bitwig Studio.
+- `$midiData` (string): The binary content of the MIDI file.
+
+#### `dawProjectToMIDI($dawProjectData)`
+
+Converts a `.dawproject` file back into MIDI data. This method reads a `.dawproject` ZIP archive, parses its contents, and reconstructs the corresponding binary MIDI data.
+- `$dawProjectData` (string): The binary content of the `.dawproject` file.
+
+#### `dawProjectToPDF($dawProjectData, $songTitle, $composer, $targetChannelOrPartId, $singlePage)`
+
+Converts a `.dawproject` file into a PDF file. This method first converts the `.dawproject` data into an intermediate MIDI format, and then renders that MIDI data to a PDF.
+- `$dawProjectData` (string): The binary content of the `.dawproject` file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or part ID to render.
+
 #### `musicXMLToMIDI($musicXmlContent)`
 
 Converts a MusicXML string into a binary MIDI data string.
@@ -139,6 +157,16 @@ Renders MusicXML data into an interactive SVG image string.
 - `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
 - `$showLyric` (bool): If true, forces lyrics to be displayed if they exist in the selected part.
 - `$singlePage` (bool): If true (default), generates a single continuous SVG. If false, generates stacked, page-like layouts.
+
+
+#### `dawProjectToSVG($dawProjectData, $songTitle, $composer, $targetChannelOrPartId, $singlePage)`
+
+Converts a `.dawproject` file into an SVG image. This method first converts the `.dawproject` data into an intermediate MIDI format, and then renders that MIDI data to an SVG.
+- `$dawProjectData` (string): The binary content of the `.dawproject` file.
+- `$songTitle` (string): The title to be displayed on the sheet music.
+- `$composer` (string): The composer's name to be displayed.
+- `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or part ID to render.
+- `$singlePage` (bool): If true, generates a single continuous SVG. If false, generates stacked pages.
 
 
 ### Basic Example: Convert MIDI to PDF
