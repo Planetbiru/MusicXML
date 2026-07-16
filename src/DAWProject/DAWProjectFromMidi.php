@@ -75,6 +75,9 @@ class DAWProjectFromMidi
         $trackCount = count($tracks);
 
         $trackIdCounter = 1;
+        
+        // Keep track of active note on events, keyed by note number
+        $activeNotes = array();
 
         for ($i = 0; $i < $trackCount; $i++) {
             $rawTrack = $tracks[$i];
@@ -83,9 +86,7 @@ class DAWProjectFromMidi
             $trackName = "Track " . $i;
             $notes = array();
             $programNumber = 0; // Default to 0 (Acoustic Grand Piano)
-            
-            // Keep track of active note on events
-            $activeNotes = array();
+            $activeNotes = array(); // Reset active notes for each new track
             
             // Guess track channel
             $trackChannel = 0;
@@ -154,7 +155,7 @@ class DAWProjectFromMidi
 
 
                     if ($type === 'On' && $vol > 0) {
-                        $vol = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);
+                        // $vol = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);
                         $activeNotes[$note] = array(
                             'tick' => $tick,
                             'velocity' => $vol
@@ -163,7 +164,6 @@ class DAWProjectFromMidi
                         if (isset($activeNotes[$note])) {
                             $startTick = $activeNotes[$note]['tick'];
                             $velocity = $activeNotes[$note]['velocity'];
-                            $velocity = $this->getVelocity($velocity/127, $currentVolume[$ch], $currentExpression[$ch]);
                             unset($activeNotes[$note]);
 
                             $durationTicks = $tick - $startTick;
