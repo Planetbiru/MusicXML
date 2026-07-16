@@ -75,9 +75,6 @@ class DAWProjectFromMidi
         $trackCount = count($tracks);
 
         $trackIdCounter = 1;
-        
-        // Keep track of active note on events, keyed by note number
-        $activeNotes = array();
 
         for ($i = 0; $i < $trackCount; $i++) {
             $rawTrack = $tracks[$i];
@@ -87,6 +84,10 @@ class DAWProjectFromMidi
             $notes = array();
             $programNumber = 0; // Default to 0 (Acoustic Grand Piano)
             $activeNotes = array(); // Reset active notes for each new track
+
+            // Reset controller states for each track to prevent leakage
+            $currentVolume = array();
+            $currentExpression = array();
             
             // Guess track channel
             $trackChannel = 0;
@@ -137,16 +138,15 @@ class DAWProjectFromMidi
                     $note = 0;
                     $vol = 0;
                     foreach ($parts as $p) {
+                        
                         if (strpos($p, 'ch=') === 0) {
                             $ch = intval(substr($p, 3));
                         }
                         if (strpos($p, 'n=') === 0 || strpos($p, 'note=') === 0) {
                             $note = intval(substr($p, strpos($p, '=') + 1));
                         }
-                        if (strpos($p, 'v=') === 0 || strpos($p, 'vol=') === 0) {
-                            $vol = intval(substr($p, strpos($p, '=') + 1));
-                        }
-                    }
+                        if (strpos($p, 'v=') === 0) $vol = intval(substr($p, 2));
+                    }      
 
                     $trackChannel = $ch;
 
@@ -154,30 +154,28 @@ class DAWProjectFromMidi
                     $currentExpression[$ch] = $this->getExpression($ch, $tick);
 
 
-                    if ($type === 'On' && $vol > 0) {
-                        // $vol = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);
-                        $activeNotes[$note] = array(
-                            'tick' => $tick,
-                            'velocity' => $vol
-                        );
+                    if ($type === 'On') {
+                        $vol2 = $this->getVelocity($vol, $currentVolume[$ch], $currentExpression[$ch]);                        
                     } else {
                         if (isset($activeNotes[$note])) {
                             $startTick = $activeNotes[$note]['tick'];
                             $velocity = $activeNotes[$note]['velocity'];
+                            $vol2 = $this->getVelocity($velocity, $currentVolume[$ch], $currentExpression[$ch]);
                             unset($activeNotes[$note]);
 
                             $durationTicks = $tick - $startTick;
                             if ($durationTicks <= 0) $durationTicks = 1;
-
                             $notes[] = array(
                                 'key' => $note,
                                 'time' => $ticksToBeats($startTick),
                                 'duration' => $ticksToBeats($durationTicks),
-                                'velocity' => $velocity,
+                                'velocity' => $vol2,
                                 'channel' => $ch
                             );
                         }
                     }
+                    
+
                 }
             }
 
