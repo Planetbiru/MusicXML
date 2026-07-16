@@ -19,15 +19,15 @@ use ZipArchive;
  */
 class MXL
 {
-    const FORMAT_MXL = "mxl";
-    const FORMAT_XML = "xml";
-    const FORMAT_MUSICXML = "musicxml";
-    const MIME_TYPE = "application/vnd.recordare.musicxml";
-    const EXT_MUSICXML = '.musicxml';
-    const CONTAINER_PATH = 'META-INF/container.xml';
-    const CONTAINER_DIR = 'META-INF';
-    const XML_VERSION = '1.0';
-    const XML_ENCODING = 'UTF-8';
+    const FORMAT_MXL       = "mxl";
+    const FORMAT_XML       = "xml";
+    const FORMAT_MUSICXML  = "musicxml";
+    const MIME_TYPE        = "application/vnd.recordare.musicxml";
+    const EXT_MUSICXML     = ".musicxml";
+    const CONTAINER_PATH   = "META-INF/container.xml";
+    const CONTAINER_DIR    = "META-INF";
+    const XML_VERSION      = "1.0";
+    const XML_ENCODING     = "UTF-8";
     
     /**
      * Convert musicxml to mxl
@@ -39,7 +39,7 @@ class MXL
      * @return string Compressed file
      * @throws FilePermissionExcetion when failed to create temporary file
      */
-    public function xmlToMxl($name, $xml, $mimeType = self::MIME_TYPE)
+    public function xmlToMXL($name, $xml, $mimeType = self::MIME_TYPE)
     {
         $mediatype = $this->getMediaType($mimeType);  
         $fname = $name;
@@ -76,7 +76,7 @@ class MXL
      * @throws FilePermissionExcetion if a temporary file cannot be created.
      * @throws \Exception if the MXL file is invalid or cannot be processed.
      */
-    public function mxlToXml($mxlData)
+    public function mxlToXML($mxlData)
     {
         // 1. Save MXL data to a temporary file
         $tmp_dir = sys_get_temp_dir();

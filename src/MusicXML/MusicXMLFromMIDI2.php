@@ -602,7 +602,7 @@ class MusicXMLFromMidi extends MusicXMLBase
         {
             // compress MusicXML
             $mxl = new MXL();
-            return $mxl->xmlToMxl($title, $domdoc->saveXML());
+            return $mxl->xmlToMXL($title, $domdoc->saveXML());
         }
         else
         {
