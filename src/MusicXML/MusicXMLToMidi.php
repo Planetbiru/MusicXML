@@ -13,7 +13,7 @@ use Midi\Midi; // Assuming a MIDI writing class exists in this namespace
  * measures, and notes, and translates them into corresponding MIDI tracks and events.
  * It handles notes, rests, tempo changes, time signatures, and program changes.
  * 
- * @author Gemini Code Assist
+ * @author Kamshory
  */
 class MusicXMLToMidi
 {
