@@ -69,7 +69,7 @@ $converter = new MusicConverter();
 
 // 3. Convert to PDF
 // The converter will automatically detect the best track to render.
-$pdfContent = $converter->midiToPdf($midiData, "My Awesome Song", "The Composer");
+$pdfContent = $converter->midiToPDF($midiData, "My Awesome Song", "The Composer");
 
 // 4. Save the PDF file
 file_put_contents('output/my-song.pdf', $pdfContent);
@@ -87,7 +87,7 @@ The process is nearly identical for generating an SVG.
 use MusicXML\MusicConverter;
 
 $converter = new MusicConverter();
-$svgContent = $converter->midiToSvg($midiData, "My Song SVG", "The Composer");
+$svgContent = $converter->midiToSVG($midiData, "My Song SVG", "The Composer");
 file_put_contents('output/my-song.svg', $svgContent);
 ```
 
@@ -101,7 +101,7 @@ use MusicXML\MusicConverter;
 $converter = new MusicConverter();
 
 // Render only track 4 (e.g., the piano part)
-$pdfContent = $converter->midiToPdf($midiData, "My Song", "The Composer", 4);
+$pdfContent = $converter->midiToPDF($midiData, "My Song", "The Composer", 4);
 file_put_contents('output/piano-part.pdf', $pdfContent);
 ```
 
