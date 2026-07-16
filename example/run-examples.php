@@ -5,7 +5,7 @@ require __DIR__ . '/../vendor/autoload.php';
 // Gunakan kelas-kelas yang diperlukan dari library
 use Midi\MidiFilter;
 use MusicXML\MusicConverter;
-use MusicXML\MusicXMLFromMidi; // Masih dibutuhkan untuk skenario 1
+use MusicXML\MusicXMLFromMIDI; // Masih dibutuhkan untuk skenario 1
 use MusicXML\Util\MXL; // Masih dibutuhkan untuk skenario 1
 
 // Definisikan path file dan direktori
@@ -30,7 +30,7 @@ echo "Memulai proses konversi...\n\n";
 // ========================================================================
 echo "1. Mengonversi MIDI ke MusicXML (semua track)...\n";
 try {
-    $converter = new MusicXMLFromMidi();
+    $converter = new MusicXMLFromMIDI();
     $midi = $converter->loadMidiString($midiData);
     
     // Konversi ke format XML

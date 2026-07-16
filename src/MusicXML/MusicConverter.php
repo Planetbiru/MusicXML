@@ -139,7 +139,7 @@ class MusicConverter
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
         }
-        $converter = new MusicXMLFromMidi();
+        $converter = new MusicXMLFromMIDI();
         $converter->setUseRestFilling($this->useRestFilling);
         $midi = $converter->loadMidiString($midiData);
         $xmlStr = $converter->midiToMusicXML($midi, $songTitle, $version, $format);
@@ -155,7 +155,7 @@ class MusicConverter
      */
     public function musicXMLToMIDI($musicXmlContent)
     {
-        $toMidiConverter = new MusicXMLToMidi();
+        $toMidiConverter = new MusicXMLToMIDI();
         return $toMidiConverter->fromXmlString($musicXmlContent);
     }
 
@@ -182,7 +182,7 @@ class MusicConverter
         $this->format = 'pdf';
 
         // 1. Convert MIDI to MusicXML content using the PHP converter
-        $converter = new MusicXMLFromMidi();
+        $converter = new MusicXMLFromMIDI();
         $converter->setUseRestFilling($this->useRestFilling);
         $midi = $converter->loadMidiString($midiData);
         $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
@@ -238,7 +238,7 @@ class MusicConverter
         $this->format = 'svg';
 
         // 1. Convert MIDI to MusicXML content using the PHP converter
-        $converter = new MusicXMLFromMidi();
+        $converter = new MusicXMLFromMIDI();
         $converter->setUseRestFilling(false); // Enable rest filling for better measure representation
         $midi = $converter->loadMidiString($midiData);
         $xmlStr = $converter->midiToMusicXML($midi, $songTitle);

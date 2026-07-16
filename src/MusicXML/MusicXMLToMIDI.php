@@ -21,7 +21,7 @@ use MusicXML\Model\Pitch;
  * 
  * @author Kamshory
  */
-class MusicXMLToMidi
+class MusicXMLToMIDI
 {
     /**
      * The MusicXML score object to be converted.
