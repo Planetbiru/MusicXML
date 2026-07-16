@@ -27,6 +27,18 @@ class DAWProjectFromMidi
      */
     private $ccPanMap = array();
 
+    private $timebase = 512;
+
+    /**
+     * Convert ticks (MIDI) to time DAWProject
+     * 
+     * @param int $ticks MIDI tick
+     * @return float DAWProject time (in beats)
+     */
+    public function ticksToBeats($ticks) {
+        return $ticks / $this->timebase;
+    }
+
 
     /**
      * Convert MIDI string to DAWProject ZIP content
@@ -47,15 +59,13 @@ class DAWProjectFromMidi
         $midi = new MidiMeasure();
         $midi->parseMidi($midiData);
         $timebase = $midi->getTimebase();
+        $this->timebase = $timebase;
 
         // 1. Create project.xml
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Project xmlns="http://www.bitwig.com/dawproject" version="1.0"></Project>');
         $xml->addChild('Application')->addAttribute('name', 'PHPMidi');
         $xml->children()->Application->addAttribute('version', '1.0');
 
-        $ticksToBeats = function($ticks) use ($timebase) {
-            return $ticks / $timebase;
-        };
 
         // Go through MIDI tracks
         $tracks = $midi->getTracks();
@@ -73,7 +83,7 @@ class DAWProjectFromMidi
                     $tick = intval($parts[0]);
                     $tempoValue = intval($parts[2]); 
                     $bpm = 60000000 / $tempoValue;
-                    $timeInBeats = $ticksToBeats($tick);
+                    $timeInBeats = $this->ticksToBeats($tick);
                     $tempoPoints[] = sprintf('%.4F,%.4F', $timeInBeats, $bpm);
                 }
             }
@@ -181,7 +191,7 @@ class DAWProjectFromMidi
                     if ($type === 'On') {
                         $activeNotes[$key] = array(
                             'tick' => $tick,
-                            'velocity' => $vol
+                            'velocity' => $vol / 127.0
                         );
                     } else {
                         if (isset($activeNotes[$key])) {
@@ -194,8 +204,8 @@ class DAWProjectFromMidi
 
                             $notes[] = array(
                                 'key' => $note,
-                                'time' => $ticksToBeats($startTick),
-                                'duration' => $ticksToBeats($durationTicks),
+                                'time' => $this->ticksToBeats($startTick),
+                                'duration' => $this->ticksToBeats($durationTicks),
                                 'velocity' => $velocity,
                                 'channel' => $ch
                             );
@@ -243,7 +253,7 @@ class DAWProjectFromMidi
             // Collect Volume points
             if (isset($this->ccVolumeMap[$trackChannel])) {
                 foreach ($this->ccVolumeMap[$trackChannel] as $tick => $value) {
-                    $timeInBeats = $ticksToBeats($tick);
+                    $timeInBeats = $this->ticksToBeats($tick);
                     $normalizedValue = $value / 127.0;
                     $automationPoints['Volume'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
@@ -251,7 +261,7 @@ class DAWProjectFromMidi
             // Collect Pan points
             if (isset($this->ccPanMap[$trackChannel])) {
                 foreach ($this->ccPanMap[$trackChannel] as $tick => $value) {
-                    $timeInBeats = $ticksToBeats($tick);
+                    $timeInBeats = $this->ticksToBeats($tick);
                     $normalizedValue = ($value - 64) / 63.0; // 0-127 -> -1.0 to 1.0 (approx)
                     $automationPoints['Pan'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
@@ -259,7 +269,7 @@ class DAWProjectFromMidi
             // Collect Expression points
             if (isset($this->ccExpressionMap[$trackChannel])) {
                 foreach ($this->ccExpressionMap[$trackChannel] as $tick => $value) {
-                    $timeInBeats = $ticksToBeats($tick);
+                    $timeInBeats = $this->ticksToBeats($tick);
                     $normalizedValue = $value / 127.0;
                     $automationPoints['Expression'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
