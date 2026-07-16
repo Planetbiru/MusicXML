@@ -7,7 +7,7 @@ use Midi\MidiMeasure;
 use SimpleXMLElement;
 use ZipArchive;
 
-class DAWProjectFromMidi
+class DAWProjectFromMIDI
 {
     /**
      * Map of CC Volume events per channel
