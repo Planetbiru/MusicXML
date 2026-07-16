@@ -4,7 +4,7 @@ namespace MusicXML;
 
 use MusicXML\Model\ScorePartwise;
 use MusicXML\Model\Note;
-use Midi\Midi; // Assuming a MIDI writing class exists in this namespace
+use Midi\Midi;
 use MusicXML\Model\Attributes;
 use MusicXML\Model\Backup;
 use MusicXML\Model\Direction;
