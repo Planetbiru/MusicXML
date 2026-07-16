@@ -6,20 +6,6 @@
 A comprehensive PHP library for handling MusicXML and MIDI files. It supports conversion between formats and can render MusicXML into beautiful, printable sheet music in PDF or SVG formats. This library is written in pure PHP and has minimal dependencies, making it easy to integrate into any project.
 This library is actively used in production and powers the online sheet music generator at [https://composer.planetbiru.com/](https://composer.planetbiru.com/).
 
-## Conversion Workflows
-
-The library supports the following conversion workflows:
-
-![Conversion Compatibility](conversion-compatibility.svg)
-
-* **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
-* **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
-* **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
-* **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
-* **MIDI → DAWProject:** Convert MIDI data into DAWProject format (ZIP with project.xml and metadata.xml), preserving tempo, tracks, notes, and instrument mapping for DAW interoperability.
-* **DAWProject → MIDI:** Parse DAWProject files and reconstruct MIDI tracks/events, including tempo, notes, and program changes.
-
-
 ## Key Features
 
 *   **MIDI to MusicXML:** Core functionality to parse MIDI data and convert it into a standard MusicXML structure.
@@ -40,6 +26,21 @@ The library supports the following conversion workflows:
 *   **Lyric Support:** Automatically detects and renders lyrics embedded in MIDI files.
 *   **Percussion & Drums:** Special handling for drum tracks (Channel 10) with appropriate notation.
 *   **Batch Processing:** Includes examples for processing all tracks of a MIDI file into a single ZIP archive of PDFs.
+
+## Conversion Workflows
+
+The library supports the following conversion workflows:
+
+![Conversion Compatibility](conversion-compatibility.svg)
+
+* **MIDI → MusicXML:** Parse MIDI data and convert it into a standard MusicXML structure.
+* **MusicXML → MIDI:** Convert MusicXML object models back into binary MIDI files.
+* **MusicXML → PDF:** Render MusicXML data into high-quality, printable PDF sheet music.
+* **MusicXML → SVG:** Render MusicXML data into scalable SVG, perfect for interactive web display.
+* **MIDI → DAWProject:** Convert MIDI data into DAWProject format (ZIP with project.xml and metadata.xml), preserving tempo, tracks, notes, and instrument mapping for DAW interoperability.
+* **DAWProject → MIDI:** Parse DAWProject files and reconstruct MIDI tracks/events, including tempo, notes, and program changes.
+
+
 
 ## MusicXML 4.0 Compliance
 
@@ -171,6 +172,8 @@ Converts a `.dawproject` file into an SVG image. This method first converts the 
 - `$singlePage` (bool): If true, generates a single continuous SVG. If false, generates stacked pages.
 
 
+## Examples
+
 ### Basic Example: Convert MIDI to PDF
 
 This example demonstrates the simplest use case: converting a MIDI file into a PDF.
@@ -253,6 +256,8 @@ The workflow involves two parallel conversion paths:
 By running these two processes, you get both the audio and the visual score from a single `.dawproject` source. The generated SVG will contain the necessary `data-tick` attributes to synchronize the note highlighting and playhead with the audio from the MIDI player, just like in the `vocal-training.php` example.
 
 This powerful workflow allows you to create rich, interactive experiences directly from a modern DAW project format.
+
+> **Note on Lyrics**: The `.dawproject` format does not natively support lyric events. Therefore, any lyrics present in an original MIDI file will be lost during the `MIDI` → `.dawproject` conversion and will not appear in the final generated score.
 
 
 ### Interactive SVG with Player Synchronization
