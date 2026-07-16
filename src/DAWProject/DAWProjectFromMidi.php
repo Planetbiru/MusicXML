@@ -65,9 +65,6 @@ class DAWProjectFromMidi
             // Keep track of active note on events
             $activeNotes = array();
             
-            // Guess track channel
-            $trackChannel = 0;
-
             foreach ($rawTrack as $evtLine) {
                 $parts = explode(' ', trim($evtLine));
                 if (count($parts) < 2) continue;
@@ -96,8 +93,6 @@ class DAWProjectFromMidi
                         }
                     }
 
-                    $trackChannel = $ch;
-
                     if ($type === 'On' && $vol > 0) {
                         $activeNotes[$note] = array(
                             'tick' => $tick,
@@ -122,11 +117,6 @@ class DAWProjectFromMidi
                         }
                     }
                 }
-            }
-
-            // Skip if track channel is not selected
-            if ($selectedChannels !== null && !in_array($trackChannel, $selectedChannels)) {
-                continue;
             }
 
             // Skip tracks with no notes
