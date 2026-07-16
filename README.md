@@ -18,9 +18,12 @@ The library supports the following conversion workflows:
 
 *   **MIDI to MusicXML:** Core functionality to parse MIDI data and convert it into a standard MusicXML structure.
 *   **MusicXML to MIDI:** Convert MusicXML object models back into binary MIDI files, enabling a full roundtrip conversion process.
-*   **PDF Rendering:** Generate high-quality PDF sheet music from MusicXML data using a built-in FPDF-based rendering engine. No external binaries required.
+    *   This roundtrip capability is powerful for building interactive **MusicXML players**. The workflow is as follows:
+        1.  The MusicXML is converted to a MIDI file for audio playback.
+        2.  The same MusicXML is converted to an SVG for visual rendering, allowing for synchronized highlighting of notes and lyrics as the audio plays.
 *   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music from MusicXML data, perfect for web display.
     *   **Interactive:** The generated SVG includes `data-*` attributes for easy synchronization with an audio player, enabling features like note highlighting and a moving playhead.
+*   **PDF Rendering:** Generate high-quality PDF sheet music from MusicXML data using a built-in FPDF-based rendering engine. No external binaries required.
 *   **Track & Channel Filtering:** Easily select a specific track or channel from a MIDI file to render.
 *   **Automatic Part Detection:** Intelligently detects the most suitable part to render (e.g., the main melody with lyrics).
 *   **Rich Notation Support:** Handles notes, rests, chords, ties, time signatures, key signatures, clefs, and tempo markings.
