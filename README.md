@@ -41,6 +41,59 @@ The library supports the following conversion workflows:
 * **DAWProject → MIDI:** Parse DAWProject files and reconstruct MIDI tracks/events, including tempo, notes, and program changes.
 
 
+## Format Comparison and Data Loss
+
+When converting between MIDI, MusicXML, and DAWProject, it's important to understand that each format was designed for a different purpose. As a result, some information can be lost in translation.
+
+### Feature Comparison Matrix
+
+| Feature                   | MIDI (.mid)                               | MusicXML (.xml, .mxl)                     | DAWProject (.dawproject)                  |
+|---------------------------|-------------------------------------------|-------------------------------------------|-------------------------------------------|
+| **Primary Purpose**       | Performance Data                          | Digital Sheet Music                       | DAW Session Interchange                   |
+| **Note Data**             | Yes (Pitch, Velocity, Timing)             | Yes (with rich notation)                  | Yes (within clips)                        |
+| **Sheet Music Notation**  | No (Inferred by converter)                | **Yes (Primary feature)**                 | No (Inferred by converter)                |
+| **Lyrics**                | Yes (as timed meta-events)                | Yes (syllable-based, well-structured)     | No (Not supported in the spec)            |
+| **Continuous Controllers**| Yes (Pitch Bend, Modulation, etc.)        | Limited (often simplified or lost)        | Yes (as automation curves)                |
+| **Track Structure**       | Yes                                       | Yes (as "Parts")                          | Yes (Audio, Instrument, etc.)             |
+| **Audio Clips**           | No                                        | No                                        | Yes (References external files)           |
+| **Plugin/VST State**      | No                                        | No                                        | Yes (Can store plugin info)               |
+
+### Conversion Data Loss
+
+Understanding what is lost during conversion is key to choosing the right workflow for your needs.
+
+#### **MIDI → MusicXML**
+This is a "performance-to-notation" conversion. The goal is to create readable sheet music from raw performance data.
+*   **What is LOST:**
+    *   **Continuous Performance Data:** Nuanced pitch bends, modulation wheel curves, and other continuous controller (CC) data are generally lost or heavily simplified.
+    *   **Precise Timing:** Unquantized, "human" timing is snapped to a rhythmic grid (quantized). This can alter the feel of the original performance.
+    *   **Panning:** Pan (CC10) information is typically discarded.
+    *   **Complex Dynamics:** The interplay between note velocity, volume (CC7), and expression (CC11) is flattened into a single dynamic marking (e.g., *mf*, *p*).
+
+#### **MusicXML → MIDI**
+This is a "notation-to-performance" conversion. The goal is to create an audible representation of the sheet music.
+*   **What is LOST:**
+    *   **Visual Notation:** All visual-only information is lost. This includes slurs, specific beam groupings, page layout, and textual annotations that don't have a direct playback meaning.
+    *   **Semantic Meaning:** The distinction between enharmonically equivalent notes (e.g., F# vs. Gb) is lost. The MIDI file only knows the pitch, not its theoretical context.
+    *   **Note Velocity:** The final note velocity is an interpretation of the MusicXML dynamic markings, not a restoration of the original performance velocity.
+
+#### **MIDI ↔ DAWProject**
+This library's implementation focuses on preserving the core musical data (notes, tracks, tempo).
+*   **What is LOST (MIDI → DAWProject):**
+    *   **Lyrics:** The `.dawproject` format does not have a standard way to represent lyrics, so they are lost during this conversion.
+    *   **Other Meta-Events:** Some non-standard or less common MIDI meta-events may not be translated.
+*   **What is LOST (DAWProject → MIDI):**
+    *   **DAW-Specific Information:** All data related to audio clips, VST/plugin states, routing, and scene structure is lost. The conversion only extracts the MIDI-related information from instrument clips.
+
+#### **Conclusion: The Best Format for the Job**
+
+*   **Use MIDI** as the source when you have raw performance data from a keyboard or sequencer and want to generate sheet music or a DAW project from it.
+*   **Use MusicXML** when your primary goal is to create, edit, or share digital sheet music with accurate and detailed notation. It is the best format for exchanging scores between notation software (Sibelius, Finale, MuseScore).
+*   **Use DAWProject** for exchanging a project's structure—including MIDI clips, tempo, and track information—between compatible DAWs (like Bitwig Studio and Cubase). It is not a format for detailed notation.
+
+Due to these differences, a round-trip conversion like `MIDI → MusicXML → MIDI` will **not** produce a file identical to the original. The resulting MIDI will be a quantized, simplified performance based on the generated sheet music, not a perfect copy of the original performance.
+
+
 
 ## MusicXML 4.0 Compliance
 
