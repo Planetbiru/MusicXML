@@ -5,6 +5,7 @@ namespace MusicXML;
 use DAWProject\DAWProjectFromMIDI;
 use DAWProject\DAWProjectToMIDI;
 use Exception;
+use MusicXML\Util\MXL;
 use SimpleXMLElement;
 
 /**
@@ -158,6 +159,58 @@ class MusicConverter
         return $converter->convert($dawProjectData);
     }
 
+    /**
+     * Converts a compressed MusicXML (.mxl) file into an uncompressed MusicXML string.
+     *
+     * @param string $mxl The binary content of the .mxl file.
+     * @return string The uncompressed MusicXML content as a string.
+     */
+    public function mxlToXML($mxl) 
+    {
+        return (new MXL())->mxlToXML($mxl);
+    }
+
+    /**
+     * Converts a compressed MusicXML (.mxl) file into a binary MIDI data string.
+     *
+     * @param string $mxl The binary content of the .mxl file.
+     * @return string The binary MIDI data.
+     */
+    public function mxlToMIDI($mxl)
+    {
+        return $this->musicXMLToMIDI($this->mxlToXML($mxl));
+    }
+
+    /**
+     * Converts a compressed MusicXML (.mxl) file into a PDF file.
+     *
+     * @param string $mxl The binary content of the .mxl file.
+     * @param string $songTitle The title to be displayed on the sheet music.
+     * @param string $composer The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+     * @param bool $showLyric If true, forces lyrics to be displayed if they exist in the selected part.
+     * @return string Raw PDF data string.
+     */
+    public function mxlToPDF($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    {
+        return $this->musicXMLToPDF($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+    }
+
+    /**
+     * Converts a compressed MusicXML (.mxl) file into an SVG image.
+     *
+     * @param string $mxl The binary content of the .mxl file.
+     * @param string $songTitle The title to be displayed on the sheet music.
+     * @param string $composer The composer's name to be displayed.
+     * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
+     * @param bool $showLyric If true, forces lyrics to be displayed if they exist in the selected part.
+     * @param bool $singlePage If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
+     * @return string Raw SVG data string.
+     */
+    public function mxlToSVG($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
+    {
+        return $this->musicXMLToSVG($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
+    }
 
     /**
      * Converts MIDI data into a MusicXML string.

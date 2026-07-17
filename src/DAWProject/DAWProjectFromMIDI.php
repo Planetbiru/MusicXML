@@ -98,7 +98,7 @@ class DAWProjectFromMIDI
 
         // 1. Create project.xml
         $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Project xmlns="http://www.bitwig.com/dawproject" version="1.0"></Project>');
-        $xml->addChild('Application')->addAttribute('name', 'PHPMidi');
+        $xml->addChild('Application')->addAttribute('name', 'Planetbiru/MusicXML');
         $xml->children()->Application->addAttribute('version', '1.0');
 
 
@@ -151,8 +151,6 @@ class DAWProjectFromMIDI
             $notes = array();
             $programNumber = 0; // Default to 0 (Acoustic Grand Piano)
             $activeNotes = array(); // Reset active notes for each new track
-
-
             
             // Guess track channel
             $trackChannel = 0;
@@ -307,14 +305,14 @@ class DAWProjectFromMIDI
             // Add Automation for Pan, Volume, Expression
             $automationEl = $trackEl->addChild('Automation');
             $automationPoints = array(
-                'Volume' => array(),
-                'Pan' => array(),
-                'CC11' => array(), // Expression
-                'PitchBend' => array(),
-                'CC1' => array(), // Modulation
-                'CC64' => array(), // Sustain
-                'CC91' => array(), // Reverb
-                'CC93' => array()  // Chorus
+                'Volume' => array(),    // Volume
+                'Pan' => array(),       // Pan
+                'CC11' => array(),      // Expression
+                'PitchBend' => array(), // Picth Bend
+                'CC1' => array(),       // Modulation
+                'CC64' => array(),      // Sustain
+                'CC91' => array(),      // Reverb
+                'CC93' => array()       // Chorus
             );
 
             // Collect Volume points
@@ -325,6 +323,7 @@ class DAWProjectFromMIDI
                     $automationPoints['Volume'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Pan points
             if (isset($this->ccPanMap[$trackChannel])) {
                 foreach ($this->ccPanMap[$trackChannel] as $tick => $value) {
@@ -333,6 +332,7 @@ class DAWProjectFromMIDI
                     $automationPoints['Pan'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Expression points
             if (isset($this->ccExpressionMap[$trackChannel])) {
                 foreach ($this->ccExpressionMap[$trackChannel] as $tick => $value) {
@@ -341,6 +341,7 @@ class DAWProjectFromMIDI
                     $automationPoints['CC11'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Pitch Bend points
             if (isset($this->pitchBendMap[$trackChannel])) {
                 foreach ($this->pitchBendMap[$trackChannel] as $tick => $value) {
@@ -349,6 +350,7 @@ class DAWProjectFromMIDI
                     $automationPoints['PitchBend'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Modulation points
             if (isset($this->ccModulationMap[$trackChannel])) {
                 foreach ($this->ccModulationMap[$trackChannel] as $tick => $value) {
@@ -357,6 +359,7 @@ class DAWProjectFromMIDI
                     $automationPoints['CC1'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Sustain points
             if (isset($this->ccSustainMap[$trackChannel])) {
                 foreach ($this->ccSustainMap[$trackChannel] as $tick => $value) {
@@ -365,6 +368,7 @@ class DAWProjectFromMIDI
                     $automationPoints['CC64'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Reverb points
             if (isset($this->ccReverbMap[$trackChannel])) {
                 foreach ($this->ccReverbMap[$trackChannel] as $tick => $value) {
@@ -373,6 +377,7 @@ class DAWProjectFromMIDI
                     $automationPoints['CC91'][] = sprintf('%.4F,%.4F', $timeInBeats, $normalizedValue);
                 }
             }
+
             // Collect Chorus points
             if (isset($this->ccChorusMap[$trackChannel])) {
                 foreach ($this->ccChorusMap[$trackChannel] as $tick => $value) {
@@ -382,6 +387,7 @@ class DAWProjectFromMIDI
                 }
             }
 
+            // Add Envelope to Automation
             foreach($automationPoints as $target => $points) {
                 if(!empty($points)) {
                     $envelope = $automationEl->addChild('Envelope');
