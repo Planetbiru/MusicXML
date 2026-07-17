@@ -7,6 +7,9 @@
 - **.dawproject to MIDI Conversion**: Implemented the reverse conversion, allowing `.dawproject` files to be converted back into standard MIDI files.
 - **Roundtrip Conversion Capability**: The new features enable a full roundtrip conversion (`MIDI` -> `.dawproject` -> `MIDI`), preserving track structure and instrument information.
 
+### Changed
+- Use the MIDI track name as the part name in MusicXML if available. If not available, use the instrument name.
+
 ## v1.1.1 - 2026-07-16
 
 ### Changed

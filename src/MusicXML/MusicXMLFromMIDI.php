@@ -247,6 +247,10 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
     private $useRestFilling = false; // Flag to determine which rest filling method to use
 
+    private $trackNames = array(); // Array to store track names
+
+
+
     /**
      * Reset properties
      *
@@ -768,6 +772,9 @@ class MusicXMLFromMIDI extends MusicXMLBase
                                 // Kirim event ke addEvent agar disimpan dalam $this->lyrics
                                 $this->addEvent($msg[1], $msg, $timebase, $abstime, 0, 0);
                             }
+                            if($tag == 'TrackName') {
+                                $this->trackNames[$i] = $txt;
+                            }
                         } else {
                             if ($mtype == 'TrkEnd') {
                                 $xml .= "<EndOfTrack/>\n";
@@ -916,18 +923,28 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
         $this->divisionsPerQuarter = self::DEFAULT_DIVISONS; // Use a smaller, standard divisions value for cleaner rhythm.
 
-        foreach ($this->partList as $part) {
+        foreach ($this->partList as $idx=>$part) {
             // start add score part
             // this block will be iterated each channel
+
+
+            // Convert partId to integer
+            $pid = str_replace('P', '', $part['partId']);
+            $partId = intval($pid);
+            $trackName = null;
+            if($partId > 0 && isset($this->trackNames[$partId]))
+            {
+                $trackName = $this->trackNames[$partId];
+            }
 
             $partId = $part['partId'];
             $channelId = $part['channelId'];
             if ($channelId == 10) {
-                $partName = 'Drum Kit';
+                $partName = isset($trackName) ? $trackName : 'Drum Kit';
                 $partAbbreviation = 'D. Kit';
                 $instrumentName = 'Drum Kit';
             } else {
-                $partName = $part['instrument'][0];
+                $partName = isset($trackName) ? $trackName : $part['instrument'][0];
                 $partAbbreviation = $this->getPartAbbreviation($part);
                 $instrumentName = $part['instrument'][0];
             }

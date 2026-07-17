@@ -196,6 +196,7 @@ class MusicXMLToMIDI
             $partId = (string)$scorePart->id;
             $channel = null;
             $program = 1;
+            $partName = (string)$scorePart->partName->textContent;
 
             // Iterate through all midi-instruments to find the definitive channel and program for this part.
             if (isset($scorePart->midiInstrument) && is_array($scorePart->midiInstrument)) {
@@ -222,7 +223,8 @@ class MusicXMLToMIDI
             $this->partMap[$partId] = array(
                 'track' => $trackIndex,
                 'channel' => $channel,
-                'program' => $program
+                'program' => $program,
+                'name' => $partName
             );
 
             // Do not add a Program Change event for the drum channel (10).
@@ -261,6 +263,9 @@ class MusicXMLToMIDI
 
 
         $timeline = array(); // NOSONAR
+
+        // Add track name meta event
+        $this->midi->addMsg($track, '0 Meta TrkName "' . $trackInfo['name'] . '"');
 
         // Ensure $part->measure is an array before looping
         foreach (is_array($part->measure) ? $part->measure : [] as $measure) {
