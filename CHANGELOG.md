@@ -8,7 +8,7 @@
 - **Roundtrip Conversion Capability**: The new features enable a full roundtrip conversion (`MIDI` -> `.dawproject` -> `MIDI`), preserving track structure and instrument information.
 
 ### Changed
-- Start MIDI track index from 0 instead of 1.
+- Use the MIDI track name as the part name in MusicXML if available. If not available, use the instrument name.
 
 ## v1.1.1 - 2026-07-16
 
