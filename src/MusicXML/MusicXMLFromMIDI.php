@@ -923,6 +923,11 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
         $this->divisionsPerQuarter = self::DEFAULT_DIVISONS; // Use a smaller, standard divisions value for cleaner rhythm.
 
+        if(count($this->trackNames) == 2 && isset($this->trackNames[1]))
+        {
+            $trackName = $this->trackNames[1];
+        }
+
         foreach ($this->partList as $idx=>$part) {
             // start add score part
             // this block will be iterated each channel
@@ -932,7 +937,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $pid = str_replace('P', '', $part['partId']);
             $partId = intval($pid);
             $trackName = null;
-            if($partId > 0 && isset($this->trackNames[$partId]))
+            if(!isset($trackName) && $partId > 0 && isset($this->trackNames[$partId]))
             {
                 $trackName = $this->trackNames[$partId];
             }

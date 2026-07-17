@@ -1,14 +1,16 @@
 {
     "name": "planetbiru/musicxml",
-    "description": "A PHP library to convert MIDI files to MusicXML, and render them as PDF or SVG.",
+    "description": "A PHP library to convert MIDI files to MusicXML and DAWPRoject, and render them as PDF or SVG.",
     "type": "library",
     "keywords": [
         "midi",
         "musicxml",
+        "dawproject",
         "pdf",
         "svg",
         "music",
         "notation",
+        "score",
         "fpdf"
     ],
     "homepage": "https://www.planetbiru.com",
