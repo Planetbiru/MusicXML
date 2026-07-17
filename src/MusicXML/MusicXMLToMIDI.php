@@ -94,8 +94,8 @@ class MusicXMLToMIDI
 
         $this->createTempoTrack();
 
-        foreach ($this->score->part as $index => $part) {
-            $this->processPart($part, $index);
+        foreach ($this->score->part as $part) {
+            $this->processPart($part);
         }
 
         return $this->midi->getMidData();
@@ -196,6 +196,7 @@ class MusicXMLToMIDI
             $partId = (string)$scorePart->id;
             $channel = null;
             $program = 1;
+            $partName = (string)$scorePart->partName->textContent;
 
             // Iterate through all midi-instruments to find the definitive channel and program for this part.
             if (isset($scorePart->midiInstrument) && is_array($scorePart->midiInstrument)) {
@@ -222,7 +223,8 @@ class MusicXMLToMIDI
             $this->partMap[$partId] = array(
                 'track' => $trackIndex,
                 'channel' => $channel,
-                'program' => $program
+                'program' => $program,
+                'name' => $partName
             );
 
             // Do not add a Program Change event for the drum channel (10).
@@ -237,18 +239,17 @@ class MusicXMLToMIDI
      * Processes a single MusicXML <part> and converts it to a MIDI track.
      *
      * @param PartPartwise $part The part to process.
-     * @param int $index The track index
      */
-    private function processPart($part, $index)
+    private function processPart($part)
     {
+        // file_put_contents("log.txt", print_r($part, true), FILE_APPEND);
         $partId = (string) $part->id;
         if (!isset($this->partMap[$partId])) {
-            return;
+            return; // Skip if part is not in the map
         }
 
         $trackInfo = $this->partMap[$partId];
-        // $track = ((int) $trackInfo['track']); // MIDI tracks are 0-based
-
+        $track = $trackInfo['track'];
         $channel = $trackInfo['channel'];
         $currentTime = 0;
         $divisions = $this->getInitialDivisions($part); // Get divisions from the first measure
@@ -262,6 +263,9 @@ class MusicXMLToMIDI
 
 
         $timeline = array(); // NOSONAR
+
+        // Add track name meta event
+        $this->midi->addMsg($track, '0 Meta TrkName "' . $trackInfo['name'] . '"');
 
         // Ensure $part->measure is an array before looping
         foreach (is_array($part->measure) ? $part->measure : [] as $measure) {
@@ -398,13 +402,13 @@ class MusicXMLToMIDI
         // Add sorted events to the MIDI track
         foreach ($timeline as $event) {
             if ($event['type'] == 'On') {
-                $this->midi->addNoteOn($index, $event['time'], $channel, $event['note'], $event['velocity']);
+                $this->midi->addNoteOn($track, $event['time'], $channel, $event['note'], $event['velocity']);
             } else if ($event['type'] == 'Lyric') {
                 // The Midi class's internal parser expects the text part of the message to be enclosed in quotes. We must escape any quotes within the lyric text itself.
                 $escapedLyricText = str_replace('"', '\"', $event['text']);
-                $this->midi->addMsg($index, $event['time'] . ' Meta Lyric "' . $escapedLyricText . '"');
+                $this->midi->addMsg($track, $event['time'] . ' Meta Lyric "' . $escapedLyricText . '"');
             } else {
-                $this->midi->addNoteOff($index, $event['time'], $channel, $event['note'], $event['velocity']);
+                $this->midi->addNoteOff($track, $event['time'], $channel, $event['note'], $event['velocity']);
             }
         }
     }
