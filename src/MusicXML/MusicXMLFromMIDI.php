@@ -918,6 +918,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
         // begin part list
         $partIndex = 1;
+        $trackName = null;
 
         $scorePartwise->partList->scorePart = array();
 
@@ -932,11 +933,10 @@ class MusicXMLFromMIDI extends MusicXMLBase
             // start add score part
             // this block will be iterated each channel
 
-
             // Convert partId to integer
             $pid = str_replace('P', '', $part['partId']);
             $partId = intval($pid);
-            $trackName = null;
+            
             if(!isset($trackName) && $partId > 0 && isset($this->trackNames[$partId]))
             {
                 $trackName = $this->trackNames[$partId];
