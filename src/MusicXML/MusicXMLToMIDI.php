@@ -94,8 +94,8 @@ class MusicXMLToMIDI
 
         $this->createTempoTrack();
 
-        foreach ($this->score->part as $part) {
-            $this->processPart($part);
+        foreach ($this->score->part as $index => $part) {
+            $this->processPart($part, $index);
         }
 
         return $this->midi->getMidData();
@@ -237,17 +237,18 @@ class MusicXMLToMIDI
      * Processes a single MusicXML <part> and converts it to a MIDI track.
      *
      * @param PartPartwise $part The part to process.
+     * @param int $index The track index
      */
-    private function processPart($part)
+    private function processPart($part, $index)
     {
-        // file_put_contents("log.txt", print_r($part, true), FILE_APPEND);
         $partId = (string) $part->id;
         if (!isset($this->partMap[$partId])) {
-            return; // Skip if part is not in the map
+            return;
         }
 
         $trackInfo = $this->partMap[$partId];
-        $track = $trackInfo['track'];
+        // $track = ((int) $trackInfo['track']); // MIDI tracks are 0-based
+
         $channel = $trackInfo['channel'];
         $currentTime = 0;
         $divisions = $this->getInitialDivisions($part); // Get divisions from the first measure
@@ -397,13 +398,13 @@ class MusicXMLToMIDI
         // Add sorted events to the MIDI track
         foreach ($timeline as $event) {
             if ($event['type'] == 'On') {
-                $this->midi->addNoteOn($track, $event['time'], $channel, $event['note'], $event['velocity']);
+                $this->midi->addNoteOn($index, $event['time'], $channel, $event['note'], $event['velocity']);
             } else if ($event['type'] == 'Lyric') {
                 // The Midi class's internal parser expects the text part of the message to be enclosed in quotes. We must escape any quotes within the lyric text itself.
                 $escapedLyricText = str_replace('"', '\"', $event['text']);
-                $this->midi->addMsg($track, $event['time'] . ' Meta Lyric "' . $escapedLyricText . '"');
+                $this->midi->addMsg($index, $event['time'] . ' Meta Lyric "' . $escapedLyricText . '"');
             } else {
-                $this->midi->addNoteOff($track, $event['time'], $channel, $event['note'], $event['velocity']);
+                $this->midi->addNoteOff($index, $event['time'], $channel, $event['note'], $event['velocity']);
             }
         }
     }
