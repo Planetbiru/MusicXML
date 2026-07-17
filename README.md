@@ -77,12 +77,15 @@ This is a "notation-to-performance" conversion. The goal is to create an audible
     *   **Semantic Meaning:** The distinction between enharmonically equivalent notes (e.g., F# vs. Gb) is lost. The MIDI file only knows the pitch, not its theoretical context.
     *   **Note Velocity:** The final note velocity is an interpretation of the MusicXML dynamic markings, not a restoration of the original performance velocity.
 
-#### **MIDI ↔ DAWProject**
-This library's implementation focuses on preserving the core musical data (notes, tracks, tempo).
-*   **What is LOST (MIDI → DAWProject):**
+#### **MIDI → DAWProject**
+This conversion focuses on preserving core musical data like notes, tracks, and tempo for interoperability between DAWs.
+*   **What is LOST:**
     *   **Lyrics:** The `.dawproject` format does not have a standard way to represent lyrics, so they are lost during this conversion.
     *   **Other Meta-Events:** Some non-standard or less common MIDI meta-events may not be translated.
-*   **What is LOST (DAWProject → MIDI):**
+
+#### **DAWProject → MIDI**
+This conversion extracts musical event data from a DAW session file.
+*   **What is LOST:**
     *   **DAW-Specific Information:** All data related to audio clips, VST/plugin states, routing, and scene structure is lost. The conversion only extracts the MIDI-related information from instrument clips.
 
 #### **Conclusion: The Best Format for the Job**
