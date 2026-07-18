@@ -143,7 +143,7 @@ class MusicXMLWriter extends \stdClass // NOSONAR
                 $propName = $this->camelize($childName, '-');
 
                 // Use ModelMap to find the corresponding class
-                if (isset(ModelMap::CLASS_MAP[$childName])) {
+                if (null !== ModelMap::CLASS_MAP[$childName]) {
                     $className = ModelMap::CLASS_MAP[$childName];
                     $childObject = new $className($child, null, $level + 1); // RECURSIVE CALL
                     
