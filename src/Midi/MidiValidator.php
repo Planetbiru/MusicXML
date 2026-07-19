@@ -4,6 +4,9 @@ namespace Midi;
 
 /**
  * Planetbiru Composer - MIDI Validation Utility
+ * 
+ * @package Midi
+ * @author Kamsshory
  */
 
 class MidiValidator {

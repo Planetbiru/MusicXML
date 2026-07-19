@@ -10,6 +10,7 @@ use \stdClass;
  * Extends Midi to handle instrument (program change) extraction and data mapping.
  * 
  * @package Midi
+ * @author Kamsshory
  */
 class MidiInstrument extends Midi{
 
