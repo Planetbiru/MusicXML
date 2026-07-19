@@ -4,6 +4,12 @@ namespace Midi;
 
 use Exception;
 
+/**
+ * MIDI utility class to filter MIDI by it's trakcs, channel mute channels
+ * 
+ * @package Midi
+ * @author Kamshory
+ */
 class MidiFilter
 {
     /**

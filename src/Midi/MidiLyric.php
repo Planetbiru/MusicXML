@@ -10,6 +10,7 @@ use \stdClass;
  * Extends Midi to handle lyrics extraction and insertion.
  * 
  * @package Midi
+ * @author Kamsshory
  */
 class MidiLyric extends Midi{
 
