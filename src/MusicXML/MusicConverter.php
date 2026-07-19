@@ -110,6 +110,8 @@ class MusicConverter
         11 => 6   // B
     );
 
+    private $mobile = false;
+
     /**
      * MusicConverter constructor.
      *
@@ -205,11 +207,12 @@ class MusicConverter
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param bool $showLyric If true, forces lyrics to be displayed if they exist in the selected part.
      * @param bool $singlePage If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
+     * @param bool $mobile If true, optimizes the layout for mobile devices by rendering one measure per system.
      * @return string Raw SVG data string.
      */
-    public function mxlToSVG($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
+    public function mxlToSVG($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true, $mobile = false)
     {
-        return $this->musicXMLToSVG($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
+        return $this->musicXMLToSVG($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage, $mobile);
     }
 
     /**
@@ -317,16 +320,18 @@ class MusicConverter
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
      * @param bool            $singlePage            If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
+     * @param bool            $mobile                If true, optimizes the layout for mobile devices by rendering one measure per system.
      * @return string Raw SVG data string
      * @throws Exception
      */
-    public function midiToSVG($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $singlePage = true)
+    public function midiToSVG($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $singlePage = true, $mobile = false)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
         }
 
         $this->format = 'svg';
+        $this->mobile = $mobile;
 
         // 1. Convert MIDI to MusicXML content using the PHP converter
         $converter = new MusicXMLFromMIDI();
@@ -335,7 +340,7 @@ class MusicConverter
         $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
         
-        return $this->musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage);
+        return $this->musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage, $mobile);
     }
 
     /**
@@ -350,11 +355,14 @@ class MusicConverter
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param bool            $showLyric             If true, forces lyrics to be displayed if they exist in the selected part.
      * @param bool            $singlePage            If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
+     * @param bool            $mobile                If true, optimizes the layout for mobile devices by rendering one measure per system.
      * @return string Raw SVG data string
      * @throws Exception
      */
-    public function musicXMLToSVG($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true)
+    public function musicXMLToSVG($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $singlePage = true, $mobile = false)
     {
+        $this->mobile = $mobile;
+
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
         }
@@ -395,11 +403,13 @@ class MusicConverter
      * @param string $composer The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or part ID to render.
      * @param bool $singlePage If true, generates a single continuous SVG. If false, generates stacked pages.
+     * @param bool $mobile If true, optimizes the layout for mobile devices by rendering one measure per system.
      * @return string Raw SVG data string.
      */
-    public function dawProjectToSVG($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $singlePage = true)
+    public function dawProjectToSVG($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $singlePage = true, $mobile = false)
     {
         $this->format = 'svg';
+        $this->mobile = $mobile;
         $converter1 = new DAWProjectFromMIDI();
         $midiData = $converter1->convert($dawProjectData);
         return $this->midiToSVG($midiData, $songTitle, $composer, $targetChannelOrPartId, null, $singlePage);
@@ -701,7 +711,7 @@ class MusicConverter
      */
     private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
     {
-        $pdf = new SheetMusicSVG('P', 'mm', 'A4', $singlePage);
+        $pdf = new SheetMusicSVG('P', 'mm', 'A4', $singlePage, $this->mobile);
         $pdf->composer = $composer;
         $pdf->year = date('Y');
         $pdf->AliasNbPages();
@@ -782,6 +792,13 @@ class MusicConverter
         $systemX = 12; // horizontal start on page 1
         $systemY = 40; // vertical start on page 1
         $printableWidth = 185; // A4 width 210mm - 15mm left margin - 11mm right margin
+
+        if($this->mobile)
+        {
+            $printableWidth = 92.5; // A5
+            $systemX = 6;
+        }
+
         $lineSpacing = 2; // distance between staff lines in mm
 
         // Default attributes
@@ -797,8 +814,15 @@ class MusicConverter
         $elevation = $this->format == 'pdf' ? 15 : -15; // Elevation for note heads in SVG is inverted compared to PDF
         $tempoTextOffset = $this->format == 'pdf' ? -4 : -3; // Fix text offset
 
-        $measuresPerSystem = ($hasLyrics || $isPercussion) ? 2 : 3;
-
+        if ($this->mobile) {
+            $measuresPerSystem = 1;
+        } else {
+            if ($hasLyrics || $isPercussion) {
+                $measuresPerSystem = 2;
+            } else {
+                $measuresPerSystem = 3;
+            }
+        }
         $measures = $targetPart->measure;
         $totalMeasures = count($measures);
 
@@ -894,6 +918,7 @@ class MusicConverter
             // Indent for clef and signatures at the start of each system
             $systemStartIndent = ($layoutIdx < $measuresPerSystem) ? 22 : 16;
             $measureWidth = ($printableWidth - $systemStartIndent) / $measuresPerSystem;
+
 
             // Start of a new system
             if ($layoutIdx % $measuresPerSystem == 0) {
