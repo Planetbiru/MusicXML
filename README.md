@@ -19,6 +19,7 @@ This library is actively used in production and powers the online sheet music ge
 *   **SVG Rendering:** Create scalable SVG vector graphics of your sheet music from MusicXML data, perfect for web display.
     *   **Interactive:** The generated SVG includes `data-*` attributes for easy synchronization with an audio player, enabling features like note highlighting and a moving playhead.
     *   **Page-by-Page Preview:** In addition to a single, continuous scrolling view, the SVG can also be rendered in a multi-page layout, similar to a PDF. This is useful for previewing how the score will look when printed. This behavior is controlled by a parameter in the conversion function.
+    *   **Mobile-Optimized Layout:** A `$mobile` flag renders the score with one measure per line on a narrower canvas, perfect for vertical scrolling on mobile devices.
 *   **PDF Rendering:** Generate high-quality PDF sheet music from MusicXML data using a built-in FPDF-based rendering engine. No external binaries required.
 *   **Track & Channel Filtering:** Easily select a specific track or channel from a MIDI file to render.
 *   **Automatic Part Detection:** Intelligently detects the most suitable part to render (e.g., the main melody with lyrics).
@@ -198,6 +199,7 @@ Renders MusicXML data into a PDF sheet music string.
 - `$showLyric` (bool): If true, forces lyrics to be displayed if they exist in the selected part.
 
 #### `midiToSVG($midiData, $songTitle, $composer, $targetChannelOrPartId, $mainMelody, $singlePage)`
+#### `midiToSVG($midiData, $songTitle, $composer, $targetChannelOrPartId, $mainMelody, $singlePage, $mobile)`
 
 Renders MIDI data directly into an interactive SVG image string.
 - `$midiData` (string): The binary content of a MIDI file.
@@ -206,8 +208,9 @@ Renders MIDI data directly into an interactive SVG image string.
 - `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
 - `$mainMelody` (int): The MIDI channel number (1-16) considered to be the main melody. Defaults to 3.
 - `$singlePage` (bool): If true (default), generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
+- `$mobile` (bool): If `true`, optimizes the layout for mobile devices by rendering one measure per system. Defaults to `false`.
 
-#### `musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage)`
+#### `musicXMLToSVG($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $singlePage, $mobile)`
 
 Renders MusicXML data into an interactive SVG image string.
 - `$xmlStr` (string): The string content of a MusicXML file.
@@ -216,9 +219,10 @@ Renders MusicXML data into an interactive SVG image string.
 - `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
 - `$showLyric` (bool): If true, forces lyrics to be displayed if they exist in the selected part.
 - `$singlePage` (bool): If true (default), generates a single continuous SVG. If false, generates stacked, page-like layouts.
+- `$mobile` (bool): If `true`, optimizes the layout for mobile devices by rendering one measure per system. Defaults to `false`.
 
 
-#### `dawProjectToSVG($dawProjectData, $songTitle, $composer, $targetChannelOrPartId, $singlePage)`
+#### `dawProjectToSVG($dawProjectData, $songTitle, $composer, $targetChannelOrPartId, $singlePage, $mobile)`
 
 Converts a `.dawproject` file into an SVG image. This method first converts the `.dawproject` data into an intermediate MIDI format, and then renders that MIDI data to an SVG.
 - `$dawProjectData` (string): The binary content of the `.dawproject` file.
@@ -226,6 +230,7 @@ Converts a `.dawproject` file into an SVG image. This method first converts the 
 - `$composer` (string): The composer's name to be displayed.
 - `$targetChannelOrPartId` (int|string|null): The specific MIDI channel (1-16) or part ID to render.
 - `$singlePage` (bool): If true, generates a single continuous SVG. If false, generates stacked pages.
+- `$mobile` (bool): If `true`, optimizes the layout for mobile devices by rendering one measure per system. Defaults to `false`.
 
 
 ## Examples

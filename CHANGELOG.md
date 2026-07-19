@@ -1,5 +1,26 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## v1.2.2 - 2026-07-20
+
+### Added
+- **Mobile-Optimized SVG Rendering**: Introduced a new `$mobile` boolean parameter to all SVG conversion methods (`midiToSVG`, `musicXMLToSVG`, `mxlToSVG`, `dawProjectToSVG`).
+
+### Changed
+- When the `$mobile` parameter is set to `true`:
+    - The SVG layout width is reduced from a standard A4-based width (~210mm) to a mobile-friendly A5-based width (~105mm).
+    - The score is rendered with **one measure per system** (staff line) to ensure readability on narrow screens. This provides a clear, vertically scrolling experience.
+- This feature is fully backward-compatible. The `$mobile` parameter defaults to `false`, so existing applications using older versions of the library will not be affected and will continue to render SVGs with the standard multi-measure layout.
+
+## v1.2.1 - 2026-07-18
+
+### Changed
+- Updated PHPDoc blocks and inline comments for better code documentation and clarity.
+
 ## v1.2.0 - 2026-07-17
 
 ### Added

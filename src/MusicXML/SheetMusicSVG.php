@@ -106,10 +106,15 @@ class SheetMusicSVG
      * @param string $unit Measurement unit ('mm'). Not currently used.
      * @param string $size Page size ('A4'). Not currently used.
      * @param bool $singlePage If true, generates a single continuous SVG. If false, generates stacked pages.
+     * @param bool $mobile If true, optimizes the layout for mobile devices by rendering one measure per system.
      */
-    public function __construct($orientation = 'P', $unit = 'mm', $size = 'A4', $singlePage = true)
+    public function __construct($orientation = 'P', $unit = 'mm', $size = 'A4', $singlePage = true, $mobile = false)
     {
         $this->singlePage = $singlePage;
+        if($mobile) {
+            $this->w = 105; // A5
+        }
+
         if (!$this->singlePage) {
             $this->AddPage(); // Initialize first page for multi-page mode
         }
