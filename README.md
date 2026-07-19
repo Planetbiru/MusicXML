@@ -377,7 +377,9 @@ Due to these factors, the MusicXML format as used here is not intended for perfe
 ## Dependencies
 
 *   PHP >= 5.6
-*   fpdf/fpdf: Used by the PDF rendering engine.
+*   PHP `xml` extension (usually enabled by default)
+*   PHP `zip` extension (for handling `.mxl` and `.dawproject` files)
+*   `fpdf/fpdf`: Used by the PDF rendering engine (installed automatically via Composer).
 
 ## License
 
