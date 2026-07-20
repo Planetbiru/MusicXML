@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The SVG layout width is reduced from a standard A4-based width (~210mm) to a mobile-friendly A5-based width (~105mm).
     - The score is rendered with **one measure per system** (staff line) to ensure readability on narrow screens. This provides a clear, vertically scrolling experience.
 - This feature is fully backward-compatible. The `$mobile` parameter defaults to `false`, so existing applications using older versions of the library will not be affected and will continue to render SVGs with the standard multi-measure layout.
+- **Improved Measure Layout**: The space allocated for measures has been widened by reducing the initial indent for clefs and signatures. This provides more horizontal room for notes, which is especially beneficial in the mobile-optimized layout.
 
 ## v1.2.1 - 2026-07-18
 
