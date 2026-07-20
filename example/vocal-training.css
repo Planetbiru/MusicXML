@@ -372,7 +372,7 @@ g[data-element="true"].active rect {
 }
 
 /* Garis - kecuali path dengan kelas sheet-music-tie */
-g[data-element="true"].active line,
+g[data-element="true"].active line:not(.sheet-music-line),
 g[data-element="true"].active path:not(.sheet-music-tie),
 g[data-element="true"].active rect,
 g[data-element="true"].active ellipse {

@@ -806,7 +806,7 @@ class MusicConverter
         $fifths = 0;
         $beats = 4;
         $beatType = 4;
-        $tieStartX = 11; // X offset for tie start point relative to systemX
+        $tieStartX = 9; // X offset for tie start point relative to systemX
         
         // Detect if it is percussion track
         $isPercussion = (stripos($partNameStr, 'drum') !== false || stripos($partNameStr, 'percussion') !== false);
@@ -916,7 +916,7 @@ class MusicConverter
             $layoutIdx = $measureLayoutIdx[$mIdx];
 
             // Indent for clef and signatures at the start of each system
-            $systemStartIndent = ($layoutIdx < $measuresPerSystem) ? 22 : 16;
+            $systemStartIndent = ($layoutIdx < $measuresPerSystem) ? 16 : 12;
             $measureWidth = ($printableWidth - $systemStartIndent) / $measuresPerSystem;
 
 
@@ -1002,9 +1002,9 @@ class MusicConverter
                 if ($layoutIdx == 0) {
                     $pdf->SetFont($this->fontFamily, 'B', 10);
                     $pdf->SetXY($systemX + 15, $systemY);
-                    $pdf->Cell(6, 4, $beats, 0, 0, 'C');
+                    $pdf->Cell(-3, 4, $beats, 0, 0, 'C');
                     $pdf->SetXY($systemX + 15, $systemY + 4);
-                    $pdf->Cell(6, 4, $beatType, 0, 0, 'C');
+                    $pdf->Cell(-3, 4, $beatType, 0, 0, 'C');
                 }
             }
 

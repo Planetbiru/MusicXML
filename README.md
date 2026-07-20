@@ -3,7 +3,7 @@
 [![Latest Stable Version](https://img.shields.io/packagist/v/planetbiru/musicxml.svg)](https://packagist.org/packages/planetbiru/musicxml)
 [![License](https://img.shields.io/packagist/l/planetbiru/musicxml.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive PHP library for handling MusicXML, MIDI, and DAWProject files. It supports conversion between these formats and can render musical scores into beautiful, printable sheet music in PDF or SVG formats. This library is written in pure PHP and has minimal dependencies, making it easy to integrate into any project.
+This is more than just a MIDI-to-MusicXML converter; it's a comprehensive PHP toolkit for developers working with musical data. It provides robust tools to parse, convert, and render music from various formats, including MIDI, MusicXML, and DAWProject. The library excels at generating beautiful, interactive sheet music as PDFs or SVGs, all in pure PHP with minimal dependencies.
 This library is actively used in production and powers the online sheet music generator at [https://composer.planetbiru.com/](https://composer.planetbiru.com/).
 
 ## Key Features
