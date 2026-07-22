@@ -245,7 +245,7 @@ class MusicConverter
      *
      * @param string $musicXmlContent The MusicXML content as a string.
      * @return string The binary MIDI data.
-     * @throws \Exception if the MusicXML content is invalid or cannot be parsed.
+     * @throws Exception if the MusicXML content is invalid or cannot be parsed.
      */
     public function musicXMLToMIDI($musicXmlContent)
     {
@@ -635,7 +635,7 @@ class MusicConverter
         }
 
         $lyrics = $note->lyric;
-        if (!is_array($lyrics) && !($lyrics instanceof \SimpleXMLElement)) {
+        if (!is_array($lyrics) && !($lyrics instanceof SimpleXMLElement)) {
             return null;
         }
 
@@ -644,7 +644,7 @@ class MusicConverter
         }
 
         foreach ($lyrics as $lyricNode) {
-            if (!($lyricNode instanceof \SimpleXMLElement)) {
+            if (!($lyricNode instanceof SimpleXMLElement)) {
                 continue;
             }
 
@@ -680,14 +680,20 @@ class MusicConverter
      * @param string           $composer  The composer's name for the score.
      * @param array            $tempoMap  An associative array mapping measure indices to BPM values.
      * @param bool             $showLyric If true, lyrics will be rendered if present.
+     * @param string           $year      The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
      */
-    private function renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
+    private function renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $year = null)
     {
+        if(!isset($year))
+        {
+            $year = date('Y');
+        }
+
         $pdf = new SheetMusicPDF('P', 'mm', 'A4');
         $pdf->composer = $composer;
-        $pdf->year = date('Y');
+        $pdf->year = $year;
         $pdf->AliasNbPages();
         $pdf->SetAutoPageBreak(false);
         $pdf->AddPage();
@@ -707,13 +713,19 @@ class MusicConverter
      * @param array            $tempoMap   An associative array mapping measure indices to BPM values.
      * @param bool             $showLyric  If true, lyrics will be rendered if present.
      * @param bool             $singlePage If true, generates a single continuous SVG.
+     * @param string           $year      The year of the score.
      * @return string Raw SVG data string.
      */
-    private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
+    private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true, $year = null)
     {
+        if(!isset($year))
+        {
+            $year = date('Y');
+        }
+
         $pdf = new SheetMusicSVG('P', 'mm', 'A4', $singlePage, $this->mobile);
         $pdf->composer = $composer;
-        $pdf->year = date('Y');
+        $pdf->year = $year;
         $pdf->AliasNbPages();
         $pdf->SetAutoPageBreak(false);
 
@@ -1442,7 +1454,7 @@ class MusicConverter
                                 // Different systems - draw the first segment immediately
                                 $bendDir = ($stemDir === 'up') ? 'down' : 'up';
                                 $sx = $noteX + 0; // Start tie from center of note head instead of right
-                                $sy = ($bendDir === 'down') ? ($noteY + 0.5) : ($noteY - 0.5);
+                                $sy = $bendDir === 'down' ? ($noteY + 0.5) : ($noteY - 0.5);
 
                                 $ex = $currentMeasureX + $measureWidth; // Draw to the barline
                                 $ey = $sy; // keep it horizontal
