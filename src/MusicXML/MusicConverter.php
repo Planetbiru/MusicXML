@@ -1151,6 +1151,7 @@ class MusicConverter
             $currentDiv = 0;
             $lastDuration = 0;
             $prevNoteX = null;
+            $ignoreDefaultX = false;
 
             foreach ($measure->note as $note) {
                 // Start SVG group for note/rest if applicable
@@ -1167,6 +1168,16 @@ class MusicConverter
                 }
 
                 $duration = isset($note->duration) ? (int)$note->duration : 0;
+                if ($duration === 0 && isset($note->type)) {
+                    $typeStr = (string)$note->type;
+                    if ($typeStr === 'whole') $duration = $divisions * 4;
+                    elseif ($typeStr === 'half') $duration = $divisions * 2;
+                    elseif ($typeStr === 'quarter') $duration = $divisions;
+                    elseif ($typeStr === 'eighth') $duration = $divisions / 2;
+                    elseif ($typeStr === '16th') $duration = $divisions / 4;
+                    elseif ($typeStr === '32nd') $duration = $divisions / 8;
+                    elseif ($typeStr === '64th') $duration = $divisions / 16;
+                }
                 
                 // Handle chords: chords align with the start of the previous note
                 $isChord = isset($note->chord);
@@ -1199,7 +1210,11 @@ class MusicConverter
                     $xRange = 5; // prevent division/range anomalies
                 }
                 
-                if (isset($note['default-x']) && isset($measure['width'])) {
+                if ($isTieStop && $currentDiv === 0 && $mIdx > 0) {
+                    $ignoreDefaultX = true;
+                }
+
+                if (isset($note['default-x']) && isset($measure['width']) && !$ignoreDefaultX) {
                     $defX = (float)$note['default-x'];
                     $measW = (float)$measure['width'];
                     if ($measW > 120.0) {
