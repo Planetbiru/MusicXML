@@ -191,11 +191,12 @@ class MusicConverter
      * @param string $composer The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param bool $showLyric If true, forces lyrics to be displayed if they exist in the selected part.
+     * @param string $year The year of the score.
      * @return string Raw PDF data string.
      */
-    public function mxlToPDF($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    public function mxlToPDF($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $year = null)
     {
-        return $this->musicXMLToPDF($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+        return $this->musicXMLToPDF($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric, $year);
     }
 
     /**
@@ -245,7 +246,7 @@ class MusicConverter
      *
      * @param string $musicXmlContent The MusicXML content as a string.
      * @return string The binary MIDI data.
-     * @throws \Exception if the MusicXML content is invalid or cannot be parsed.
+     * @throws Exception if the MusicXML content is invalid or cannot be parsed.
      */
     public function musicXMLToMIDI($musicXmlContent)
     {
@@ -264,10 +265,11 @@ class MusicConverter
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param string          $year                  The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function midiToPDF($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3)
+    public function midiToPDF($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $year = null)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
@@ -282,7 +284,7 @@ class MusicConverter
         $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
 
-        return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+        return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $year);
     }
 
     /**
@@ -293,10 +295,11 @@ class MusicConverter
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param bool            $showLyric             If true, forces lyrics to be displayed if they exist in the selected part.
+     * @param string          $year                  The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function musicXMLToPDF($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    public function musicXMLToPDF($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $year = null)
     {
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
@@ -305,7 +308,7 @@ class MusicConverter
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges);
 
         // 4. Render the part to PDF
-        return $this->renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
+        return $this->renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $year);             
     }
 
     /**
@@ -383,14 +386,14 @@ class MusicConverter
      * @param string $songTitle The title to be displayed on the sheet music.
      * @param string $composer The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or part ID to render.
-     * @param bool $singlePage (Not used for PDF) Kept for API consistency.
+     * @param string $year The year of the score.
      * @return string Raw PDF data string.
      */
-    public function dawProjectToPDF($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $singlePage = true) {
+    public function dawProjectToPDF($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $year = null) {
         $this->format = 'pdf';
         $converter1 = new DAWProjectFromMIDI();
         $midiData = $converter1->convert($dawProjectData);
-        return $this->midiToPDF($midiData, $songTitle, $composer, $targetChannelOrPartId, null);
+        return $this->midiToPDF($midiData, $songTitle, $composer, $targetChannelOrPartId, null, $year);
     }
     /**
      * Converts a .dawproject file into an SVG image.
@@ -635,7 +638,7 @@ class MusicConverter
         }
 
         $lyrics = $note->lyric;
-        if (!is_array($lyrics) && !($lyrics instanceof \SimpleXMLElement)) {
+        if (!is_array($lyrics) && !($lyrics instanceof SimpleXMLElement)) {
             return null;
         }
 
@@ -644,7 +647,7 @@ class MusicConverter
         }
 
         foreach ($lyrics as $lyricNode) {
-            if (!($lyricNode instanceof \SimpleXMLElement)) {
+            if (!($lyricNode instanceof SimpleXMLElement)) {
                 continue;
             }
 
@@ -680,14 +683,20 @@ class MusicConverter
      * @param string           $composer  The composer's name for the score.
      * @param array            $tempoMap  An associative array mapping measure indices to BPM values.
      * @param bool             $showLyric If true, lyrics will be rendered if present.
+     * @param string           $year      The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
      */
-    private function renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false)
+    private function renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $year = null)
     {
+        if(!isset($year))
+        {
+            $year = date('Y');
+        }
+
         $pdf = new SheetMusicPDF('P', 'mm', 'A4');
         $pdf->composer = $composer;
-        $pdf->year = date('Y');
+        $pdf->year = $year;
         $pdf->AliasNbPages();
         $pdf->SetAutoPageBreak(false);
         $pdf->AddPage();
@@ -707,13 +716,19 @@ class MusicConverter
      * @param array            $tempoMap   An associative array mapping measure indices to BPM values.
      * @param bool             $showLyric  If true, lyrics will be rendered if present.
      * @param bool             $singlePage If true, generates a single continuous SVG.
+     * @param string           $year       The year of the score.
      * @return string Raw SVG data string.
      */
-    private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true)
+    private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true, $year = null)
     {
+        if(!isset($year))
+        {
+            $year = date('Y');
+        }
+
         $pdf = new SheetMusicSVG('P', 'mm', 'A4', $singlePage, $this->mobile);
         $pdf->composer = $composer;
-        $pdf->year = date('Y');
+        $pdf->year = $year;
         $pdf->AliasNbPages();
         $pdf->SetAutoPageBreak(false);
 
@@ -1139,6 +1154,7 @@ class MusicConverter
             $currentDiv = 0;
             $lastDuration = 0;
             $prevNoteX = null;
+            $ignoreDefaultX = false;
 
             foreach ($measure->note as $note) {
                 // Start SVG group for note/rest if applicable
@@ -1155,6 +1171,16 @@ class MusicConverter
                 }
 
                 $duration = isset($note->duration) ? (int)$note->duration : 0;
+                if ($duration === 0 && isset($note->type)) {
+                    $typeStr = (string)$note->type;
+                    if ($typeStr === 'whole') $duration = $divisions * 4;
+                    elseif ($typeStr === 'half') $duration = $divisions * 2;
+                    elseif ($typeStr === 'quarter') $duration = $divisions;
+                    elseif ($typeStr === 'eighth') $duration = $divisions / 2;
+                    elseif ($typeStr === '16th') $duration = $divisions / 4;
+                    elseif ($typeStr === '32nd') $duration = $divisions / 8;
+                    elseif ($typeStr === '64th') $duration = $divisions / 16;
+                }
                 
                 // Handle chords: chords align with the start of the previous note
                 $isChord = isset($note->chord);
@@ -1187,7 +1213,11 @@ class MusicConverter
                     $xRange = 5; // prevent division/range anomalies
                 }
                 
-                if (isset($note['default-x']) && isset($measure['width'])) {
+                if ($isTieStop && $currentDiv === 0 && $mIdx > 0) {
+                    $ignoreDefaultX = true;
+                }
+
+                if (isset($note['default-x']) && isset($measure['width']) && !$ignoreDefaultX) {
                     $defX = (float)$note['default-x'];
                     $measW = (float)$measure['width'];
                     if ($measW > 120.0) {
@@ -1196,6 +1226,11 @@ class MusicConverter
                         $ratio = ($measureDuration > 0) ? ($currentDiv / $measureDuration) : 0;
                     }
                 } else {
+                    $ratio = ($measureDuration > 0) ? ($currentDiv / $measureDuration) : 0;
+                }
+                
+                // Fallback to proportional spacing if default-x calculations result in 0 or negative for a non-zero currentDiv
+                if ($ratio <= 0 && $currentDiv > 0) {
                     $ratio = ($measureDuration > 0) ? ($currentDiv / $measureDuration) : 0;
                 }
                 
@@ -1212,6 +1247,12 @@ class MusicConverter
                 $noteX = $currentMeasureX + $xOffset;
                 if ($prevNoteX !== null && !$isChord) {
                     $minGap = 4;
+                    if ($lastDuration > 0 && isset($divisions) && $divisions > 0) {
+                        $dynamicGap = ($lastDuration / $divisions) * 6.5;
+                        if ($dynamicGap > $minGap) {
+                            $minGap = $dynamicGap;
+                        }
+                    }
                     if ($noteX < $prevNoteX + $minGap) {
                         $noteX = $prevNoteX + $minGap;
                     }
@@ -1441,8 +1482,8 @@ class MusicConverter
                             if ($startSystemIdx !== $endSystemIdx) {
                                 // Different systems - draw the first segment immediately
                                 $bendDir = ($stemDir === 'up') ? 'down' : 'up';
-                                $sx = $noteX + 1.2;
-                                $sy = ($bendDir === 'down') ? ($noteY + 0.5) : ($noteY - 0.5);
+                                $sx = $noteX + 0; // Start tie from center of note head instead of right
+                                $sy = $bendDir === 'down' ? ($noteY + 0.5) : ($noteY - 0.5);
 
                                 $ex = $currentMeasureX + $measureWidth; // Draw to the barline
                                 $ey = $sy; // keep it horizontal

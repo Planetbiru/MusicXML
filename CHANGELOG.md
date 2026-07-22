@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.2.3 - 2026-07-23
+
+### Added
+- Parameter `$year` to define the **Year** in the score
+
+### Changed
+- Remove parameter `$singlePage` from method `MusicConverter::dawProjectToPDF()`
+
+### Fixed
+- Calculation of the **x** coordinate for the first note after a *tie stop*, taking into account the duration of the tied note
+- Calculation of the **x** coordinate for the first note after a *rest*, taking into account the rest duration
+
+This change in version 1.2.3 is not intended to guarantee that the x‑position aligns with the duration of the preceding note, since each lyric syllable must be displayed without overlapping other syllables. The same principle applies to notes. However, it does help reduce irregularities caused by rests and overflow notes from the previous measure.
+
 ## v1.2.2 - 2026-07-20
 
 ### Added
