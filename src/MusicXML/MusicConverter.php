@@ -1226,6 +1226,11 @@ class MusicConverter
                     $ratio = ($measureDuration > 0) ? ($currentDiv / $measureDuration) : 0;
                 }
                 
+                // Fallback to proportional spacing if default-x calculations result in 0 or negative for a non-zero currentDiv
+                if ($ratio <= 0 && $currentDiv > 0) {
+                    $ratio = ($measureDuration > 0) ? ($currentDiv / $measureDuration) : 0;
+                }
+                
                 if ($ratio < 0) $ratio = 0;
                 if ($ratio > 1) $ratio = 1;
 
@@ -1239,6 +1244,12 @@ class MusicConverter
                 $noteX = $currentMeasureX + $xOffset;
                 if ($prevNoteX !== null && !$isChord) {
                     $minGap = 4;
+                    if ($lastDuration > 0 && isset($divisions) && $divisions > 0) {
+                        $dynamicGap = ($lastDuration / $divisions) * 6.5;
+                        if ($dynamicGap > $minGap) {
+                            $minGap = $dynamicGap;
+                        }
+                    }
                     if ($noteX < $prevNoteX + $minGap) {
                         $noteX = $prevNoteX + $minGap;
                     }
