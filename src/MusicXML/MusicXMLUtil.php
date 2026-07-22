@@ -450,9 +450,11 @@ class MusicXMLUtil
             $kitName = isset($drumkits[$instrumentId]) ? $drumkits[$instrumentId] : 'Drum Kit';
             return array($kitName, 'D. Kit');
         } 
-        if (null !== MusicXMLInstrument::INSTRUMENT_LIST[$instrumentId]) {
+        if (array_key_exists($instrumentId, MusicXMLInstrument::INSTRUMENT_LIST)
+            && MusicXMLInstrument::INSTRUMENT_LIST[$instrumentId] !== null) {
             return MusicXMLInstrument::INSTRUMENT_LIST[$instrumentId];
         }
+
         return array('Instrument ' . ($instrumentId + 1), 'Instr.');
     }
 
