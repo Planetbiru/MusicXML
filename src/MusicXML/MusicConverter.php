@@ -1441,7 +1441,7 @@ class MusicConverter
                             if ($startSystemIdx !== $endSystemIdx) {
                                 // Different systems - draw the first segment immediately
                                 $bendDir = ($stemDir === 'up') ? 'down' : 'up';
-                                $sx = $noteX + 1.2;
+                                $sx = $noteX + 0; // Start tie from center of note head instead of right
                                 $sy = ($bendDir === 'down') ? ($noteY + 0.5) : ($noteY - 0.5);
 
                                 $ex = $currentMeasureX + $measureWidth; // Draw to the barline
