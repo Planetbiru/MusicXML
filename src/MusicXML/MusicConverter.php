@@ -191,11 +191,12 @@ class MusicConverter
      * @param string $composer The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param bool $showLyric If true, forces lyrics to be displayed if they exist in the selected part.
+     * @param string $year The year of the score.
      * @return string Raw PDF data string.
      */
-    public function mxlToPDF($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    public function mxlToPDF($mxl, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $year = null)
     {
-        return $this->musicXMLToPDF($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+        return $this->musicXMLToPDF($this->mxlToXML($mxl), $songTitle, $composer, $targetChannelOrPartId, $showLyric, $year);
     }
 
     /**
@@ -264,10 +265,11 @@ class MusicConverter
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param string          $year                  The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function midiToPDF($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3)
+    public function midiToPDF($midiData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $mainMelody = 3, $year = null)
     {
         if (empty($midiData)) {
             throw new Exception("Invalid input MIDI data.");
@@ -282,7 +284,7 @@ class MusicConverter
         $xmlStr = $converter->midiToMusicXML($midi, $songTitle);
         $showLyric = in_array($mainMelody, $midi->getMidiChannels());
 
-        return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric);
+        return $this->musicXMLToPDF($xmlStr, $songTitle, $composer, $targetChannelOrPartId, $showLyric, $year);
     }
 
     /**
@@ -293,10 +295,11 @@ class MusicConverter
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
      * @param bool            $showLyric             If true, forces lyrics to be displayed if they exist in the selected part.
+     * @param string          $year                  The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
      */
-    public function musicXMLToPDF($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false)
+    public function musicXMLToPDF($xmlStr, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $showLyric = false, $year = null)
     {
         if (empty($xmlStr)) {
             throw new Exception("Invalid input MusicXML data.");
@@ -305,7 +308,7 @@ class MusicConverter
         list($xml, $partId, $tempoMap) = $this->getPartAndTempoMap($xmlStr, $targetChannelOrPartId, $this->showTempoChanges);
 
         // 4. Render the part to PDF
-        return $this->renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric);             
+        return $this->renderPartToPDF($xml, $partId, $songTitle, $composer, $tempoMap, $showLyric, $year);             
     }
 
     /**
@@ -383,14 +386,14 @@ class MusicConverter
      * @param string $songTitle The title to be displayed on the sheet music.
      * @param string $composer The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or part ID to render.
-     * @param bool $singlePage (Not used for PDF) Kept for API consistency.
+     * @param string $year The year of the score.
      * @return string Raw PDF data string.
      */
-    public function dawProjectToPDF($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $singlePage = true) {
+    public function dawProjectToPDF($dawProjectData, $songTitle = "Untitled", $composer = "Unknown", $targetChannelOrPartId = null, $year = null) {
         $this->format = 'pdf';
         $converter1 = new DAWProjectFromMIDI();
         $midiData = $converter1->convert($dawProjectData);
-        return $this->midiToPDF($midiData, $songTitle, $composer, $targetChannelOrPartId, null);
+        return $this->midiToPDF($midiData, $songTitle, $composer, $targetChannelOrPartId, null, $year);
     }
     /**
      * Converts a .dawproject file into an SVG image.
@@ -713,7 +716,7 @@ class MusicConverter
      * @param array            $tempoMap   An associative array mapping measure indices to BPM values.
      * @param bool             $showLyric  If true, lyrics will be rendered if present.
      * @param bool             $singlePage If true, generates a single continuous SVG.
-     * @param string           $year      The year of the score.
+     * @param string           $year       The year of the score.
      * @return string Raw SVG data string.
      */
     private function renderPartToSVG($xml, $partId, $songTitle, $composer, $tempoMap = array(), $showLyric = false, $singlePage = true, $year = null)

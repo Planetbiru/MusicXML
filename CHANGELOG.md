@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Calculation of the **x** coordinate for the first note after a *tie stop*, taking into account the duration of the tied note
 - Calculation of the **x** coordinate for the first note after a *rest*, taking into account the rest duration
+- Remove parameter `$singlePage` from method `MusicConverter::dawProjectToPDF()`
 
 
 ## v1.2.2 - 2026-07-20
