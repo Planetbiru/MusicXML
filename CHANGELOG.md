@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Calculation of the **x** coordinate for the first note after a *tie stop*, taking into account the duration of the tied note
 - Calculation of the **x** coordinate for the first note after a *rest*, taking into account the rest duration
+- Replaced direct null comparison on `ModelMap::CLASS_MAP[$childName]` with `array_key_exists()` + null check to prevent *Undefined index* notices in PHP 5 while maintaining compatibility with PHP 7 and 8.
+- Updated `MusicXMLInstrument::INSTRUMENT_LIST[$instrumentId]` access to use `array_key_exists()` + null check, ensuring safe retrieval across PHP 5, 7, and 8 without triggering notices when the key is missing.
 
 This change in version 1.2.3 is not intended to guarantee that the x‑position aligns with the duration of the preceding note, since each lyric syllable must be displayed without overlapping other syllables. The same principle applies to notes. However, it does help reduce irregularities caused by rests and overflow notes from the previous measure.
 
