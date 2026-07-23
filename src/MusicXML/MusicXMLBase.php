@@ -64,16 +64,17 @@ abstract class MusicXMLBase
     const SOFTWARE_NAME = "Planetbiru MusicXML";
     const ENCODING_DESCRIPTION = "This software has been used for production at https://composer.planetbiru.com";
 
+    protected $timebase = 0;
+
     /**
      * Quantize MIDI ticks to nearest standard division to avoid jitter.
      *
      * @param int $ticks
-     * @param int $timebase
      * @return int
      */
-    public function quantize($ticks, $timebase)
+    public function quantize($ticks)
     {
-        $grid = $timebase / 8; // snap to 32nd notes
+        $grid = $this->timebase / 8; // snap to 32nd notes
         $quantized = (int) round($ticks / $grid) * $grid;
         return ($quantized == 0 && $ticks > 0) ? (int)$grid : $quantized;
     }
@@ -87,13 +88,12 @@ abstract class MusicXMLBase
      *
      * @param int $duration   Duration in MIDI ticks
      * @param int $divisions  Divisions per quarter note (MusicXML)
-     * @param int $timebase   MIDI ticks per quarter note
      * @return int            Duration in MusicXML divisions
      */
-    public function fixDuration($duration, $divisions, $timebase)
+    public function fixDuration($duration, $divisions)
     {
-        $quantized = $this->quantize($duration, $timebase);
-        return (int) round($quantized * $divisions / $timebase);
+        $quantized = $this->quantize($duration);
+        return (int) round($quantized * $divisions / $this->timebase);
     }
 
     /**

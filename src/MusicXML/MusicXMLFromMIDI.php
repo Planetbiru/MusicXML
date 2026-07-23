@@ -249,6 +249,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
     private $trackNames = array(); // Array to store track names
 
+    private $channelToTrackMap = array();
 
 
     /**
@@ -347,14 +348,13 @@ class MusicXMLFromMIDI extends MusicXMLBase
      *
      * @param string $eventName The type of MIDI event (e.g., 'On', 'Off', 'PrCh', 'Tempo').
      * @param array $message The raw parsed MIDI message from the parser.
-     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
      * @param int $abstime The absolute time of the event in ticks.
      * @param mixed $n Primary value (e.g., note number, program ID, controller number).
      * @param mixed $ch Channel number.
      * @param mixed $v Secondary value (e.g., velocity, pressure, controller value).
      * @return void
      */
-    private function addEvent($eventName, $message, $timebase, $abstime, $n = 0, $ch = 0, $v = 0) //NOSONAR
+    private function addEvent($eventName, $message, $abstime, $n = 0, $ch = 0, $v = 0) //NOSONAR
     {
         if ($ch > 0 && $this->selectedChannels !== null && !in_array($ch, $this->selectedChannels)) {
             return;
@@ -364,7 +364,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $this->timeSignature = new TimeSignature(array(0, 'TimeSig', '4/4', 24, 8));
         }
         $rawtime = $message[0];
-        $tm = $message[0] / ($this->timeSignature->getBeats() * $timebase);
+        $tm = $message[0] / ($this->timeSignature->getBeats() * $this->timebase);
         $tmInteger = (int) floor($tm);
         if($this->maxMeasure < $tmInteger)
         {
@@ -473,8 +473,8 @@ class MusicXMLFromMIDI extends MusicXMLBase
             {
                 $this->lastNote[$ch][$n] = array();
             }
-            $mod = $tm % ($timebase * $this->timeSignature->getBeats());
-            $startAt = floor($mod / $timebase);
+            $mod = $tm % ($this->timebase * $this->timeSignature->getBeats());
+            $startAt = floor($mod / $this->timebase);
             $note = array(
                 'event' => $eventName,
                 'message' => $message,
@@ -498,7 +498,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 $this->measures[$ch][$ti][$index]['duration'] = $duration;
 
                 // Update maxMeasure based on note end time (current abstime) to prevent truncated measures
-                $measureLen = $this->timeSignature->getBeats() * $timebase;
+                $measureLen = $this->timeSignature->getBeats() * $this->timebase;
                 $tmEndInteger = (int) floor(($abstime - 1) / $measureLen);
                 
                 if ($this->maxMeasure < $tmEndInteger) {
@@ -622,7 +622,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
      */
     private function buildPartList($midi) // NOSONAR
     {
-        $timebase = $midi->getTimebase();
+        $this->timebase = $midi->getTimebase();
         $this->channel10 = array();
         $this->channelToTrackMap = array();
         $this->copyright = null;
@@ -679,7 +679,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                             $port
                         );
                         // add event
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, $p, $ch); // $p is program ID
+                        $this->addEvent($msg[1], $msg, $abstime, $p, $ch); // $p is program ID
                         $xml .= "<controlEvents Channel=\"$ch\" Number=\"$p\"/>\n";
                         break;
 
@@ -692,7 +692,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                             $this->channel10[$n + 1] = array('note' => $n, 'ch' => $ch, 'n' => $n, 'v' => $v, 'message' => $msg);
                         }
                         // add event, $n is note number, $v is velocity
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, $n, $ch, $v);
+                        $this->addEvent($msg[1], $msg, $abstime, $n, $ch, $v);
 
                         $xml .= "<Note{$msg[1]} Channel=\"$ch\" Note=\"$n\" Velocity=\"$v\"/>\n";
                         break;
@@ -700,7 +700,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                     case 'PoPr':
                         sscanf($track[$j], "%d PoPr ch=%d n=%d v=%d", $t, $ch, $n, $v);
                         // add event
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, $n, $ch, $v); // $n is note number, $v is pressure
+                        $this->addEvent($msg[1], $msg, $abstime, $n, $ch, $v); // $n is note number, $v is pressure
 
                         $xml .= "<PolyKeyPressure Channel=\"$ch\" Note=\"$n\" Pressure=\"$v\"/>\n";
                         break;
@@ -730,7 +730,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                         }
 
                         // add event, $c is controller number, $v is value
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, $c, $ch, $v);
+                        $this->addEvent($msg[1], $msg, $abstime, $c, $ch, $v);
 
                         $xml .= "<ControlChange Channel=\"$ch\" Control=\"$c\" Value=\"$v\"/>\n";
                         break;
@@ -738,19 +738,19 @@ class MusicXMLFromMIDI extends MusicXMLBase
                     case 'ChPr':
                         sscanf($track[$j], "%d ChPr ch=%d v=%d", $t, $ch, $v);
                         // add event, $v is pressure
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, 0, $ch, $v);
+                        $this->addEvent($msg[1], $msg, $abstime, 0, $ch, $v);
                         $xml .= "<ChannelKeyPressure Channel=\"$ch\" Pressure=\"$v\"/>\n";
                         break;
 
                     case 'Pb':
                         sscanf($track[$j], "%d Pb ch=%d v=%d", $t, $ch, $v);
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, 0, $ch, $v); // $v is pitch bend value
+                        $this->addEvent($msg[1], $msg, $abstime, 0, $ch, $v); // $v is pitch bend value
                         $xml .= "<PitchBendChange Channel=\"$ch\" Value=\"$v\"/>\n";
                         break;
 
                     case 'Seqnr':
                         $xml .= "<SequenceNumber Value=\"{$msg[2]}\"/>\n";
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, $msg[2], 0);
+                        $this->addEvent($msg[1], $msg, $abstime, $msg[2], 0);
                         break;
 
                     case 'Meta':
@@ -773,7 +773,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
                             if ($tag == 'Lyric' || $tag == 'TextEvent') {
                                 // Kirim event ke addEvent agar disimpan dalam $this->lyrics
-                                $this->addEvent($msg[1], $msg, $timebase, $abstime, 0, 0);
+                                $this->addEvent($msg[1], $msg, $abstime, 0, 0);
                             }
                             if($tag == 'TrackName') {
                                 $this->trackNames[$i] = $txt;
@@ -789,7 +789,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
                     case 'Tempo':
                         $xml .= "<SetTempo Value=\"{$msg[2]}\"/>\n";
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, $msg[2], 0);
+                        $this->addEvent($msg[1], $msg, $abstime, $msg[2], 0);
                         break;
 
                     case 'SMPTE':
@@ -805,7 +805,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                     case 'KeySig':
                         $mode = ($msg[3] == 'major') ? 0 : 1;
                         $xml .= "<KeySignature Fifths=\"{$msg[2]}\" Mode=\"$mode\"/>\n"; // ???
-                        $this->addEvent($msg[1], $msg, $timebase, $abstime, intval($msg[2]), 0, $msg[3]);
+                        $this->addEvent($msg[1], $msg, $abstime, intval($msg[2]), 0, $msg[3]);
                         break;
 
                     case 'SeqSpec':
@@ -900,7 +900,6 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
         $this->resetProperties();
         
-        $timebase = $midi->getTimebase();
         $scorePartwise = new ScorePartwise();
         $scorePartwise->version = $version;
         $scorePartwise->identification = $this->getIdentification($this->copyright);
@@ -909,7 +908,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
         $scorePartwise->partList->partGroup = array();
 
         $this->buildPartList($midi);
-        $this->buildTimeDivisions($timebase);
+        $this->buildTimeDivisions();
         if (isset($this->copyright)) {
             $scorePartwise->identification->rights = array(new Rights($this->copyright));
         }
@@ -932,7 +931,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $trackName = $this->trackNames[1];
         }
 
-        foreach ($this->partList as $idx=>$part) {
+        foreach ($this->partList as $part) {
             // start add score part
             // this block will be iterated each channel
 
@@ -1039,7 +1038,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $partObject->id = $partId;
             $partObject->measure = array();
             for ($measureIndex = 0; $measureIndex < $totalMeasure; $measureIndex++) {
-                $measure = $this->getMeasure($partId, $channelId, $measureIndex, $timebase, $lyricChannelId);
+                $measure = $this->getMeasure($partId, $channelId, $measureIndex, $lyricChannelId);
                 $partObject->measure[] = $measure;
             }
             $scorePartwise->part[] = $partObject;
@@ -1165,12 +1164,10 @@ class MusicXMLFromMIDI extends MusicXMLBase
     /**
      * Build measure divisions
      *
-     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
      * @return void
      */
-    private function buildTimeDivisions($timebase)
+    private function buildTimeDivisions()
     {
-        $measureLength = $this->timeSignature->getBeats() * $timebase;
         $this->measureOnsets = array();
         $allOnsets = array();
         $notes = array();
@@ -1200,9 +1197,9 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
         for($i = 0; $i <= $this->maxMeasure; $i++)
         {
-            $this->setMeasureDivisions($i, $timebase);
+            $this->setMeasureDivisions($i, $this->timebase);
             if(isset($notes[$i])) {
-                $measureDivison = new MeasureDivision($timebase, $notes[$i]);
+                $measureDivison = new MeasureDivision($this->timebase, $notes[$i]);
                 $this->setMeasureDivisions($i, $measureDivison->getDivision());
             }
 
@@ -1233,20 +1230,19 @@ class MusicXMLFromMIDI extends MusicXMLBase
      *
      * @param int $rawDuration The duration in MIDI ticks.
      * @param int $divisions The number of divisions per quarter note for the score.
-     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
      * @return integer
      */
-    public function fixDuration($rawDuration, $divisions, $timebase)
+    public function fixDuration($rawDuration, $divisions)
     {
-        if ($timebase <= 0 || $rawDuration <= 0) {
+        if ($this->timebase <= 0 || $rawDuration <= 0) {
             return 0;
         }
         // Quantize the raw MIDI ticks first for better rhythmic alignment
-        $quantizedTicks = $this->quantize($rawDuration, $timebase);
+        $quantizedTicks = $this->quantize($rawDuration);
 
         // Use floating point for precision and avoid rounding to zero for very short notes.
         // The MusicXML consumer should handle the final interpretation.
-        $xmlDuration = ($quantizedTicks * $divisions) / $timebase;
+        $xmlDuration = ($quantizedTicks * $divisions) / $this->timebase;
 
         return (int) round($xmlDuration);
     }
@@ -1278,11 +1274,10 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param string $partId The MusicXML part ID.
      * @param int $channelId The MIDI channel ID.
      * @param int $measureIndex The index of the measure to build.
-     * @param int $timebase The MIDI file's timebase.
      * @param int $lyricChannelId The channel ID designated to carry the main lyrics.
      * @return MeasurePartwise
      */
-    private function getMeasure($partId, $channelId, $measureIndex, $timebase, $lyricChannelId)
+    private function getMeasure($partId, $channelId, $measureIndex, $lyricChannelId)
     {
         $measure = new MeasurePartwise();
         $attributes = new Attributes();
@@ -1361,7 +1356,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             return ($a['abstime'] < $b['abstime']) ? -1 : 1;
         });
 
-        $measureContainer = $this->addMeasureElement($measureIndex, $measure, $noteMessages, $partId, $channelId, $divisions, $timebase, $lyricChannelId);
+        $measureContainer = $this->addMeasureElement($measureIndex, $measure, $noteMessages, $partId, $channelId, $divisions, $lyricChannelId);
         $measure = $measureContainer->getMeasurePartwise();
         $noteMessages = $measureContainer->getNoteMessages();
 
@@ -1373,7 +1368,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 {
                     if($message['event'] == 'Pb')
                     {
-                        $idx = MusicXMLUtil::getNoteIndex($noteMessages, $message['time'], $timebase);
+                        $idx = MusicXMLUtil::getNoteIndex($noteMessages, $message['time'], $this->timebase);
                         if($idx !== false)
                         {
                             $pbIndexes[] = array($idx, $message['value']);
@@ -1408,7 +1403,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             }
 
             // set beam if any
-            $beams = MusicXMLUtil::getBeams($noteMessages, $timebase, $this->timeSignature);
+            $beams = MusicXMLUtil::getBeams($noteMessages, $this->timebase, $this->timeSignature);
             if($beams !== false)
             {
                 foreach($beams as $beamNote)
@@ -1476,19 +1471,16 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param string $partId The MusicXML part ID.
      * @param int $channelId The MIDI channel ID.
      * @param int $divisions The divisions per quarter note.
-     * @param int $timebase The MIDI file's timebase.
      * @param int $lyricChannelId The channel ID designated for lyrics.
      * @return MeasurePartwiseContainer
      */
-    private function addMeasureElement($measureIndex, $measure, $noteMessages, $partId, $channelId, $divisions, $timebase, $lyricChannelId)
+    private function addMeasureElement($measureIndex, $measure, $noteMessages, $partId, $channelId, $divisions, $lyricChannelId)
     {
-        $measureLengthTicks = (float)($timebase * $this->timeSignature->getBeats());
+        $measureLengthTicks = (float)($this->timebase * $this->timeSignature->getBeats());
         $xmlMeasureLength = (float)($divisions * $this->timeSignature->getBeats());
-        $xmlCursor = 0;
         $lastNoteAbstime = -1;
         $lastNoteXmlEnd = 0;
         
-        $absMeasureStart = $measureIndex * $measureLengthTicks;
         // Identifikasi lirik yang akan diproses untuk channel dan birama ini
         $lyricCarrier = $this->getLyricsForMeasure($measureIndex, $measureLengthTicks, $channelId, $lyricChannelId);
 
@@ -1499,7 +1491,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 $remainingDuration = $tieInfo['duration'];
                 $continueDuration = min($remainingDuration, $measureLengthTicks);
 
-                $xmlEnd = (int) round($continueDuration * $divisions / $timebase);
+                $xmlEnd = (int) round($continueDuration * $divisions / $this->timebase);
                 $xmlDuration = $xmlEnd; // Starts at 0
                 if ($xmlDuration <= 0 && $continueDuration > 0) $xmlDuration = 1; // Ensure minimum duration
 
@@ -1586,7 +1578,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
         foreach ($noteMessages as $idx => $message) {
             if ($message['event'] == 'On' && $message['value'] > 0) {
                 $offsetTicks = $message['abstime'] % $measureLengthTicks;
-                $xmlStart = (int) round($offsetTicks * $divisions / $timebase);
+                $xmlStart = (int) round($offsetTicks * $divisions / $this->timebase);
 
                 // Increase chord detection tolerance, especially for drums.
                 $chordTolerance = ($channelId == 10) ? 10 : 4;
@@ -1594,7 +1586,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
                 // Fill gap with rests based on absolute positions, not a running cursor.
                 if (!$isChord && $xmlStart > $lastNoteXmlEnd) {
-                    $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $lastNoteXmlEnd, $xmlStart, $lyricCarrier);
+                    $this->fillGapWithRests($measure, $measureIndex, $divisions, $lastNoteXmlEnd, $xmlStart, $lyricCarrier);
                 }
 
                 $durationTicks = 0;
@@ -1630,7 +1622,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 
                 if ($durationTicks < 0) $durationTicks = 0;
                 
-                $note = $this->createSoundNote($partId, $channelId, $message, $divisions, $timebase, $durationTicks);
+                $note = $this->createSoundNote($partId, $channelId, $message, $divisions, $durationTicks);
 
                 // Atur koordinat X eksplisit
                 if (isset($this->measureOnsets[$measureIndex][$message['abstime']])) {
@@ -1645,7 +1637,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 if ($localEndTicks > $measureLengthTicks) {
                     $durationInMeasure = $measureLengthTicks - $offsetTicks; // Ticks inside this measure
                     $remainingDuration = $durationTicks - $durationInMeasure; // Ticks spilling into the next measure
-                    $note = $this->trimNoteDuration($note, $durationInMeasure, $divisions, $timebase); // Trim and add 'start' tie
+                    $note = $this->trimNoteDuration($note, $durationInMeasure, $divisions); // Trim and add 'start' tie
                     $xmlDuration = $note->duration->textContent;
                     
                     $this->tieContinue[$channelId][$message['note']] = array(
@@ -1672,7 +1664,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
 
         // add rest to fill the measure, if needed
         if ($lastNoteXmlEnd < $xmlMeasureLength) {
-            $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $lastNoteXmlEnd, $xmlMeasureLength, $lyricCarrier);
+            $this->fillGapWithRests($measure, $measureIndex, $divisions, $lastNoteXmlEnd, $xmlMeasureLength, $lyricCarrier);
         }
 
         // --- POST-PROCESSING: Split unrepresentable durations ---
@@ -1817,17 +1809,16 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param MeasurePartwise $measure The measure object to add rests to.
      * @param int $measureIndex The index of the current measure.
      * @param int $divisions The divisions per quarter note.
-     * @param int $timebase The MIDI file's timebase.
      * @param int $xmlStart The starting position of the gap in XML divisions.
      * @param int $xmlEnd The ending position of the gap in XML divisions.
      * @param array &$lyricCarrier A reference to the remaining lyrics map for the measure, keyed by absolute time.
      */
-    private function fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricCarrier)
+    private function fillGapWithRests($measure, $measureIndex, $divisions, $xmlStart, $xmlEnd, &$lyricCarrier)
     {
         $lyricDivisions = array();
-        $absMeasureStart = $measureIndex * ($timebase * $this->timeSignature->getBeats());
+        $absMeasureStart = $measureIndex * ($this->timebase * $this->timeSignature->getBeats());
         foreach ($lyricCarrier as $abs => $txt) {
-            $xmlPos = (int) round(($abs - $absMeasureStart) * $divisions / $timebase);
+            $xmlPos = (int) round(($abs - $absMeasureStart) * $divisions / $this->timebase);
             if ($xmlPos >= $xmlStart && $xmlPos < $xmlEnd) {
                 if (!isset($lyricDivisions[$xmlPos])) {
                     $lyricDivisions[$xmlPos] = $txt;
@@ -1840,9 +1831,9 @@ class MusicXMLFromMIDI extends MusicXMLBase
         }
 
         if ($this->useRestFilling) {
-            $this->fillGapWithRestsV2($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, $lyricDivisions);
+            $this->fillGapWithRestsV2($measure, $measureIndex, $divisions, $xmlStart, $xmlEnd, $lyricDivisions);
         } else {
-            $this->fillGapWithRestsV1($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, $lyricDivisions);
+            $this->fillGapWithRestsV1($measure, $measureIndex, $divisions, $xmlStart, $xmlEnd, $lyricDivisions);
         }
     }
 
@@ -1877,12 +1868,11 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param MeasurePartwise $measure The measure object to add rests to.
      * @param int $measureIndex The index of the current measure.
      * @param int $divisions The divisions per quarter note.
-     * @param int $timebase The MIDI file's timebase.
      * @param int $xmlStart The starting position of the gap in XML divisions.
      * @param int $xmlEnd The ending position of the gap in XML divisions.
      * @param array &$lyricDivisions A reference to the remaining lyrics map for the measure.
      */
-    private function fillGapWithRestsV1($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricDivisions)
+    private function fillGapWithRestsV1($measure, $measureIndex, $divisions, $xmlStart, $xmlEnd, &$lyricDivisions)
     {
         $remainingDuration = $xmlEnd - $xmlStart;
         if ($remainingDuration <= 0) return;
@@ -1919,7 +1909,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 $bestRestType = MusicXMLUtil::getNoteType($bestRestDuration, $divisions);
             }
 
-            $rest = $this->createRestNote($divisions, $timebase, 0, $currentXml == 0);
+            $rest = $this->createRestNote($divisions, 0, $currentXml == 0);
             $rest->duration = new Duration($bestRestDuration);
             $rest->type = new Type($bestRestType);
             $dotsCount = MusicXMLUtil::getNoteDots($bestRestDuration, $divisions);
@@ -1953,15 +1943,14 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param MeasurePartwise $measure The measure object to add rests to.
      * @param int $measureIndex The index of the current measure.
      * @param int $divisions The divisions per quarter note.
-     * @param int $timebase The MIDI file's timebase.
      * @param int $xmlStart The starting position of the gap in XML divisions.
      * @param int $xmlEnd The ending position of the gap in XML divisions.
      * @param array &$lyricDivisions A reference to the remaining lyrics map for the measure.
      */
-    private function fillGapWithRestsV2($measure, $measureIndex, $divisions, $timebase, $xmlStart, $xmlEnd, &$lyricDivisions)
+    private function fillGapWithRestsV2($measure, $measureIndex, $divisions, $xmlStart, $xmlEnd, &$lyricDivisions)
     {
         if ($xmlEnd <= $xmlStart) return; // No gap to fill
-        $measureLength = $timebase * $this->timeSignature->getBeats();
+        $measureLength = $this->timebase * $this->timeSignature->getBeats();
         $absMeasureStart = $measureIndex * $measureLength;
         // Identifikasi batas-batas di dalam celah ini berdasarkan posisi lirik
         $boundaries = array($xmlEnd); 
@@ -1980,7 +1969,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
         foreach ($boundaries as $nextXml) {
             $dur = $nextXml - $currentXml;
             if ($dur > 0) { // Only add rest if there is a duration
-                $rest = $this->createRestNote($divisions, $timebase, 0, $currentXml == 0);
+                $rest = $this->createRestNote($divisions, 0, $currentXml == 0);
                 $rest->duration = new Duration($dur);
                 $rest->type = new Type(MusicXMLUtil::getNoteType($dur, $divisions));
                 $dotsCount = MusicXMLUtil::getNoteDots($dur, $divisions);
@@ -1988,7 +1977,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                     $rest->dot = array_fill(0, $dotsCount, new Dot());
                 }
                 
-                $absTime = $absMeasureStart + (int)round($currentXml * $timebase / $divisions);
+                $absTime = $absMeasureStart + (int)round($currentXml * $this->timebase / $divisions);
                 if (isset($this->measureOnsets[$measureIndex][$absTime])) {
                     $rest->defaultX = $this->measureOnsets[$measureIndex][$absTime];
                 } else {
@@ -2014,13 +2003,12 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param Note $note The note object to modify.
      * @param int $newRawDuration The new duration for the note within the current measure, in MIDI ticks.
      * @param int $divisions The divisions per quarter note.
-     * @param int $timebase The MIDI file's timebase.
      * @return Note
      */
-    private function trimNoteDuration($note, $newRawDuration, $divisions, $timebase)
+    private function trimNoteDuration($note, $newRawDuration, $divisions)
     {
         if ($newRawDuration > 0) {
-            $musicXMLDuration = $this->fixDuration($newRawDuration, $divisions, $timebase);
+            $musicXMLDuration = $this->fixDuration($newRawDuration, $divisions);
             if ($musicXMLDuration == 0 && $newRawDuration > 0) {
                 $musicXMLDuration = 1; // Smallest possible duration
             }
@@ -2048,12 +2036,11 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * Create rest note
      *
      * @param int $divisions The divisions per quarter note.
-     * @param int $timebase The MIDI file's timebase.
      * @param int $duration The duration of the rest in MIDI ticks.
      * @param boolean $begining (Unused) Was intended to mark if the rest is at the start of a measure.
      * @return Note
      */
-    private function createRestNote($divisions, $timebase, $duration, $begining = false)
+    private function createRestNote($divisions, $duration, $begining = false)
     {
         $note = new Note();
         $rest = new Rest();
@@ -2064,7 +2051,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
         $note->voice = $voice;
 
         $rawDuration = $duration;
-        $duration = $this->fixDuration($rawDuration, $divisions, $timebase);
+        $duration = $this->fixDuration($rawDuration, $divisions);
         if ($duration <= 0 && $rawDuration > 0) {
             $duration = 1;
         }
@@ -2210,11 +2197,10 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * @param int $channelId The MIDI channel ID (0-15).
      * @param array $message The note 'On' event message array, containing details like note number and velocity.
      * @param int $divisions The number of divisions per quarter note for the score.
-     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
      * @param int $originalDuration The original duration of the note in MIDI ticks.
      * @return Note The fully constructed Note object, ready to be added to a measure.
      */
-    private function createSoundNote($partId, $channelId, $message, $divisions, $timebase, $originalDuration)
+    private function createSoundNote($partId, $channelId, $message, $divisions, $originalDuration)
     {
         $noteCode = $message['note'];
         $note = new Note();
@@ -2272,7 +2258,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $note->stem = $stem;
         }
         $note->notations = array($this->getNotation());
-        $duration = $this->fixDuration($originalDuration, $divisions, $timebase);
+        $duration = $this->fixDuration($originalDuration, $divisions);
         if ($duration == 0 && $originalDuration > 0) {
             $duration = 1; // Ensure minimum duration is 1 division
         } 
@@ -2291,14 +2277,13 @@ class MusicXMLFromMIDI extends MusicXMLBase
      * This helps clean up MIDI performances with slight timing variations.
      *
      * @param int $duration The original duration in MIDI ticks.
-     * @param int $timebase The MIDI file's timebase (ticks per quarter note).
      * @return int The quantized duration in MIDI ticks.
      */
-    public function quantize($duration, $timebase)
+    public function quantize($duration)
     {
         // Less aggressive quantization to prevent rounding short notes to zero.
         // Snap to the nearest 64th note.
-        $quantizeUnit = $timebase / 16; // 16th of a quarter note = 64th note
+        $quantizeUnit = $this->timebase / 16; // 16th of a quarter note = 64th note
         if ($quantizeUnit <= 0) return $duration;
 
         $quantized = (int) (round($duration / $quantizeUnit) * $quantizeUnit);
