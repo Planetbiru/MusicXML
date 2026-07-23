@@ -1692,7 +1692,7 @@ class MusicConverter
                     }
                     
                     // Tentukan posisi Y awal dan akhir untuk balok utama
-                    $stemLength = 8.5;
+                    $stemLength = 7.1; // Disesuaikan agar sama dengan panjang tangkai tanpa beam (8.5 - 1.4)
                     $beamWidth = 0.8; // Lebar garis balok
                     
                     // Sesuaikan offset Y agar pusat balok sejajar dengan ujung tangkai
