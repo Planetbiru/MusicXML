@@ -1389,7 +1389,9 @@ class MusicConverter
                         'beam' => isset($note->beam) ? (string)$note->beam[0] : null,
                         'durationDivs' => $duration,
                         'startDiv' => $currentDiv,
-                        'beatIndex' => ($divisions > 0) ? floor($currentDiv / $divisions) : 0
+                        'beatIndex' => ($divisions > 0) ? floor($currentDiv / $divisions) : 0,
+                        'startTick' => $startTick,
+                        'endTick' => $endTick
                     );
 
                     // Draw Tie / Tied Stop
@@ -1629,6 +1631,15 @@ class MusicConverter
             foreach ($measureNotesData as $idx => $nData) {
                 if ($nData['isRest'] || $nData['typeStr'] === 'whole') continue;
 
+                if ($pdf instanceof SheetMusicSVG) {
+                    $pdf->startGroup(array(
+                        'data-element' => 'true',
+                        'data-element-type' => 'stem',
+                        'data-start-tick' => $nData['startTick'],
+                        'data-end-tick' => $nData['endTick']
+                    ));
+                }
+
                 $noteX = $nData['x'];
                 $noteY = $nData['y'];
                 $stemDir = $nData['stemDir'];
@@ -1652,6 +1663,10 @@ class MusicConverter
                     }
                 }
                 $pdf->SetLineWidth(0.2);
+
+                if ($pdf instanceof SheetMusicSVG) {
+                    $pdf->endGroup();
+                }
             }
 
             // Draw Beam Lines
@@ -1666,6 +1681,15 @@ class MusicConverter
                     // Ambil data not pertama dan terakhir dalam grup balok
                     $firstNoteData = $measureNotesData[$notes[0]];
                     $lastNoteData = $measureNotesData[end($notes)];
+                    
+                    if ($pdf instanceof SheetMusicSVG) {
+                        $pdf->startGroup(array(
+                            'data-element' => 'true',
+                            'data-element-type' => 'beam',
+                            'data-start-tick' => $firstNoteData['startTick'],
+                            'data-end-tick' => $lastNoteData['endTick']
+                        ));
+                    }
                     
                     // Tentukan posisi Y awal dan akhir untuk balok utama
                     $stemLength = 8.5;
@@ -1815,6 +1839,10 @@ class MusicConverter
                     }
                     
                     $pdf->SetLineWidth(0.2);
+                    
+                    if ($pdf instanceof SheetMusicSVG) {
+                        $pdf->endGroup();
+                    }
                 }
             }
 
