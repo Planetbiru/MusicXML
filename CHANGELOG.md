@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Corrected an issue in MusicXML-to-MIDI conversion where notes with unrepresentable durations were not processed correctly, improving roundtrip fidelity.
 - Fixed part name detection during MIDI-to-MusicXML conversion to more reliably use track names when available.
+- Refactored `MusicXMLFromMIDI` to use a class property for `timebase` instead of passing it as a local variable, reducing code smell and improving clarity.
 
 ## v1.3.0 - 2026-07-24
 
