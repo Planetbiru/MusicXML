@@ -50,7 +50,7 @@ try {
 echo "2. Mengonversi MIDI ke PDF (hanya track 4)...\n";
 try {
     // Gunakan MusicConverter untuk proses yang lebih sederhana
-    $musicConverter = new MusicConverter();
+    $musicConverter = new MusicConverter(true, true, true, 7, 28, true);
     // Parameter ke-4 adalah targetChannelOrPartId. Kita gunakan channel 4.
     $pdfContent = $musicConverter->midiToPDF($midiData, "Example Song (Track 4)", "Planetbiru", 4);
     $outputFile = $outputDir . '/example-track-4.pdf';

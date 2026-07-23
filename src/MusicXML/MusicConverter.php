@@ -1695,6 +1695,21 @@ class MusicConverter
                         ));
                     }
                     
+                    // Helper untuk menggambar balok agar tidak melebar/terlalu panjang di PDF (karena efek Line Cap FPDF)
+                    $drawBeamLine = function($sx, $sy, $ex, $ey) use ($pdf) {
+                        $pdfStartX = $sx; $pdfEndX = $ex; $pdfY1 = $sy; $pdfY2 = $ey;
+                        if (!($pdf instanceof SheetMusicSVG)) {
+                            $capOffset = 0.4; // Separuh dari ketebalan balok (0.8 / 2)
+                            $sDx = $pdfEndX - $pdfStartX; $sDy = $pdfY2 - $pdfY1;
+                            $sLen = sqrt($sDx * $sDx + $sDy * $sDy);
+                            if ($sLen > $capOffset * 2) {
+                                $pdfStartX += ($sDx / $sLen) * $capOffset; $pdfY1 += ($sDy / $sLen) * $capOffset;
+                                $pdfEndX -= ($sDx / $sLen) * $capOffset; $pdfY2 -= ($sDy / $sLen) * $capOffset;
+                            }
+                        }
+                        $pdf->Line($pdfStartX, $pdfY1, $pdfEndX, $pdfY2);
+                    };
+                    
                     // Tentukan posisi Y awal dan akhir untuk balok utama
                     $stemLength = $defaultStemLength; // Panjang tangkai
                     $beamWidth = 0.8; // Lebar garis balok
@@ -1782,7 +1797,7 @@ class MusicConverter
                                             $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
                                         }
                                     }
-                                    $pdf->Line($startX, $y1, $endX, $y2);
+                                    $drawBeamLine($startX, $y1, $endX, $y2);
                                     $inSegment = false;
                                 }
                             }
@@ -1821,7 +1836,7 @@ class MusicConverter
                                     $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
                                 }
                             }
-                            $pdf->Line($startX, $y1, $endX, $y2);
+                            $drawBeamLine($startX, $y1, $endX, $y2);
                         }
                     }
                     
@@ -1838,6 +1853,12 @@ class MusicConverter
                         $ratio = ($dx > 0) ? ($noteData['x'] - $firstNoteData['x']) / $dx : 0;
                         // Gunakan posisi Y balok yang sudah disesuaikan
                         $stemEndY = $startY + ($endY - $startY) * $ratio - $yAdjust;
+
+                        if (!($pdf instanceof SheetMusicSVG)) {
+                            // Koreksi ujung tangkai agar tidak menembus ketebalan balok di PDF (karena efek Line Cap)
+                            $capFix = $stemWidth / 2;
+                            $stemEndY += ($stemDir === 'up') ? $capFix : -$capFix;
+                        }
 
                         $pdf->Line($nX, $nY, $nX, $stemEndY);
                     }
