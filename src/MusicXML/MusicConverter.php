@@ -111,6 +111,7 @@ class MusicConverter
     );
 
     private $mobile = false;
+    private $drawBeam = false;
 
     /**
      * MusicConverter constructor.
@@ -120,14 +121,16 @@ class MusicConverter
      * @param bool  $useRestFilling        If true, uses an alternative algorithm for filling gaps with rests.
      * @param float $lyricFontSize         The font size for lyrics, in points.
      * @param int   $systemHeight          The vertical height of a single staff system in millimeters, including space for lyrics.
+     * @param bool  $drawBeam              If true, draw beam
      */
-    public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0, $systemHeight = 28)
+    public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0, $systemHeight = 28, $drawBeam = false)
     {
         $this->compressEmptyMeasures = $compressEmptyMeasures;
         $this->showTempoChanges = $showTempoChanges;
         $this->useRestFilling = $useRestFilling;
         $this->lyricFontSize = $lyricFontSize;
         $this->systemHeight = $systemHeight;
+        $this->drawBeam = $drawBeam;
     }
 
     /**
@@ -1512,55 +1515,58 @@ class MusicConverter
 
             // Process beams and draw stems
             $beamGroups = array();
-            $currentBeamGroup = null;
-            
-            foreach ($measureNotesData as $idx => $nData) {
-                $isBeamable = in_array($nData['typeStr'], ['eighth', '16th', '32nd', '64th']);
-                
-                if ($nData['isRest'] || !$isBeamable) {
-                    if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
-                        $beamGroups[] = $currentBeamGroup;
-                    }
-                    $currentBeamGroup = null;
-                } else {
-                    if ($nData['beam'] === 'begin') {
+            $noteToBeamGroup = array();
+
+            if ($this->drawBeam) {
+                $currentBeamGroup = null;
+
+                foreach ($measureNotesData as $idx => $nData) {
+                    $isBeamable = in_array($nData['typeStr'], ['eighth', '16th', '32nd', '64th']);
+
+                    if ($nData['isRest'] || !$isBeamable) {
                         if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
-                            $beamGroups[] = $currentBeamGroup;
-                        }
-                        $currentBeamGroup = array('notes' => array($idx));
-                    } elseif ($nData['beam'] === 'continue') {
-                        if ($currentBeamGroup !== null) {
-                            $currentBeamGroup['notes'][] = $idx;
-                        }
-                    } elseif ($nData['beam'] === 'end') {
-                        if ($currentBeamGroup !== null) {
-                            $currentBeamGroup['notes'][] = $idx;
                             $beamGroups[] = $currentBeamGroup;
                         }
                         $currentBeamGroup = null;
                     } else {
-                        // Auto-beaming by beat
-                        if ($currentBeamGroup === null) {
-                            $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
-                        } else {
-                            if (isset($currentBeamGroup['beat']) && $currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
+                        if ($nData['beam'] === 'begin') {
+                            if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                                $beamGroups[] = $currentBeamGroup;
+                            }
+                            $currentBeamGroup = array('notes' => array($idx));
+                        } elseif ($nData['beam'] === 'continue') {
+                            if ($currentBeamGroup !== null) {
                                 $currentBeamGroup['notes'][] = $idx;
-                            } else {
-                                if (count($currentBeamGroup['notes']) > 1) {
-                                    $beamGroups[] = $currentBeamGroup;
-                                }
+                            }
+                        } elseif ($nData['beam'] === 'end') {
+                            if ($currentBeamGroup !== null) {
+                                $currentBeamGroup['notes'][] = $idx;
+                                $beamGroups[] = $currentBeamGroup;
+                            }
+                            $currentBeamGroup = null;
+                        } else {
+                            // Auto-beaming by beat
+                            if ($currentBeamGroup === null) {
                                 $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
+                            } else {
+                                if (isset($currentBeamGroup['beat']) && $currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
+                                    $currentBeamGroup['notes'][] = $idx;
+                                } else {
+                                    if (count($currentBeamGroup['notes']) > 1) {
+                                        $beamGroups[] = $currentBeamGroup;
+                                    }
+                                    $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
+                                }
                             }
                         }
                     }
                 }
-            }
-            if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
-                $beamGroups[] = $currentBeamGroup;
+                if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                    $beamGroups[] = $currentBeamGroup;
+                }
             }
 
             // Unify stem directions for beam groups
-            $noteToBeamGroup = array();
             foreach ($beamGroups as $bIdx => $bg) {
                 $upCount = 0;
                 $downCount = 0;
@@ -1606,165 +1612,167 @@ class MusicConverter
             }
 
             // Draw Beam Lines
-            foreach ($beamGroups as $bg) {
-                $notes = $bg['notes'];
-                if (count($notes) < 2) continue;
-                
-                $stemDir = $bg['stemDir'];
-                $pdf->SetLineWidth(0.8); // Ketebalan balok
-                
-                // Ambil data not pertama dan terakhir dalam grup balok
-                $firstNoteData = $measureNotesData[$notes[0]];
-                $lastNoteData = $measureNotesData[end($notes)];
-                
-                // Tentukan posisi Y awal dan akhir untuk balok utama
-                $stemLength = 8.5;
-                $beamWidth = 0.8; // Lebar garis balok
-                
-                // Sesuaikan offset Y agar pusat balok sejajar dengan ujung tangkai
-                $yAdjust = ($stemDir === 'up') ? ($beamWidth / 2) : -($beamWidth / 2);
-                $stemTipOffset = ($stemDir === 'up') ? -$stemLength : $stemLength;
-                
-                $startY = $firstNoteData['y'] + $stemTipOffset + $yAdjust;
-                $endY = $lastNoteData['y'] + $stemTipOffset + $yAdjust;
-
-                // Batasi kemiringan agar tidak terlalu curam
-                $maxSlope = 0.5; // 0.5 mm per 1 mm horizontal
-                $dx = $lastNoteData['x'] - $firstNoteData['x'];
-                if ($dx > 0) {
-                    $slope = ($endY - $startY) / $dx;
-                    if (abs($slope) > $maxSlope) {
-                        $endY = $startY + ($slope > 0 ? 1 : -1) * $maxSlope * $dx;
-                    }
-                }
-                
-                // Max beams needed in this group
-                $maxBeams = 1;
-                $noteBeams = array();
-                foreach ($notes as $i => $nIdx) {
-                    $type = $measureNotesData[$nIdx]['typeStr'];
-                    $bCount = 1;
-                    if ($type === '16th') $bCount = 2;
-                    elseif ($type === '32nd') $bCount = 3;
-                    elseif ($type === '64th') $bCount = 4;
+            if ($this->drawBeam) {
+                foreach ($beamGroups as $bg) {
+                    $notes = $bg['notes'];
+                    if (count($notes) < 2) continue;
                     
-                    $noteBeams[$i] = $bCount;
-                    if ($bCount > $maxBeams) $maxBeams = $bCount;
-                }
-                
-                // Draw each beam level
-                for ($level = 1; $level <= $maxBeams; $level++) {
-                    $beamSpacing = ($stemDir === 'up') ? 1.2 : -1.2;
+                    $stemDir = $bg['stemDir'];
+                    $pdf->SetLineWidth(0.8); // Ketebalan balok
                     
-                    $inSegment = false;
-                    $segStart = -1;
-                    $segEnd = -1;
+                    // Ambil data not pertama dan terakhir dalam grup balok
+                    $firstNoteData = $measureNotesData[$notes[0]];
+                    $lastNoteData = $measureNotesData[end($notes)];
                     
-                    for ($i = 0; $i < count($notes); $i++) {
-                        if ($noteBeams[$i] >= $level) {
-                            if (!$inSegment) {
-                                $inSegment = true;
-                                $segStart = $i; // Mulai segmen balok
-                            }
-                            $segEnd = $i; // Akhiri segmen balok
-                        } else {
-                            if ($inSegment) {
-                                // Draw segment
-                                $stemWidth = 0.35; // Lebar tangkai
-                                $stemEdgeOffset = ($stemDir === 'up') ? 1.512 : -1.512;
-                                $stemCenterOffset = $stemEdgeOffset; // Gambar balok dari tepi tangkai
+                    // Tentukan posisi Y awal dan akhir untuk balok utama
+                    $stemLength = 8.5;
+                    $beamWidth = 0.8; // Lebar garis balok
+                    
+                    // Sesuaikan offset Y agar pusat balok sejajar dengan ujung tangkai
+                    $yAdjust = ($stemDir === 'up') ? ($beamWidth / 2) : -($beamWidth / 2);
+                    $stemTipOffset = ($stemDir === 'up') ? -$stemLength : $stemLength;
+                    
+                    $startY = $firstNoteData['y'] + $stemTipOffset + $yAdjust;
+                    $endY = $lastNoteData['y'] + $stemTipOffset + $yAdjust;
 
-                                $startX = $measureNotesData[$notes[$segStart]]['x'] + $stemCenterOffset;
-                                $endX = $measureNotesData[$notes[$segEnd]]['x'] + $stemCenterOffset;
-
-                                // Hitung posisi Y awal dan akhir untuk balok yang miring
-                                $levelOffset = ($level - 1) * $beamSpacing;
-                                $beamStartY = $startY + $levelOffset;
-                                $beamEndY = $endY + $levelOffset;
-
-                                // Hitung Y untuk titik awal dan akhir segmen balok saat ini
-                                $ratioStart = ($dx > 0) ? ($measureNotesData[$notes[$segStart]]['x'] - $firstNoteData['x']) / $dx : 0;
-                                $ratioEnd = ($dx > 0) ? ($measureNotesData[$notes[$segEnd]]['x'] - $firstNoteData['x']) / $dx : 0;
-                                $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
-                                $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
-                                
-                                if ($segStart === $segEnd) {
-                                    $hookLength = 3.0;
-                                    if ($segStart === 0) {
-                                        // Hook ke kanan dari not pertama
-                                        $endX = $startX + $hookLength;
-                                        // Hitung Y2 berdasarkan kemiringan
-                                        $ratioEnd = ($dx > 0) ? (($measureNotesData[$notes[$segStart]]['x'] + $hookLength) - $firstNoteData['x']) / $dx : $ratioStart;
-                                        $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
-                                    } else {
-                                        // Hook ke kiri dari not terakhir
-                                        $startX = $endX - $hookLength;
-                                        // Hitung Y1 berdasarkan kemiringan
-                                        $ratioStart = ($dx > 0) ? (($measureNotesData[$notes[$segEnd]]['x'] - $hookLength) - $firstNoteData['x']) / $dx : $ratioEnd;
-                                        $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
-                                    }
-                                }
-                                $pdf->Line($startX, $y1, $endX, $y2);
-                                $inSegment = false;
-                            }
+                    // Batasi kemiringan agar tidak terlalu curam
+                    $maxSlope = 0.5; // 0.5 mm per 1 mm horizontal
+                    $dx = $lastNoteData['x'] - $firstNoteData['x'];
+                    if ($dx > 0) {
+                        $slope = ($endY - $startY) / $dx;
+                        if (abs($slope) > $maxSlope) {
+                            $endY = $startY + ($slope > 0 ? 1 : -1) * $maxSlope * $dx;
                         }
                     }
-                    if ($inSegment) {
-                        $stemWidth = 0.35; // Lebar tangkai
-                        $stemEdgeOffset = ($stemDir === 'up') ? 1.512 : -1.512;
-                        $stemCenterOffset = $stemEdgeOffset; // Gambar balok dari tepi tangkai
-
-                        $startX = $measureNotesData[$notes[$segStart]]['x'] + $stemCenterOffset;
-                        $endX = $measureNotesData[$notes[$segEnd]]['x'] + $stemCenterOffset;
-
-                        // Hitung posisi Y awal dan akhir untuk balok yang miring
-                        $levelOffset = ($level - 1) * $beamSpacing;
-                        $beamStartY = $startY + $levelOffset;
-                        $beamEndY = $endY + $levelOffset;
-
-                        $ratioStart = ($dx > 0) ? ($measureNotesData[$notes[$segStart]]['x'] - $firstNoteData['x']) / $dx : 0;
-                        $ratioEnd = ($dx > 0) ? ($measureNotesData[$notes[$segEnd]]['x'] - $firstNoteData['x']) / $dx : 0;
-                        $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
-                        $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                    
+                    // Max beams needed in this group
+                    $maxBeams = 1;
+                    $noteBeams = array();
+                    foreach ($notes as $i => $nIdx) {
+                        $type = $measureNotesData[$nIdx]['typeStr'];
+                        $bCount = 1;
+                        if ($type === '16th') $bCount = 2;
+                        elseif ($type === '32nd') $bCount = 3;
+                        elseif ($type === '64th') $bCount = 4;
                         
-                        if ($segStart === $segEnd) {
-                            $hookLength = 3.0;
-                            if ($segStart === 0) {
-                                // Hook ke kanan dari not pertama
-                                $endX = $startX + $hookLength;
-                                // Hitung Y2 berdasarkan kemiringan
-                                $ratioEnd = ($dx > 0) ? (($measureNotesData[$notes[$segStart]]['x'] + $hookLength) - $firstNoteData['x']) / $dx : $ratioStart;
-                                $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                        $noteBeams[$i] = $bCount;
+                        if ($bCount > $maxBeams) $maxBeams = $bCount;
+                    }
+                    
+                    // Draw each beam level
+                    for ($level = 1; $level <= $maxBeams; $level++) {
+                        $beamSpacing = ($stemDir === 'up') ? 1.2 : -1.2;
+                        
+                        $inSegment = false;
+                        $segStart = -1;
+                        $segEnd = -1;
+                        
+                        for ($i = 0; $i < count($notes); $i++) {
+                            if ($noteBeams[$i] >= $level) {
+                                if (!$inSegment) {
+                                    $inSegment = true;
+                                    $segStart = $i; // Mulai segmen balok
+                                }
+                                $segEnd = $i; // Akhiri segmen balok
                             } else {
-                                // Hook ke kiri dari not terakhir
-                                $startX = $endX - $hookLength;
-                                // Hitung Y1 berdasarkan kemiringan
-                                $ratioStart = ($dx > 0) ? (($measureNotesData[$notes[$segEnd]]['x'] - $hookLength) - $firstNoteData['x']) / $dx : $ratioEnd;
-                                $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                if ($inSegment) {
+                                    // Draw segment
+                                    $stemWidth = 0.35; // Lebar tangkai
+                                    $stemEdgeOffset = ($stemDir === 'up') ? 1.512 : -1.512;
+                                    $stemCenterOffset = $stemEdgeOffset; // Gambar balok dari tepi tangkai
+
+                                    $startX = $measureNotesData[$notes[$segStart]]['x'] + $stemCenterOffset;
+                                    $endX = $measureNotesData[$notes[$segEnd]]['x'] + $stemCenterOffset;
+
+                                    // Hitung posisi Y awal dan akhir untuk balok yang miring
+                                    $levelOffset = ($level - 1) * $beamSpacing;
+                                    $beamStartY = $startY + $levelOffset;
+                                    $beamEndY = $endY + $levelOffset;
+
+                                    // Hitung Y untuk titik awal dan akhir segmen balok saat ini
+                                    $ratioStart = ($dx > 0) ? ($measureNotesData[$notes[$segStart]]['x'] - $firstNoteData['x']) / $dx : 0;
+                                    $ratioEnd = ($dx > 0) ? ($measureNotesData[$notes[$segEnd]]['x'] - $firstNoteData['x']) / $dx : 0;
+                                    $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                    $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                                    
+                                    if ($segStart === $segEnd) {
+                                        $hookLength = 3.0;
+                                        if ($segStart === 0) {
+                                            // Hook ke kanan dari not pertama
+                                            $endX = $startX + $hookLength;
+                                            // Hitung Y2 berdasarkan kemiringan
+                                            $ratioEnd = ($dx > 0) ? (($measureNotesData[$notes[$segStart]]['x'] + $hookLength) - $firstNoteData['x']) / $dx : $ratioStart;
+                                            $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                                        } else {
+                                            // Hook ke kiri dari not terakhir
+                                            $startX = $endX - $hookLength;
+                                            // Hitung Y1 berdasarkan kemiringan
+                                            $ratioStart = ($dx > 0) ? (($measureNotesData[$notes[$segEnd]]['x'] - $hookLength) - $firstNoteData['x']) / $dx : $ratioEnd;
+                                            $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                        }
+                                    }
+                                    $pdf->Line($startX, $y1, $endX, $y2);
+                                    $inSegment = false;
+                                }
                             }
                         }
-                        $pdf->Line($startX, $y1, $endX, $y2);
+                        if ($inSegment) {
+                            $stemWidth = 0.35; // Lebar tangkai
+                            $stemEdgeOffset = ($stemDir === 'up') ? 1.512 : -1.512;
+                            $stemCenterOffset = $stemEdgeOffset; // Gambar balok dari tepi tangkai
+
+                            $startX = $measureNotesData[$notes[$segStart]]['x'] + $stemCenterOffset;
+                            $endX = $measureNotesData[$notes[$segEnd]]['x'] + $stemCenterOffset;
+
+                            // Hitung posisi Y awal dan akhir untuk balok yang miring
+                            $levelOffset = ($level - 1) * $beamSpacing;
+                            $beamStartY = $startY + $levelOffset;
+                            $beamEndY = $endY + $levelOffset;
+
+                            $ratioStart = ($dx > 0) ? ($measureNotesData[$notes[$segStart]]['x'] - $firstNoteData['x']) / $dx : 0;
+                            $ratioEnd = ($dx > 0) ? ($measureNotesData[$notes[$segEnd]]['x'] - $firstNoteData['x']) / $dx : 0;
+                            $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                            $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                            
+                            if ($segStart === $segEnd) {
+                                $hookLength = 3.0;
+                                if ($segStart === 0) {
+                                    // Hook ke kanan dari not pertama
+                                    $endX = $startX + $hookLength;
+                                    // Hitung Y2 berdasarkan kemiringan
+                                    $ratioEnd = ($dx > 0) ? (($measureNotesData[$notes[$segStart]]['x'] + $hookLength) - $firstNoteData['x']) / $dx : $ratioStart;
+                                    $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                                } else {
+                                    // Hook ke kiri dari not terakhir
+                                    $startX = $endX - $hookLength;
+                                    // Hitung Y1 berdasarkan kemiringan
+                                    $ratioStart = ($dx > 0) ? (($measureNotesData[$notes[$segEnd]]['x'] - $hookLength) - $firstNoteData['x']) / $dx : $ratioEnd;
+                                    $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                }
+                            }
+                            $pdf->Line($startX, $y1, $endX, $y2);
+                        }
                     }
-                }
-                
-                // Extend internal stems to the primary beam
-                $pdf->SetLineWidth(0.35);
-                foreach ($notes as $nIdx) {
-                    $noteData = $measureNotesData[$nIdx];
-                    $stemWidth = 0.35;
-                    $stemOffset = ($stemDir === 'up') ? 1.512 : -1.512;
-                    $nX = $noteData['x'] + $stemOffset; // Gambar tangkai dari tepinya
-                    $nY = $noteData['y'] + (($stemDir === 'up') ? -0.4 : 0.4);
+                    
+                    // Extend internal stems to the primary beam
+                    $pdf->SetLineWidth(0.35);
+                    foreach ($notes as $nIdx) {
+                        $noteData = $measureNotesData[$nIdx];
+                        $stemWidth = 0.35;
+                        $stemOffset = ($stemDir === 'up') ? 1.512 : -1.512;
+                        $nX = $noteData['x'] + $stemOffset; // Gambar tangkai dari tepinya
+                        $nY = $noteData['y'] + (($stemDir === 'up') ? -0.4 : 0.4);
 
-                    // Hitung Y akhir tangkai pada balok miring
-                    $ratio = ($dx > 0) ? ($noteData['x'] - $firstNoteData['x']) / $dx : 0;
-                    // Gunakan posisi Y balok yang sudah disesuaikan
-                    $stemEndY = $startY + ($endY - $startY) * $ratio - $yAdjust;
+                        // Hitung Y akhir tangkai pada balok miring
+                        $ratio = ($dx > 0) ? ($noteData['x'] - $firstNoteData['x']) / $dx : 0;
+                        // Gunakan posisi Y balok yang sudah disesuaikan
+                        $stemEndY = $startY + ($endY - $startY) * $ratio - $yAdjust;
 
-                    $pdf->Line($nX, $nY, $nX, $stemEndY);
+                        $pdf->Line($nX, $nY, $nX, $stemEndY);
+                    }
+                    
+                    $pdf->SetLineWidth(0.2);
                 }
-                
-                $pdf->SetLineWidth(0.2);
             }
 
             // Move to next system if we hit measures limit per system

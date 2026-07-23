@@ -26,6 +26,7 @@ foreach ($autoloadCandidates as $candidate) {
 
 // ── Request parameters ────────────────────────────────────────────────────────
 $transpose   = isset($_GET['transpose'])     ? (int)$_GET['transpose']  : 0;
+$drawBeam   = isset($_GET['beam'])     ? (int)$_GET['beam']  : 0;
 $midiTrackId = isset($_GET['midi_track_id']) ? $_GET['midi_track_id']   : null;
 
 // ── Song meta (hard-coded for the example) ────────────────────────────────────
@@ -64,7 +65,7 @@ if ($midiData && class_exists('Midi\MidiFilter')) {
     // Convert to SVG for display
     if (isset($midiTrackId) && class_exists('MusicXML\MusicConverter')) {
         try {
-            $converter = new MusicConverter(false, false, true, 7);
+            $converter = new MusicConverter(false, false, true, 7, 28, $drawBeam);
             $svgData   = $converter->midiToSVG($trackOnlyMidi, $song_name, $composerName, 'example', 4, true);
         } catch (Exception $e) {
             // Silently ignore render errors
