@@ -1355,6 +1355,19 @@ class MusicConverter
                         $pdf->Line($noteX - 1.2, $noteY + 1.2, $noteX + 1.2, $noteY - 1.2);
                         $pdf->SetLineWidth(0.2);
                     } else {
+                        // Draw augmentation dots if any
+                        $dotsCount = 0;
+                        if (isset($note->dot)) {
+                            $dotsCount = is_array($note->dot) ? count($note->dot) : 1;
+                        }
+                        if ($dotsCount > 0) {
+                            $dotX = $noteX + 2.5; // Position dot to the right of the notehead
+                            $dotRadius = 0.35;
+                            for ($d = 0; $d < $dotsCount; $d++) {
+                                $pdf->Circle($dotX, $noteY, $dotRadius, 'F');
+                                $dotX += 1.2; // Space out multiple dots
+                            }
+                        }
                         // Draw normal oval/tilted notehead
                         $pdf->SetLineWidth(0.35);
                         $pdf->Ellipse($noteX, $noteY, 1.55, 0.92, $style, $elevation);
