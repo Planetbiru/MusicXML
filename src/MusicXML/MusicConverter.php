@@ -1653,7 +1653,9 @@ class MusicConverter
                 if ($stemDir === 'up') {
                     $stemX = $noteX + 1.512; // Posisi X tepi kiri tangkai
                     $stemEndY = $noteY - $defaultStemLength; // Ujung atas tangkai
-                    $pdf->Line($stemX, $noteY - 0.4, $stemX, $stemEndY + 1.4);
+                    if (!isset($noteToBeamGroup[$idx]) || $pdf instanceof SheetMusicSVG) {
+                        $pdf->Line($stemX, $noteY - 0.4, $stemX, $stemEndY + 1.4);
+                    }
                     if (!isset($noteToBeamGroup[$idx])) {
                         // Posisikan bendera agar menyentuh tengah tangkai
                         $pdf->DrawNoteFlag($stemX + (0.35 / 2), $stemEndY + 1.4, 'up', $typeStr);
@@ -1661,7 +1663,9 @@ class MusicConverter
                 } else {
                     $stemX = $noteX - 1.512; // Posisi X tepi kanan tangkai
                     $stemEndY = $noteY + $defaultStemLength;
-                    $pdf->Line($stemX, $noteY + 0.4, $stemX, $stemEndY - 1.4);
+                    if (!isset($noteToBeamGroup[$idx]) || $pdf instanceof SheetMusicSVG) {
+                        $pdf->Line($stemX, $noteY + 0.4, $stemX, $stemEndY - 1.4);
+                    }
                     if (!isset($noteToBeamGroup[$idx])) {
                         $pdf->DrawNoteFlag($noteX - 1.56, $stemEndY - 1.4, 'down', $typeStr);
                     }
@@ -1711,7 +1715,7 @@ class MusicConverter
                     };
                     
                     // Tentukan posisi Y awal dan akhir untuk balok utama
-                    $stemLength = $defaultStemLength; // Panjang tangkai
+                    $stemLength = $defaultStemLength - 1.4; // Panjang tangkai disamakan dengan tangkai tanpa beam (yang terpotong 1.4 untuk flag)
                     $beamWidth = 0.8; // Lebar garis balok
                     
                     // Sesuaikan offset Y agar pusat balok sejajar dengan ujung tangkai
