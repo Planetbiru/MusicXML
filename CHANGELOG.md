@@ -5,16 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v1.3.1 - 2026-07-23
+## v1.3.1 - 2026-07-26
 
 ### Changed
 - **Improved MIDI Duration Splitting**: Complex, unrepresentable note durations (e.g., 1 1/4 beats) from MIDI are now accurately split into standard representable notes tied together (e.g., a quarter note tied to a sixteenth note).
 
 ### Fixed
-- **Beam Adjustments (PDF)**: Corrected beam lengths, stem lengths, and Y-coordinates in PDF rendering so beams align perfectly with the ends of note stems without overextending.
-- **Accidental Rendering (SVG)**: Fixed an issue where sharp (`#`) signs displayed "holes" at intersections in SVG output by optimizing the path's `stroke-width`.
-- **Note Overlap**: Resolved a visual bug where split tied notes were drawn on top of one another by dynamically calculating their sequential horizontal (`default-x`) offsets.
-- **False Double Ties**: Fixed a bug in the drawing engine that incorrectly extended a tie to the end of the system when it found an unrelated stop note in a future measure.
+- Corrected an issue in MusicXML-to-MIDI conversion where notes with unrepresentable durations were not processed correctly, improving roundtrip fidelity.
+- Fixed part name detection during MIDI-to-MusicXML conversion to more reliably use track names when available.
 
 ## v1.3.0 - 2026-07-24
 

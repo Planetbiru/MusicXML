@@ -624,6 +624,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
     {
         $timebase = $midi->getTimebase();
         $this->channel10 = array();
+        $this->channelToTrackMap = array();
         $this->copyright = null;
         $tracks = $midi->getTracks();
         $tc = count($tracks);
@@ -659,6 +660,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                 switch ($msg[1]) {
                     case 'PrCh':
                         sscanf($track[$j], "%d PrCh ch=%d p=%d", $t, $ch, $p);
+                        $this->channelToTrackMap[$ch] = $i;
 
                         $instrument = MusicXMLUtil::getInstrumentName($p, $ch); // $p is program ID, $ch is channel ID
 
@@ -684,6 +686,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
                     case 'On':
                     case 'Off':
                         sscanf($track[$j], "%d {$msg[1]} ch=%d n=%d v=%d", $t, $ch, $n, $v);
+                        $this->channelToTrackMap[$ch] = $i;
 
                         if ($ch == 10 && !isset($this->channel10[$n + 1])) {
                             $this->channel10[$n + 1] = array('note' => $n, 'ch' => $ch, 'n' => $n, 'v' => $v, 'message' => $msg);
@@ -937,19 +940,21 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $pid = str_replace('P', '', $part['partId']);
             $partId = intval($pid);
             
-            if(!isset($trackName) && $partId > 0 && isset($this->trackNames[$partId]))
+            $currentTrackName = $trackName;
+            $trackIndex = isset($this->channelToTrackMap[$partId]) ? $this->channelToTrackMap[$partId] : $partId;
+            if(!isset($currentTrackName) && isset($this->trackNames[$trackIndex]))
             {
-                $trackName = $this->trackNames[$partId];
+                $currentTrackName = $this->trackNames[$trackIndex];
             }
 
             $partId = $part['partId'];
             $channelId = $part['channelId'];
             if ($channelId == 10) {
-                $partName = isset($trackName) ? $trackName : 'Drum Kit';
+                $partName = isset($currentTrackName) ? $currentTrackName : 'Drum Kit';
                 $partAbbreviation = 'D. Kit';
                 $instrumentName = 'Drum Kit';
             } else {
-                $partName = isset($trackName) ? $trackName : $part['instrument'][0];
+                $partName = isset($currentTrackName) ? $currentTrackName : $part['instrument'][0];
                 $partAbbreviation = $this->getPartAbbreviation($part);
                 $instrumentName = $part['instrument'][0];
             }

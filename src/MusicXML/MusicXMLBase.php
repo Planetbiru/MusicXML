@@ -61,8 +61,8 @@ abstract class MusicXMLBase
     const PUBLIC_ID = "-//Recordare//DTD MusicXML 4.0 Partwise//EN";
     const SYSTEM_ID = "http://www.musicxml.org/dtds/partwise.dtd";
     const SCORE_PARTWISE = "score-partwise";
-    const SOFTWARE_NAME = "Planetbiru";
-    const ENCODING_DESCRIPTION = "This software is not ready for production yet";
+    const SOFTWARE_NAME = "Planetbiru MusicXML";
+    const ENCODING_DESCRIPTION = "This software has been used for production at https://composer.planetbiru.com";
 
     /**
      * Quantize MIDI ticks to nearest standard division to avoid jitter.

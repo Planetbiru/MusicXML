@@ -314,15 +314,24 @@ class MusicXMLToMIDI
                             $isTieStart = false;
                             $isTieStop = false;
 
-                            if (isset($element->tie) && !is_array($element->tie) && $element->tie->type == 'start') $isTieStart = true;
-                            if (isset($element->tie) && !is_array($element->tie) && $element->tie->type == 'stop') $isTieStop = true;
+                            if (isset($element->tie)) {
+                                $ties = is_array($element->tie) ? $element->tie : array($element->tie);
+                                foreach ($ties as $t) {
+                                    $tType = is_object($t) ? (isset($t->type) ? $t->type : null) : (is_array($t) && isset($t['type']) ? $t['type'] : null);
+                                    if ($tType === 'start') $isTieStart = true;
+                                    if ($tType === 'stop') $isTieStop = true;
+                                }
+                            }
 
-                            if (isset($element->notations) && is_array($element->notations)) {
-                                foreach ($element->notations as $notation) {
-                                    if (isset($notation->tied) && is_array($notation->tied)) {
-                                        foreach ($notation->tied as $tied) {
-                                            if ($tied->type == 'start') $isTieStart = true;
-                                            if ($tied->type == 'stop') $isTieStop = true;
+                            if (isset($element->notations)) {
+                                $notations = is_array($element->notations) ? $element->notations : array($element->notations);
+                                foreach ($notations as $notation) {
+                                    if (isset($notation->tied)) {
+                                        $tieds = is_array($notation->tied) ? $notation->tied : array($notation->tied);
+                                        foreach ($tieds as $tied) {
+                                            $tType = is_object($tied) ? (isset($tied->type) ? $tied->type : null) : (is_array($tied) && isset($tied['type']) ? $tied['type'] : null);
+                                            if ($tType === 'start') $isTieStart = true;
+                                            if ($tType === 'stop') $isTieStop = true;
                                         }
                                     }
                                 }
