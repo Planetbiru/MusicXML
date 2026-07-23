@@ -26,6 +26,7 @@ foreach ($autoloadCandidates as $candidate) {
 
 // ── Request parameters ────────────────────────────────────────────────────────
 $transpose   = isset($_GET['transpose'])     ? (int)$_GET['transpose']  : 0;
+$drawBeam   = isset($_GET['beam'])     ? (int)$_GET['beam']  : 0;
 $midiTrackId = isset($_GET['midi_track_id']) ? $_GET['midi_track_id']   : null;
 
 // ── Song meta (hard-coded for the example) ────────────────────────────────────
@@ -64,7 +65,7 @@ if ($midiData && class_exists('Midi\MidiFilter')) {
     // Convert to SVG for display
     if (isset($midiTrackId) && class_exists('MusicXML\MusicConverter')) {
         try {
-            $converter = new MusicConverter(false, false, true, 7);
+            $converter = new MusicConverter(false, false, true, 7, 28, $drawBeam == 1);
             $svgData   = $converter->midiToSVG($trackOnlyMidi, $song_name, $composerName, 'example', 4, true);
         } catch (Exception $e) {
             // Silently ignore render errors
@@ -179,7 +180,7 @@ $midi_base64_track = $trackOnlyMidi    ? base64_encode($trackOnlyMidi)    : '';
         // Track-only MIDI (for SVG sync reference)
         const TRACK_BASE64_STRING = '<?php echo $midi_base64_track; ?>';
         // Current track & transpose (used by loadScore())
-        const CURRENT_MIDI_TRACK_ID = '<?php echo htmlspecialchars($midiTrackId ?? ''); ?>';
+        const CURRENT_MIDI_TRACK_ID = '<?php echo isset($midiTrackId) ? htmlspecialchars($midiTrackId) : ''; ?>';
         const CURRENT_TRANSPOSE     = <?php echo $transpose; ?>;
     </script>
 

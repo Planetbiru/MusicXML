@@ -398,33 +398,45 @@ class MusicXMLUtil
      */
     public static function getBeams($noteMessages, $timebase, $timeSignature)
     {
-        $beamNotes = array();      
+        $allBeams = array();
+        $measureLengthTicks = $timebase * $timeSignature->getBeats();
+
+        // Iterasi melalui setiap ketukan dalam birama
         for($i = 0; $i < $timeSignature->getBeats(); $i++)
         {
-            $time1 = $timebase * $i;
-            $time2 = $timebase * ($i + 1);
-            $j = 0;
+            $beatStartTicks = $timebase * $i;
+            $beatEndTicks = $timebase * ($i + 1);
+            
+            $notesInBeat = array();
+
+            // Kumpulkan semua not yang dimulai dalam ketukan saat ini
             foreach($noteMessages as $message)
             {
-                $rtime = $message['abstime'] % ($timebase * $timeSignature->getBeats());
-                if($message['event'] == 'On' && isset($message['duration']) && $rtime >= $time1 && $rtime <= $time2)
+                $relativeTime = $message['abstime'] % $measureLengthTicks;
+                $noteDuration = isset($message['duration']) ? $message['duration'] : 0;
+                $noteType = MusicXMLUtil::getNoteType($noteDuration, $timebase);
+                
+                // Hanya not 1/8 atau lebih kecil yang bisa di-beam
+                $isBeamable = in_array($noteType, ['eighth', '16th', '32nd', '64th', '128th', '256th', '512th', '1024th']);
+
+                if($message['event'] == 'On' && $isBeamable && $relativeTime >= $beatStartTicks && $relativeTime < $beatEndTicks)
                 {
-                    $duration = $message['duration'];
-                    if(($rtime + $duration) <= $time2)
-                    {
-                        $k = self::getElementIndexFromNoteIndex($message);
-                        $beamNotes[] = new BeamNote($i, $j, $k);
-                        $j++;   
+                    // Cek apakah not ini menyeberangi (overflow) batas akhir ketukan
+                    if (($relativeTime + $noteDuration) > $beatEndTicks) {
+                        // Jangan gabungkan ke dalam grup beam ketukan ini
+                        continue;
                     }
+                    $notesInBeat[] = $message;
                 }
             }
+
+            // Jika ada lebih dari satu not yang bisa di-beam dalam satu ketukan, buat grup balok
+            if(count($notesInBeat) > 1)
+            {
+                $allBeams = array_merge($allBeams, BeamNote::createFromNotes($notesInBeat, $i));
+            }
         }
-        if(empty($beamNotes))
-        {
-            return false;
-        }
-        $beamNotes = BeamNote::closeBeams($beamNotes);
-        return $beamNotes;
+        return !empty($allBeams) ? $allBeams : false;
     }
     
     /**

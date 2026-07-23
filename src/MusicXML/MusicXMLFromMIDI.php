@@ -1051,7 +1051,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
      *
      * @param MidiMeasure $midi The parsed MIDI data object.
      * @param string $title The title of the work.
-     * @param \DOMDocument $domdoc The parent DOMDocument to which the new nodes will be appended.
+     * @param DOMDocument $domdoc The parent DOMDocument to which the new nodes will be appended.
      * @param string $version The MusicXML version string to set in the score-partwise element.
      * @return DOMNode The root DOMNode of the generated score-partwise element.
      */

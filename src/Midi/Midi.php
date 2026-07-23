@@ -722,7 +722,7 @@ class Midi
 
 		//0 track, invalid and just return
 		if ($tc == 0) {
-			return;
+			return '';
 		}
 
 		$trk_no = 0;
@@ -1724,6 +1724,7 @@ class Midi
 				@$this->_err('unknown event: ' . $command);
 				return '';
 		}
+		return '';
 	}
 
 	/**

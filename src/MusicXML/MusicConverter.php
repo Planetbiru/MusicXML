@@ -111,6 +111,7 @@ class MusicConverter
     );
 
     private $mobile = false;
+    private $drawBeam = false;
 
     /**
      * MusicConverter constructor.
@@ -120,14 +121,16 @@ class MusicConverter
      * @param bool  $useRestFilling        If true, uses an alternative algorithm for filling gaps with rests.
      * @param float $lyricFontSize         The font size for lyrics, in points.
      * @param int   $systemHeight          The vertical height of a single staff system in millimeters, including space for lyrics.
+     * @param bool  $drawBeam              If true, draw beam
      */
-    public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0, $systemHeight = 28)
+    public function __construct($compressEmptyMeasures = false, $showTempoChanges = true, $useRestFilling = false, $lyricFontSize = 6.0, $systemHeight = 28, $drawBeam = false)
     {
         $this->compressEmptyMeasures = $compressEmptyMeasures;
         $this->showTempoChanges = $showTempoChanges;
         $this->useRestFilling = $useRestFilling;
         $this->lyricFontSize = $lyricFontSize;
         $this->systemHeight = $systemHeight;
+        $this->drawBeam = $drawBeam;
     }
 
     /**
@@ -264,7 +267,7 @@ class MusicConverter
      * @param string          $songTitle             The title to be displayed on the sheet music.
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
-     * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param int|null        $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
      * @param string          $year                  The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
@@ -321,7 +324,7 @@ class MusicConverter
      * @param string          $songTitle             The title to be displayed on the sheet music.
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
-     * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param int|null        $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
      * @param bool            $singlePage            If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
      * @param bool            $mobile                If true, optimizes the layout for mobile devices by rendering one measure per system.
      * @return string Raw SVG data string
@@ -754,6 +757,7 @@ class MusicConverter
         $systemStartX = 0;
         $systemStartY = 0;
         $systemAttributesIndex = 0;
+        $defaultStemLength = 8.5;
         // Find part element and part name
         $targetPart = null;
         foreach ($xml->part as $part) {
@@ -899,6 +903,9 @@ class MusicConverter
         $clefSign = 'G'; // default clef sign is Treble (G)
         $tieQueue = array(); // Antrian untuk menunda penggambaran tie
         $tickAccumulator = 0; // Akumulator untuk start-tick yang akurat
+
+        $startTick = 0; // Default value
+        $endTick = 0; // Default value
 
         for ($mIdx = 0; $mIdx < $totalMeasures; $mIdx++) {
             $measure = $measures[$mIdx];
@@ -1089,10 +1096,10 @@ class MusicConverter
             $pdf->SetDrawColor(0, 0, 0);
             if ($layoutIdx % $measuresPerSystem == 0) {
                 // Draw left barline of first measure in system
-                $pdf->Line($currentMeasureX, $systemY - 0.5, $currentMeasureX, $systemY + 8.5);
+                $pdf->Line($currentMeasureX, $systemY - 0.5, $currentMeasureX, $systemY + $defaultStemLength);
             }
             // Draw right barline of measure
-            $pdf->Line($currentMeasureX + $measureWidth, $systemY - 0.5, $currentMeasureX + $measureWidth, $systemY + 8.5);
+            $pdf->Line($currentMeasureX + $measureWidth, $systemY - 0.5, $currentMeasureX + $measureWidth, $systemY + $defaultStemLength);
             $pdf->SetLineWidth(0.2);
 
             // Close measure group for SVG
@@ -1155,6 +1162,8 @@ class MusicConverter
             $lastDuration = 0;
             $prevNoteX = null;
             $ignoreDefaultX = false;
+            $measureNotesData = array();
+            $noteIndex = 0;
 
             foreach ($measure->note as $note) {
                 // Start SVG group for note/rest if applicable
@@ -1245,8 +1254,18 @@ class MusicConverter
                 $xOffset = $padding + ($ratio * $xRange) + $tieCarryOffset;
                 
                 $noteX = $currentMeasureX + $xOffset;
+                
+                $hasAlterEarly = false;
+                if (!isset($note->rest) && isset($note->pitch->alter) && (int)$note->pitch->alter != 0) {
+                    $hasAlterEarly = true;
+                    $noteX += 2.5; // Geser sedikit ke kanan untuk ruang accidental
+                }
+
                 if ($prevNoteX !== null && !$isChord) {
                     $minGap = 4;
+                    if ($hasAlterEarly) {
+                        $minGap += 2.5; // Pastikan jarak minimal lebih besar
+                    }
                     if ($lastDuration > 0 && isset($divisions) && $divisions > 0) {
                         $dynamicGap = ($lastDuration / $divisions) * 6.5;
                         if ($dynamicGap > $minGap) {
@@ -1350,6 +1369,19 @@ class MusicConverter
                         $pdf->Line($noteX - 1.2, $noteY + 1.2, $noteX + 1.2, $noteY - 1.2);
                         $pdf->SetLineWidth(0.2);
                     } else {
+                        // Draw augmentation dots if any
+                        $dotsCount = 0;
+                        if (isset($note->dot)) {
+                            $dotsCount = is_array($note->dot) ? count($note->dot) : 1;
+                        }
+                        if ($dotsCount > 0) {
+                            $dotX = $noteX + 2.5; // Position dot to the right of the notehead
+                            $dotRadius = 0.35;
+                            for ($d = 0; $d < $dotsCount; $d++) {
+                                $pdf->Circle($dotX, $noteY, $dotRadius, 'F');
+                                $dotX += 1.2; // Space out multiple dots
+                            }
+                        }
                         // Draw normal oval/tilted notehead
                         $pdf->SetLineWidth(0.35);
                         $pdf->Ellipse($noteX, $noteY, 1.55, 0.92, $style, $elevation);
@@ -1360,22 +1392,21 @@ class MusicConverter
 
                     $stemDir = ($stepIndex >= 4) ? 'down' : 'up';
 
-                    // Draw Stem (for all types except whole notes)
-                    // Draw Stem (for all types except whole notes)
-                    if ($typeStr !== 'whole') {
-                        $pdf->SetLineWidth(0.35);
-                        if ($stemDir === 'up') {
-                            $stemEndY = $noteY - 8.5;
-                            $pdf->Line($noteX + 1.512, $noteY - 0.4, $noteX + 1.512, $stemEndY + 1.4);
-                            $pdf->DrawNoteFlag($noteX + 1.56, $stemEndY + 1.4, 'up', $typeStr);
-                        } else {
-                            $stemEndY = $noteY + 8.5;
-                            $pdf->Line($noteX - 1.512, $noteY + 0.4, $noteX - 1.512, $stemEndY - 1.4);
-                            $pdf->DrawNoteFlag($noteX - 1.56, $stemEndY - 1.4, 'down', $typeStr);
-                        }
-
-                        $pdf->SetLineWidth(0.2);
-                    }
+                    // Store note data for drawing stems and beams later
+                    $measureNotesData[$noteIndex] = array(
+                        'x' => $noteX,
+                        'y' => $noteY,
+                        'stemDir' => $stemDir,
+                        'typeStr' => $typeStr,
+                        'isChord' => $isChord,
+                        'isRest' => isset($note->rest),
+                        'beam' => isset($note->beam) ? (string)$note->beam[0] : null,
+                        'durationDivs' => $duration,
+                        'startDiv' => $currentDiv,
+                        'beatIndex' => ($divisions > 0) ? floor($currentDiv / $divisions) : 0,
+                        'startTick' => $startTick,
+                        'endTick' => $endTick
+                    );
 
                     // Draw Tie / Tied Stop
                     if ($isTieStop && isset($activeTies[$pitchVal])) {
@@ -1510,6 +1541,348 @@ class MusicConverter
                 }
                 $lastDuration = $duration;
                 $currentDiv += $duration;
+                $noteIndex++;
+            }
+
+            // Process beams and draw stems
+            $beamGroups = array();
+            $noteToBeamGroup = array();
+
+            if ($this->drawBeam) {
+                $currentBeamGroup = null;
+
+                foreach ($measureNotesData as $idx => $nData) {
+                    $isBeamable = in_array($nData['typeStr'], ['eighth', '16th', '32nd', '64th']);
+
+                    // Jika not tidak bisa di-beam atau adalah rest, tutup grup yang ada.
+                    if (!$isBeamable || $nData['isRest']) {
+                        if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                            $beamGroups[] = $currentBeamGroup;
+                        }
+                        $currentBeamGroup = null;
+                        continue;
+                    }
+
+                    // Logika baru yang lebih kuat
+                    if ($nData['beam'] === 'begin') {
+                        // Tutup grup lama, mulai yang baru berdasarkan 'begin'
+                        if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                        $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
+                    } elseif ($nData['beam'] === 'continue' || $nData['beam'] === 'end') {
+                        $beatEndDiv = ($currentBeamGroup['beat'] + 1) * $divisions;
+                        $noteEndDiv = $nData['startDiv'] + $nData['durationDivs'];
+                        
+                        if ($noteEndDiv > $beatEndDiv) {
+                            // Paksa tutup grup jika XML mencoba menggabung not yang melintasi batas ketukan
+                            if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                            $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
+                        } else {
+                            // Lanjutkan grup jika ada
+                            if ($currentBeamGroup !== null) {
+                                $currentBeamGroup['notes'][] = $idx;
+                            }
+                            // Tutup grup jika 'end'
+                            if ($nData['beam'] === 'end' && $currentBeamGroup !== null) {
+                                if (count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                                $currentBeamGroup = null;
+                            }
+                        }
+                    } else { // Fallback ke auto-beaming per ketukan jika tidak ada info beam
+                        if ($currentBeamGroup === null) {
+                            // Mulai grup baru
+                            $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex'], 'totalDuration' => $nData['durationDivs']];
+                        } elseif ($currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
+                            // Hitung batas divisi (ticks) untuk ketukan saat ini
+                            // Default beat durasi adalah $divisions (1 ketukan = 1 quarter note).
+                            // Untuk ketepatan, boundary akhir ketukan adalah:
+                            $beatEndDiv = ($currentBeamGroup['beat'] + 1) * $divisions;
+                            $noteEndDiv = $nData['startDiv'] + $nData['durationDivs'];
+                            
+                            // Cek apakah penambahan not ini akan membuat durasinya melewati batas ketukan.
+                            if ($noteEndDiv > $beatEndDiv) {
+                                // Tutup grup lama karena durasi akan meluap (overflow) ke ketukan berikutnya
+                                if (count($currentBeamGroup['notes']) > 1) {
+                                    $beamGroups[] = $currentBeamGroup;
+                                }
+                                // Mulai grup baru dengan not saat ini
+                                // Not ini mungkin berada di ketukan yang sama secara startDiv, 
+                                // tapi kita paksa jadi grup baru.
+                                $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex'], 'totalDuration' => $nData['durationDivs']];
+                            } else {
+                                // Lanjutkan grup: ketukan sama dan tidak meluap
+                                $currentBeamGroup['notes'][] = $idx;
+                                $currentBeamGroup['totalDuration'] += $nData['durationDivs'];
+                            }
+                        } else {
+                            // Tutup grup lama karena ketukan berbeda, mulai yang baru
+                            if (count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                            $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex'], 'totalDuration' => $nData['durationDivs']];
+                        }
+                    }
+                }
+                if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                    $beamGroups[] = $currentBeamGroup;
+                }
+            }
+
+            // Unify stem directions for beam groups
+            foreach ($beamGroups as $bIdx => $bg) {
+                $upCount = 0;
+                $downCount = 0;
+                foreach ($bg['notes'] as $idx) {
+                    if ($measureNotesData[$idx]['stemDir'] === 'up') $upCount++;
+                    else $downCount++;
+                    $noteToBeamGroup[$idx] = $bIdx;
+                }
+                $unifiedDir = ($downCount > $upCount) ? 'down' : 'up';
+                $beamGroups[$bIdx]['stemDir'] = $unifiedDir;
+                foreach ($bg['notes'] as $idx) {
+                    $measureNotesData[$idx]['stemDir'] = $unifiedDir;
+                }
+            }
+
+            // Draw stems, flags, and beams
+            foreach ($measureNotesData as $idx => $nData) {
+                if ($nData['isRest'] || $nData['typeStr'] === 'whole') continue;
+
+                if ($pdf instanceof SheetMusicSVG) {
+                    $pdf->startGroup(array(
+                        'data-element' => 'true',
+                        'data-element-type' => 'stem',
+                        'data-start-tick' => $nData['startTick'],
+                        'data-end-tick' => $nData['endTick']
+                    ));
+                }
+
+                $noteX = $nData['x'];
+                $noteY = $nData['y'];
+                $stemDir = $nData['stemDir'];
+                $typeStr = $nData['typeStr'];
+
+                $pdf->SetLineWidth(0.35);
+                if ($stemDir === 'up') {
+                    $stemX = $noteX + 1.512; // Posisi X tepi kiri tangkai
+                    $stemEndY = $noteY - $defaultStemLength; // Ujung atas tangkai
+                    if (!isset($noteToBeamGroup[$idx]) || $pdf instanceof SheetMusicSVG) {
+                        $pdf->Line($stemX, $noteY - 0.4, $stemX, $stemEndY + 1.4);
+                    }
+                    if (!isset($noteToBeamGroup[$idx])) {
+                        // Posisikan bendera agar menyentuh tengah tangkai
+                        $pdf->DrawNoteFlag($stemX + (0.35 / 2), $stemEndY + 1.4, 'up', $typeStr);
+                    }
+                } else {
+                    $stemX = $noteX - 1.512; // Posisi X tepi kanan tangkai
+                    $stemEndY = $noteY + $defaultStemLength;
+                    if (!isset($noteToBeamGroup[$idx]) || $pdf instanceof SheetMusicSVG) {
+                        $pdf->Line($stemX, $noteY + 0.4, $stemX, $stemEndY - 1.4);
+                    }
+                    if (!isset($noteToBeamGroup[$idx])) {
+                        $pdf->DrawNoteFlag($noteX - 1.56, $stemEndY - 1.4, 'down', $typeStr);
+                    }
+                }
+                $pdf->SetLineWidth(0.2);
+
+                if ($pdf instanceof SheetMusicSVG) {
+                    $pdf->endGroup();
+                }
+            }
+
+            // Draw Beam Lines
+            if ($this->drawBeam) {
+                foreach ($beamGroups as $bg) {
+                    $notes = $bg['notes'];
+                    if (count($notes) < 2) continue;
+                    
+                    $stemDir = $bg['stemDir'];
+                    $pdf->SetLineWidth(0.8); // Ketebalan balok
+                    
+                    // Ambil data not pertama dan terakhir dalam grup balok
+                    $firstNoteData = $measureNotesData[$notes[0]];
+                    $lastNoteData = $measureNotesData[end($notes)];
+                    
+                    if ($pdf instanceof SheetMusicSVG) {
+                        $pdf->startGroup(array(
+                            'data-element' => 'true',
+                            'data-element-type' => 'beam',
+                            'data-start-tick' => $firstNoteData['startTick'],
+                            'data-end-tick' => $lastNoteData['endTick']
+                        ));
+                    }
+                    
+                    // Helper untuk menggambar balok agar tidak melebar/terlalu panjang di PDF (karena efek Line Cap FPDF)
+                    $drawBeamLine = function($sx, $sy, $ex, $ey) use ($pdf) {
+                        $pdfStartX = $sx; $pdfEndX = $ex; $pdfY1 = $sy; $pdfY2 = $ey;
+                        if (!($pdf instanceof SheetMusicSVG)) {
+                            $capOffset = 0.4; // Separuh dari ketebalan balok (0.8 / 2)
+                            $sDx = $pdfEndX - $pdfStartX; $sDy = $pdfY2 - $pdfY1;
+                            $sLen = sqrt($sDx * $sDx + $sDy * $sDy);
+                            if ($sLen > $capOffset * 2) {
+                                $pdfStartX += ($sDx / $sLen) * $capOffset; $pdfY1 += ($sDy / $sLen) * $capOffset;
+                                $pdfEndX -= ($sDx / $sLen) * $capOffset; $pdfY2 -= ($sDy / $sLen) * $capOffset;
+                            }
+                        }
+                        $pdf->Line($pdfStartX, $pdfY1, $pdfEndX, $pdfY2);
+                    };
+                    
+                    // Tentukan posisi Y awal dan akhir untuk balok utama
+                    $stemLength = $defaultStemLength - 1.4; // Panjang tangkai disamakan dengan tangkai tanpa beam (yang terpotong 1.4 untuk flag)
+                    $beamWidth = 0.8; // Lebar garis balok
+                    
+                    // Sesuaikan offset Y agar pusat balok sejajar dengan ujung tangkai
+                    $yAdjust = ($stemDir === 'up') ? ($beamWidth / 2) : -($beamWidth / 2);
+                    $stemTipOffset = ($stemDir === 'up') ? -$stemLength : $stemLength;
+                    
+                    $startY = $firstNoteData['y'] + $stemTipOffset + $yAdjust;
+                    $endY = $lastNoteData['y'] + $stemTipOffset + $yAdjust;
+
+                    // Batasi kemiringan agar tidak terlalu curam
+                    $maxSlope = 0.5; // 0.5 mm per 1 mm horizontal
+                    $dx = $lastNoteData['x'] - $firstNoteData['x'];
+                    if ($dx > 0) {
+                        $slope = ($endY - $startY) / $dx;
+                        if (abs($slope) > $maxSlope) {
+                            $endY = $startY + ($slope > 0 ? 1 : -1) * $maxSlope * $dx;
+                        }
+                    }
+                    
+                    // Max beams needed in this group
+                    $maxBeams = 1;
+                    $noteBeams = array();
+                    foreach ($notes as $i => $nIdx) {
+                        $type = $measureNotesData[$nIdx]['typeStr'];
+                        $bCount = 1;
+                        if ($type === '16th') $bCount = 2;
+                        elseif ($type === '32nd') $bCount = 3;
+                        elseif ($type === '64th') $bCount = 4;
+                        
+                        $noteBeams[$i] = $bCount;
+                        if ($bCount > $maxBeams) $maxBeams = $bCount;
+                    }
+                    
+                    // Draw each beam level
+                    for ($level = 1; $level <= $maxBeams; $level++) {
+                        $beamSpacing = ($stemDir === 'up') ? 1.2 : -1.2;
+                        
+                        $inSegment = false;
+                        $segStart = -1;
+                        $segEnd = -1;
+                        
+                        for ($i = 0; $i < count($notes); $i++) {
+                            if ($noteBeams[$i] >= $level) {
+                                if (!$inSegment) {
+                                    $inSegment = true;
+                                    $segStart = $i; // Mulai segmen balok
+                                }
+                                $segEnd = $i; // Akhiri segmen balok
+                            } else {
+                                if ($inSegment) {
+                                    // Draw segment
+                                    $stemWidth = 0.35; // Lebar tangkai
+                                    $stemEdgeOffset = ($stemDir === 'up') ? 1.512 : -1.512;
+                                    $stemCenterOffset = $stemEdgeOffset; // Gambar balok dari tepi tangkai
+
+                                    $startX = $measureNotesData[$notes[$segStart]]['x'] + $stemCenterOffset;
+                                    $endX = $measureNotesData[$notes[$segEnd]]['x'] + $stemCenterOffset;
+
+                                    // Hitung posisi Y awal dan akhir untuk balok yang miring
+                                    $levelOffset = ($level - 1) * $beamSpacing;
+                                    $beamStartY = $startY + $levelOffset;
+                                    $beamEndY = $endY + $levelOffset;
+
+                                    // Hitung Y untuk titik awal dan akhir segmen balok saat ini
+                                    $ratioStart = ($dx > 0) ? ($measureNotesData[$notes[$segStart]]['x'] - $firstNoteData['x']) / $dx : 0;
+                                    $ratioEnd = ($dx > 0) ? ($measureNotesData[$notes[$segEnd]]['x'] - $firstNoteData['x']) / $dx : 0;
+                                    $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                    $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                                    
+                                    if ($segStart === $segEnd) {
+                                        $hookLength = 3.0;
+                                        if ($segStart === 0) {
+                                            // Hook ke kanan dari not pertama
+                                            $endX = $startX + $hookLength;
+                                            // Hitung Y2 berdasarkan kemiringan
+                                            $ratioEnd = ($dx > 0) ? (($measureNotesData[$notes[$segStart]]['x'] + $hookLength) - $firstNoteData['x']) / $dx : $ratioStart;
+                                            $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                                        } else {
+                                            // Hook ke kiri dari not terakhir
+                                            $startX = $endX - $hookLength;
+                                            // Hitung Y1 berdasarkan kemiringan
+                                            $ratioStart = ($dx > 0) ? (($measureNotesData[$notes[$segEnd]]['x'] - $hookLength) - $firstNoteData['x']) / $dx : $ratioEnd;
+                                            $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                        }
+                                    }
+                                    $drawBeamLine($startX, $y1, $endX, $y2);
+                                    $inSegment = false;
+                                }
+                            }
+                        }
+                        if ($inSegment) {
+                            $stemWidth = 0.35; // Lebar tangkai
+                            $stemEdgeOffset = ($stemDir === 'up') ? 1.512 : -1.512;
+                            $stemCenterOffset = $stemEdgeOffset; // Gambar balok dari tepi tangkai
+
+                            $startX = $measureNotesData[$notes[$segStart]]['x'] + $stemCenterOffset;
+                            $endX = $measureNotesData[$notes[$segEnd]]['x'] + $stemCenterOffset;
+
+                            // Hitung posisi Y awal dan akhir untuk balok yang miring
+                            $levelOffset = ($level - 1) * $beamSpacing;
+                            $beamStartY = $startY + $levelOffset;
+                            $beamEndY = $endY + $levelOffset;
+
+                            $ratioStart = ($dx > 0) ? ($measureNotesData[$notes[$segStart]]['x'] - $firstNoteData['x']) / $dx : 0;
+                            $ratioEnd = ($dx > 0) ? ($measureNotesData[$notes[$segEnd]]['x'] - $firstNoteData['x']) / $dx : 0;
+                            $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                            $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                            
+                            if ($segStart === $segEnd) {
+                                $hookLength = 3.0;
+                                if ($segStart === 0) {
+                                    // Hook ke kanan dari not pertama
+                                    $endX = $startX + $hookLength;
+                                    // Hitung Y2 berdasarkan kemiringan
+                                    $ratioEnd = ($dx > 0) ? (($measureNotesData[$notes[$segStart]]['x'] + $hookLength) - $firstNoteData['x']) / $dx : $ratioStart;
+                                    $y2 = $beamStartY + ($beamEndY - $beamStartY) * $ratioEnd;
+                                } else {
+                                    // Hook ke kiri dari not terakhir
+                                    $startX = $endX - $hookLength;
+                                    // Hitung Y1 berdasarkan kemiringan
+                                    $ratioStart = ($dx > 0) ? (($measureNotesData[$notes[$segEnd]]['x'] - $hookLength) - $firstNoteData['x']) / $dx : $ratioEnd;
+                                    $y1 = $beamStartY + ($beamEndY - $beamStartY) * $ratioStart;
+                                }
+                            }
+                            $drawBeamLine($startX, $y1, $endX, $y2);
+                        }
+                    }
+                    
+                    // Extend internal stems to the primary beam
+                    $pdf->SetLineWidth(0.35);
+                    foreach ($notes as $nIdx) {
+                        $noteData = $measureNotesData[$nIdx];
+                        $stemWidth = 0.35;
+                        $stemOffset = ($stemDir === 'up') ? 1.512 : -1.512;
+                        $nX = $noteData['x'] + $stemOffset; // Gambar tangkai dari tepinya
+                        $nY = $noteData['y'] + (($stemDir === 'up') ? -0.4 : 0.4);
+
+                        // Hitung Y akhir tangkai pada balok miring
+                        $ratio = ($dx > 0) ? ($noteData['x'] - $firstNoteData['x']) / $dx : 0;
+                        // Gunakan posisi Y balok yang sudah disesuaikan
+                        $stemEndY = $startY + ($endY - $startY) * $ratio - $yAdjust;
+
+                        if (!($pdf instanceof SheetMusicSVG)) {
+                            // Koreksi ujung tangkai agar tidak menembus ketebalan balok di PDF (karena efek Line Cap)
+                            $capFix = $stemWidth / 2;
+                            $stemEndY += ($stemDir === 'up') ? $capFix : -$capFix;
+                        }
+
+                        $pdf->Line($nX, $nY, $nX, $stemEndY);
+                    }
+                    
+                    $pdf->SetLineWidth(0.2);
+                    
+                    if ($pdf instanceof SheetMusicSVG) {
+                        $pdf->endGroup();
+                    }
+                }
             }
 
             // Move to next system if we hit measures limit per system

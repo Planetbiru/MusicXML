@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.3.0 - 2026-07-24
+
+### Added
+- **Dotted Note Rendering**: The rendering engine now correctly draws augmentation dots next to noteheads for dotted rhythms (e.g., dotted eighth notes).
+- **Comprehensive Beaming System**: Implemented a full beaming system for notes shorter than a quarter note. This feature is optional and can be enabled via the `drawBeam` constructor parameter.
+
+### Changed
+- **Advanced Beaming Logic**: The new beaming system follows standard music notation rules:
+    - Beams are now automatically grouped by beat.
+    - Beams will not cross beat boundaries, correctly breaking for rests or notes in subsequent beats.
+    - Complex rhythmic figures (e.g., a dotted eighth followed by a sixteenth) are now correctly beamed within a single beat.
+    - Beams are slanted based on the pitch contour of the first and last notes in the group, rather than being strictly horizontal.
+    - Secondary beams and hooks for shorter notes now follow the angle of the primary beam.
+
+### Fixed
+- Resolved incorrect beaming where notes from different beats were improperly connected.
+- Fixed rendering of complex rhythms that span across beat subdivisions, ensuring they are beamed correctly according to standard notation practice.
+- Adjusted the horizontal position of accidentals (sharps/flats) to prevent them from overlapping with previous notes.
+- Reduced the line width for sharp signs in PDF rendering to prevent them from appearing too thick.
+
 ## v1.2.3 - 2026-07-23
 
 ### Added

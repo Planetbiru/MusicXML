@@ -116,7 +116,7 @@ class MusicXMLWriter extends \stdClass // NOSONAR
     /**
      * Load XML data from a DOM node
      *
-     * @param \DOMNode $data The DOM node containing attributes and children
+     * @param DOMNode $data The DOM node containing attributes and children
      */
     private function loadXml($data, $level = 0)
     {

@@ -45,6 +45,27 @@ class BeamNote
         $this->beam->number = $number + 1;
         $this->index = $elementIndex;
     }
+
+    /**
+     * Creates and finalizes a set of BeamNote objects for a given array of notes within a single beat.
+     *
+     * @param array $notesInBeat Array of note messages for one beat.
+     * @param int $beatIndex The index of the beat.
+     * @return self[] An array of finalized BeamNote objects for this beat.
+     */
+    public static function createFromNotes($notesInBeat, $beatIndex)
+    {
+        $beamNotes = array();
+        $noteCounter = 0;
+        foreach ($notesInBeat as $note) {
+            $elementIndex = \MusicXML\MusicXMLUtil::getElementIndexFromNoteIndex($note);
+            if ($elementIndex !== false) {
+                $beamNotes[] = new self($beatIndex, $noteCounter, $elementIndex);
+                $noteCounter++;
+            }
+        }
+        return self::closeBeams($beamNotes);
+    }
     
     /**
      * Finalizes beam types in a set of BeamNote objects, setting the last one of each level to 'end'.
@@ -54,24 +75,35 @@ class BeamNote
      */
     public static function closeBeams($beamNotes)
     {
-        $numbers = 0;
-        foreach($beamNotes as $beamNote)
-        {
-            if($numbers < $beamNote->beam->number)
-            {
-                $numbers = $beamNote->beam->number;
+        if (empty($beamNotes)) {
+            return [];
+        }
+
+        $maxBeamLevel = 0;
+        foreach ($beamNotes as $beamNote) {
+            if ($beamNote->beam->number > $maxBeamLevel) {
+                $maxBeamLevel = $beamNote->beam->number;
             }
         }
-        $length = count($beamNotes);
-        for($number = $numbers; $number >= 1; $number--)
-        {
-            for($i = $length -1; $i >= 0; $i--)
-            {
-                if(isset($beamNotes[$i]) && $beamNotes[$i]->beam->number == $number)
-                {
-                    $beamNotes[$i]->beam->textContent = self::TYPE_END;
-                    break;
+
+        for ($level = 1; $level <= $maxBeamLevel; $level++) {
+            $firstNoteIndexForLevel = -1;
+            $lastNoteIndexForLevel = -1;
+
+            $notesInLevel = 0;
+            foreach ($beamNotes as $index => $beamNote) {
+                if ($beamNote->beam->number >= $level) {
+                    if ($firstNoteIndexForLevel === -1) {
+                        $firstNoteIndexForLevel = $index;
+                    }
+                    $lastNoteIndexForLevel = $index;
+                    $notesInLevel++;
                 }
+            }
+
+            if ($notesInLevel > 1) {
+                $beamNotes[$firstNoteIndexForLevel]->beam->textContent = self::TYPE_BEGIN;
+                $beamNotes[$lastNoteIndexForLevel]->beam->textContent = self::TYPE_END;
             }
         }
         return $beamNotes;

@@ -24,6 +24,7 @@ This library is actively used in production and powers the online sheet music ge
 *   **Track & Channel Filtering:** Easily select a specific track or channel from a MIDI file to render.
 *   **Automatic Part Detection:** Intelligently detects the most suitable part to render (e.g., the main melody with lyrics).
 *   **Rich Notation Support:** Handles notes, rests, chords, ties, time signatures, key signatures, clefs, and tempo markings.
+*   **Advanced Beaming:** Automatically groups notes (eighths, sixteenths, etc.) with beams according to standard music notation rules, respecting beat boundaries and complex rhythms. Beams are slanted to follow the melodic contour. This feature is optional.
 *   **Lyric Support:** Automatically detects and renders lyrics embedded in MIDI files.
 *   **Percussion & Drums:** Special handling for drum tracks (Channel 10) with appropriate notation.
 *   **Batch Processing:** Includes examples for processing all tracks of a MIDI file into a single ZIP archive of PDFs.
@@ -134,7 +135,7 @@ You don't need to worry about the technical details of each step; you just need 
 
 ### Constructor
 
-`new MusicConverter($compressEmptyMeasures, $showTempoChanges, $useRestFilling, $lyricFontSize, $systemHeight)`
+`new MusicConverter($compressEmptyMeasures, $showTempoChanges, $useRestFilling, $lyricFontSize, $systemHeight, $drawBeam)`
 
 Initializes the converter with optional rendering settings.
 
@@ -143,6 +144,7 @@ Initializes the converter with optional rendering settings.
 - `$useRestFilling` (bool): If `true`, uses an alternative algorithm for filling gaps with rests. This can affect how rests are displayed in measures with complex rhythms. Default is `false`.
 - `$lyricFontSize` (float): The font size for lyrics, in points. Default is `6.0`.
 - `$systemHeight` (int): The vertical height of a single staff system in millimeters, including space for lyrics. Default is `28`.
+- `$drawBeam` (bool): If `true`, notes shorter than a quarter note will be grouped with beams instead of individual flags. Default is `false`.
 
 
 ### Core Conversion Methods
