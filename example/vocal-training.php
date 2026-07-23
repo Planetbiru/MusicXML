@@ -65,7 +65,7 @@ if ($midiData && class_exists('Midi\MidiFilter')) {
     // Convert to SVG for display
     if (isset($midiTrackId) && class_exists('MusicXML\MusicConverter')) {
         try {
-            $converter = new MusicConverter(false, false, true, 7, 28, $drawBeam);
+            $converter = new MusicConverter(false, false, true, 7, 28, $drawBeam == 1);
             $svgData   = $converter->midiToSVG($trackOnlyMidi, $song_name, $composerName, 'example', 4, true);
         } catch (Exception $e) {
             // Silently ignore render errors
