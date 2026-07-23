@@ -1553,34 +1553,47 @@ class MusicConverter
                         if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
                         $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
                     } elseif ($nData['beam'] === 'continue' || $nData['beam'] === 'end') {
-                        // Lanjutkan grup jika ada
-                        if ($currentBeamGroup !== null) {
-                            $currentBeamGroup['notes'][] = $idx;
-                        }
-                        // Tutup grup jika 'end'
-                        if ($nData['beam'] === 'end' && $currentBeamGroup !== null) {
-                            if (count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
-                            $currentBeamGroup = null;
+                        $beatEndDiv = ($currentBeamGroup['beat'] + 1) * $divisions;
+                        $noteEndDiv = $nData['startDiv'] + $nData['durationDivs'];
+                        
+                        if ($noteEndDiv > $beatEndDiv) {
+                            // Paksa tutup grup jika XML mencoba menggabung not yang melintasi batas ketukan
+                            if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                            $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
+                        } else {
+                            // Lanjutkan grup jika ada
+                            if ($currentBeamGroup !== null) {
+                                $currentBeamGroup['notes'][] = $idx;
+                            }
+                            // Tutup grup jika 'end'
+                            if ($nData['beam'] === 'end' && $currentBeamGroup !== null) {
+                                if (count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                                $currentBeamGroup = null;
+                            }
                         }
                     } else { // Fallback ke auto-beaming per ketukan jika tidak ada info beam
                         if ($currentBeamGroup === null) {
                             // Mulai grup baru
                             $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex'], 'totalDuration' => $nData['durationDivs']];
                         } elseif ($currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
-                            // Hitung durasi satu ketukan berdasarkan time signature
-                            $divisionsPerBeat = $divisions * (4 / $beatType);
+                            // Hitung batas divisi (ticks) untuk ketukan saat ini
+                            // Default beat durasi adalah $divisions (1 ketukan = 1 quarter note).
+                            // Untuk ketepatan, boundary akhir ketukan adalah:
+                            $beatEndDiv = ($currentBeamGroup['beat'] + 1) * $divisions;
+                            $noteEndDiv = $nData['startDiv'] + $nData['durationDivs'];
                             
-                            // Cek apakah penambahan not ini akan membuat total durasi grup melebihi 1 ketukan.
-                            // Ini adalah aturan umum untuk memecah balok (misalnya, not 1/8 bertitik + not 1/8).
-                            if (isset($currentBeamGroup['totalDuration']) && ($currentBeamGroup['totalDuration'] + $nData['durationDivs']) > $divisionsPerBeat) {
-                                // Tutup grup lama karena durasi akan meluap
+                            // Cek apakah penambahan not ini akan membuat durasinya melewati batas ketukan.
+                            if ($noteEndDiv > $beatEndDiv) {
+                                // Tutup grup lama karena durasi akan meluap (overflow) ke ketukan berikutnya
                                 if (count($currentBeamGroup['notes']) > 1) {
                                     $beamGroups[] = $currentBeamGroup;
                                 }
                                 // Mulai grup baru dengan not saat ini
+                                // Not ini mungkin berada di ketukan yang sama secara startDiv, 
+                                // tapi kita paksa jadi grup baru.
                                 $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex'], 'totalDuration' => $nData['durationDivs']];
                             } else {
-                                // Lanjutkan grup: ketukan sama dan durasi tidak meluap
+                                // Lanjutkan grup: ketukan sama dan tidak meluap
                                 $currentBeamGroup['notes'][] = $idx;
                                 $currentBeamGroup['totalDuration'] += $nData['durationDivs'];
                             }

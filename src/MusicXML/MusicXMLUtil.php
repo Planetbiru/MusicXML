@@ -421,6 +421,11 @@ class MusicXMLUtil
 
                 if($message['event'] == 'On' && $isBeamable && $relativeTime >= $beatStartTicks && $relativeTime < $beatEndTicks)
                 {
+                    // Cek apakah not ini menyeberangi (overflow) batas akhir ketukan
+                    if (($relativeTime + $noteDuration) > $beatEndTicks) {
+                        // Jangan gabungkan ke dalam grup beam ketukan ini
+                        continue;
+                    }
                     $notesInBeat[] = $message;
                 }
             }
