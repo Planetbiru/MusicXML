@@ -1523,41 +1523,41 @@ class MusicConverter
                 foreach ($measureNotesData as $idx => $nData) {
                     $isBeamable = in_array($nData['typeStr'], ['eighth', '16th', '32nd', '64th']);
 
-                    if ($nData['isRest'] || !$isBeamable) {
+                    // Jika not tidak bisa di-beam atau adalah rest, tutup grup yang ada.
+                    if (!$isBeamable || $nData['isRest']) {
                         if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
                             $beamGroups[] = $currentBeamGroup;
                         }
                         $currentBeamGroup = null;
-                    } else {
-                        if ($nData['beam'] === 'begin') {
-                            if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
-                                $beamGroups[] = $currentBeamGroup;
-                            }
-                            $currentBeamGroup = array('notes' => array($idx));
-                        } elseif ($nData['beam'] === 'continue') {
-                            if ($currentBeamGroup !== null) {
-                                $currentBeamGroup['notes'][] = $idx;
-                            }
-                        } elseif ($nData['beam'] === 'end') {
-                            if ($currentBeamGroup !== null) {
-                                $currentBeamGroup['notes'][] = $idx;
-                                $beamGroups[] = $currentBeamGroup;
-                            }
+                        continue;
+                    }
+
+                    // Logika baru yang lebih kuat
+                    if ($nData['beam'] === 'begin') {
+                        // Tutup grup lama, mulai yang baru berdasarkan 'begin'
+                        if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                        $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
+                    } elseif ($nData['beam'] === 'continue' || $nData['beam'] === 'end') {
+                        // Lanjutkan grup jika ada
+                        if ($currentBeamGroup !== null) {
+                            $currentBeamGroup['notes'][] = $idx;
+                        }
+                        // Tutup grup jika 'end'
+                        if ($nData['beam'] === 'end' && $currentBeamGroup !== null) {
+                            if (count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
                             $currentBeamGroup = null;
+                        }
+                    } else { // Fallback ke auto-beaming per ketukan jika tidak ada info beam
+                        if ($currentBeamGroup === null) {
+                            // Mulai grup baru
+                            $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
+                        } elseif ($currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
+                            // Lanjutkan grup jika ketukan sama
+                            $currentBeamGroup['notes'][] = $idx;
                         } else {
-                            // Auto-beaming by beat
-                            if ($currentBeamGroup === null) {
-                                $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
-                            } else {
-                                if (isset($currentBeamGroup['beat']) && $currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
-                                    $currentBeamGroup['notes'][] = $idx;
-                                } else {
-                                    if (count($currentBeamGroup['notes']) > 1) {
-                                        $beamGroups[] = $currentBeamGroup;
-                                    }
-                                    $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
-                                }
-                            }
+                            // Tutup grup lama karena ketukan berbeda, mulai yang baru
+                            if (count($currentBeamGroup['notes']) > 1) $beamGroups[] = $currentBeamGroup;
+                            $currentBeamGroup = ['notes' => [$idx], 'beat' => $nData['beatIndex']];
                         }
                     }
                 }
