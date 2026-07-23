@@ -81,6 +81,52 @@ class MusicXMLUtil
         return 0;
     }
 
+    /**
+     * Memecah durasi yang tidak standar menjadi potongan-potongan durasi yang standar (bisa direpresentasikan dengan not+titik)
+     *
+     * @param int|float $duration Durasi total dalam divisions
+     * @param int $divisions Jumlah divisi per quarter note
+     * @return array Array berisi potongan-potongan durasi standar
+     */
+    public static function splitIntoRepresentableDurations($duration, $divisions)
+    {
+        $pieces = array();
+        $remaining = (float)$duration;
+        while ($remaining > 0.01) {
+            $value = $remaining / (4 * $divisions);
+            $foundPiece = 0;
+            foreach (self::$type as $type => $valueType) {
+                if ($value >= $valueType - 0.001) { // toleransi float
+                    $baseDuration = $valueType * 4 * $divisions;
+                    
+                    $d3 = $baseDuration * 1.875;
+                    $d2 = $baseDuration * 1.75;
+                    $d1 = $baseDuration * 1.5;
+                    
+                    if ($remaining >= $d3 - 0.01) {
+                        $foundPiece = $d3;
+                    } elseif ($remaining >= $d2 - 0.01) {
+                        $foundPiece = $d2;
+                    } elseif ($remaining >= $d1 - 0.01) {
+                        $foundPiece = $d1;
+                    } else {
+                        $foundPiece = $baseDuration;
+                    }
+                    break;
+                }
+            }
+            if ($foundPiece > 0) {
+                $pieces[] = (int)round($foundPiece);
+                $remaining -= $foundPiece;
+            } else {
+                // Failsafe
+                $pieces[] = (int)round($remaining);
+                break;
+            }
+        }
+        return $pieces;
+    }
+
 
     /**
      * @var array

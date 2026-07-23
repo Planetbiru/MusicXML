@@ -1472,35 +1472,73 @@ class MusicConverter
                         
                         // Find matching stop note to see if they are in different systems
                         $stopMeasureIdx = -1;
-                        for ($i = $mIdx + 1; $i < $totalMeasures; $i++) {
-                            $meas = $measures[$i];
-                            foreach ($meas->note as $n) {
-                                $nPitch = 71;
-                                if (isset($n->pitch)) {
-                                    $nStep = (string)$n->pitch->step;
-                                    $nOct = (int)$n->pitch->octave;
-                                    $nPitch = $this->getPitchValue($nStep, $nOct);
-                                } elseif (isset($n->unpitched)) {
-                                    $nStep = (string)$n->unpitched->{'display-step'};
-                                    $nOct = (int)$n->unpitched->{'display-octave'};
-                                    $nPitch = $this->getPitchValue($nStep, $nOct);
+                        
+                        // First check in the SAME measure after the current note
+                        for ($k = $noteIndex + 1; $k < count($measure->note); $k++) {
+                            $n = $measure->note[$k];
+                            $nPitch = 71;
+                            if (isset($n->pitch)) {
+                                $nStep = (string)$n->pitch->step;
+                                $nOct = (int)$n->pitch->octave;
+                                $nPitch = $this->getPitchValue($nStep, $nOct);
+                            } elseif (isset($n->unpitched)) {
+                                $nStep = (string)$n->unpitched->{'display-step'};
+                                $nOct = (int)$n->unpitched->{'display-octave'};
+                                $nPitch = $this->getPitchValue($nStep, $nOct);
+                            }
+                            
+                            if ($nPitch === $pitchVal) {
+                                $hasStop = false;
+                                if (isset($n->tie)) {
+                                    foreach ($n->tie as $t) {
+                                        if ((string)$t['type'] === 'stop') $hasStop = true;
+                                    }
                                 }
-                                
-                                if ($nPitch === $pitchVal) {
-                                    $hasStop = false;
-                                    if (isset($n->tie)) {
-                                        foreach ($n->tie as $t) {
-                                            if ((string)$t['type'] === 'stop') $hasStop = true;
-                                        }
+                                if (isset($n->notations->tied)) {
+                                    foreach ($n->notations->tied as $t) {
+                                        if ((string)$t['type'] === 'stop') $hasStop = true;
                                     }
-                                    if (isset($n->notations->tied)) {
-                                        foreach ($n->notations->tied as $t) {
-                                            if ((string)$t['type'] === 'stop') $hasStop = true;
-                                        }
+                                }
+                                if ($hasStop) {
+                                    $stopMeasureIdx = $mIdx;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // If not found in the same measure, search in subsequent measures
+                        if ($stopMeasureIdx === -1) {
+                            for ($i = $mIdx + 1; $i < $totalMeasures; $i++) {
+                                $meas = $measures[$i];
+                                if (!isset($meas->note)) continue;
+                                foreach ($meas->note as $n) {
+                                    $nPitch = 71;
+                                    if (isset($n->pitch)) {
+                                        $nStep = (string)$n->pitch->step;
+                                        $nOct = (int)$n->pitch->octave;
+                                        $nPitch = $this->getPitchValue($nStep, $nOct);
+                                    } elseif (isset($n->unpitched)) {
+                                        $nStep = (string)$n->unpitched->{'display-step'};
+                                        $nOct = (int)$n->unpitched->{'display-octave'};
+                                        $nPitch = $this->getPitchValue($nStep, $nOct);
                                     }
-                                    if ($hasStop) {
-                                        $stopMeasureIdx = $i;
-                                        break 2;
+                                    
+                                    if ($nPitch === $pitchVal) {
+                                        $hasStop = false;
+                                        if (isset($n->tie)) {
+                                            foreach ($n->tie as $t) {
+                                                if ((string)$t['type'] === 'stop') $hasStop = true;
+                                            }
+                                        }
+                                        if (isset($n->notations->tied)) {
+                                            foreach ($n->notations->tied as $t) {
+                                                if ((string)$t['type'] === 'stop') $hasStop = true;
+                                            }
+                                        }
+                                        if ($hasStop) {
+                                            $stopMeasureIdx = $i;
+                                            break 2;
+                                        }
                                     }
                                 }
                             }

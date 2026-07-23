@@ -1670,6 +1670,134 @@ class MusicXMLFromMIDI extends MusicXMLBase
             $this->fillGapWithRests($measure, $measureIndex, $divisions, $timebase, $lastNoteXmlEnd, $xmlMeasureLength, $lyricCarrier);
         }
 
+        // --- POST-PROCESSING: Split unrepresentable durations ---
+        $finalElements = array();
+        $oldIndexToNewIndex = array();
+        
+        $i = 0;
+        $numElements = count($measure->elements);
+        while ($i < $numElements) {
+            $el = $measure->elements[$i];
+            
+            // Collect chord group
+            $chordGroup = array($el);
+            $chordOldIndices = array($i);
+            $i++;
+            while ($i < $numElements && isset($measure->elements[$i]->chord)) {
+                $chordGroup[] = $measure->elements[$i];
+                $chordOldIndices[] = $i;
+                $i++;
+            }
+            
+            $firstEl = $chordGroup[0];
+            $splitDone = false;
+            if ($firstEl instanceof Note && !isset($firstEl->grace)) {
+                $xmlDuration = isset($firstEl->duration) ? (int)$firstEl->duration->textContent : 0;
+                if ($xmlDuration > 0) {
+                    $pieces = MusicXMLUtil::splitIntoRepresentableDurations($xmlDuration, $divisions);
+                    if (count($pieces) > 1) {
+                        $splitDone = true;
+                        foreach ($pieces as $pIndex => $pieceDur) {
+                            foreach ($chordGroup as $cIndex => $origNote) {
+                                $newNote = clone $origNote;
+                                
+                                // Reset lyric for pieces > 0
+                                if ($pIndex > 0) {
+                                    $newNote->lyric = null;
+                                    if (isset($origNote->defaultX)) {
+                                        $newNote->defaultX = $origNote->defaultX + ($pIndex * 60);
+                                    }
+                                } else {
+                                    $oldIndexToNewIndex[$chordOldIndices[$cIndex]] = count($finalElements);
+                                }
+                                
+                                $newNote->duration = new Duration($pieceDur);
+                                $newNote->type = new Type(MusicXMLUtil::getNoteType($pieceDur, $divisions));
+                                $dotsCount = MusicXMLUtil::getNoteDots($pieceDur, $divisions);
+                                if ($dotsCount > 0) {
+                                    $newNote->dot = array_fill(0, $dotsCount, new Dot());
+                                } else {
+                                    $newNote->dot = null;
+                                }
+                                
+                                $hasOrigStop = false;
+                                $hasOrigStart = false;
+                                if (isset($origNote->tie)) {
+                                    $ties = is_array($origNote->tie) ? $origNote->tie : array($origNote->tie);
+                                    foreach ($ties as $tie) {
+                                        if ($tie->type === 'stop') $hasOrigStop = true;
+                                        if ($tie->type === 'start') $hasOrigStart = true;
+                                    }
+                                }
+                                
+                                $newTies = array();
+                                $newTieds = array();
+                                
+                                if ($pIndex > 0) {
+                                    $newTies[] = new Tie(array('type' => 'stop'));
+                                    $newTieds[] = new Tied(array('type' => 'stop'));
+                                } elseif ($hasOrigStop) {
+                                    $newTies[] = new Tie(array('type' => 'stop'));
+                                    $newTieds[] = new Tied(array('type' => 'stop'));
+                                }
+                                
+                                if ($pIndex < count($pieces) - 1) {
+                                    $newTies[] = new Tie(array('type' => 'start'));
+                                    $newTieds[] = new Tied(array('type' => 'start'));
+                                } elseif ($hasOrigStart) {
+                                    $newTies[] = new Tie(array('type' => 'start'));
+                                    $newTieds[] = new Tied(array('type' => 'start'));
+                                }
+                                
+                                if (count($newTies) > 0) {
+                                    $newNote->tie = $newTies;
+                                    $newNotations = array();
+                                    if (isset($origNote->notations)) {
+                                        foreach ($origNote->notations as $not) {
+                                            $newNotations[] = clone $not;
+                                        }
+                                    }
+                                    if (count($newNotations) == 0) {
+                                        $newNotations[] = new \MusicXML\Model\Notations();
+                                    }
+                                    $newNotations[0]->tied = $newTieds;
+                                    $newNote->notations = $newNotations;
+                                } else {
+                                    $newNote->tie = null;
+                                    if (isset($origNote->notations)) {
+                                        $newNotations = array();
+                                        foreach ($origNote->notations as $not) {
+                                            $newNot = clone $not;
+                                            $newNot->tied = null;
+                                            $newNotations[] = $newNot;
+                                        }
+                                        $newNote->notations = $newNotations;
+                                    }
+                                }
+                                
+                                $finalElements[] = $newNote;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!$splitDone) {
+                foreach ($chordGroup as $cIndex => $el) {
+                    $oldIndexToNewIndex[$chordOldIndices[$cIndex]] = count($finalElements);
+                    $finalElements[] = $el;
+                }
+            }
+        }
+        $measure->elements = $finalElements;
+        
+        foreach ($noteMessages as &$msg) {
+            if (isset($msg['elementIndex']) && isset($oldIndexToNewIndex[$msg['elementIndex']])) {
+                $msg['elementIndex'] = $oldIndexToNewIndex[$msg['elementIndex']];
+            }
+        }
+        // ----------------------------------------------------
+
         return new MeasurePartwiseContainer($measure, $noteMessages);
     }
 
