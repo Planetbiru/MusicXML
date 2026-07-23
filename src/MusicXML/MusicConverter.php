@@ -1254,8 +1254,18 @@ class MusicConverter
                 $xOffset = $padding + ($ratio * $xRange) + $tieCarryOffset;
                 
                 $noteX = $currentMeasureX + $xOffset;
+                
+                $hasAlterEarly = false;
+                if (!isset($note->rest) && isset($note->pitch->alter) && (int)$note->pitch->alter != 0) {
+                    $hasAlterEarly = true;
+                    $noteX += 2.5; // Geser sedikit ke kanan untuk ruang accidental
+                }
+
                 if ($prevNoteX !== null && !$isChord) {
                     $minGap = 4;
+                    if ($hasAlterEarly) {
+                        $minGap += 2.5; // Pastikan jarak minimal lebih besar
+                    }
                     if ($lastDuration > 0 && isset($divisions) && $divisions > 0) {
                         $dynamicGap = ($lastDuration / $divisions) * 6.5;
                         if ($dynamicGap > $minGap) {

@@ -150,11 +150,16 @@ trait SheetMusicTrait
     public function DrawSharp($x, $y)
     {
         // Custom ultra-thin elegant sharp path with shorter stems
-        $path = "M1.2 0 L1.6 0 L1.6 10 L1.2 10 Z
-              M3.0 0 L3.4 0 L3.4 10 L3.0 10 Z
-              M0 3.5 L5 2.5 L5 3.0 L0 4.0 Z
-              M0 6.5 L5 5.5 L5 6.0 L0 7.0 Z";
-        $this->DrawSVGPath($path, $x - 1.1, $y - 2.1, 0.45, 0.45, true, 'B');
+        // Dipisah menjadi 4 path agar tidak ada lubang (karena PDF menggunakan Even-Odd fill rule 'f*')
+        $path1 = "M1.2 0 L1.6 0 L1.6 10 L1.2 10 Z";
+        $path2 = "M3.0 0 L3.4 0 L3.4 10 L3.0 10 Z";
+        $path3 = "M0 3.5 L5 2.5 L5 3.0 L0 4.0 Z";
+        $path4 = "M0 6.5 L5 5.5 L5 6.0 L0 7.0 Z";
+        
+        $this->DrawSVGPath($path1, $x - 1.1, $y - 2.1, 0.45, 0.45, true, 'none');
+        $this->DrawSVGPath($path2, $x - 1.1, $y - 2.1, 0.45, 0.45, true, 'none');
+        $this->DrawSVGPath($path3, $x - 1.1, $y - 2.1, 0.45, 0.45, true, 'none');
+        $this->DrawSVGPath($path4, $x - 1.1, $y - 2.1, 0.45, 0.45, true, 'none');
     }
 
     /**

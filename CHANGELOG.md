@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Resolved incorrect beaming where notes from different beats were improperly connected.
 - Fixed rendering of complex rhythms that span across beat subdivisions, ensuring they are beamed correctly according to standard notation practice.
+- Adjusted the horizontal position of accidentals (sharps/flats) to prevent them from overlapping with previous notes.
+- Reduced the line width for sharp signs in PDF rendering to prevent them from appearing too thick.
 
 ## v1.2.3 - 2026-07-23
 
