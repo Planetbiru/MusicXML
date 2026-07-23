@@ -7,6 +7,15 @@ use Midi\MidiMeasure;
 use SimpleXMLElement;
 use ZipArchive;
 
+/**
+ * Converts a standard MIDI file into a .dawproject file.
+ *
+ * This class reads MIDI data, parses its tracks, notes, and control change events,
+ * and constructs a .dawproject structure, including `project.xml` and `metadata.xml`,
+ * then packages them into a ZIP archive.
+ *
+ * @author Kamshory
+ */
 class DAWProjectFromMIDI
 {
     /**

@@ -264,7 +264,7 @@ class MusicConverter
      * @param string          $songTitle             The title to be displayed on the sheet music.
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
-     * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param int|null        $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
      * @param string          $year                  The year of the score.
      * @return string Raw PDF data string
      * @throws Exception
@@ -321,7 +321,7 @@ class MusicConverter
      * @param string          $songTitle             The title to be displayed on the sheet music.
      * @param string          $composer              The composer's name to be displayed.
      * @param int|string|null $targetChannelOrPartId The specific MIDI channel (1-16) or MusicXML part ID (e.g., "P1") to render. If null, the best part is auto-detected.
-     * @param int             $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
+     * @param int|null        $mainMelody            The MIDI channel number (1-16) considered to be the main melody, used to prioritize lyric display.
      * @param bool            $singlePage            If true, generates a single continuous SVG. If false, generates stacked, page-like layouts within one SVG.
      * @param bool            $mobile                If true, optimizes the layout for mobile devices by rendering one measure per system.
      * @return string Raw SVG data string

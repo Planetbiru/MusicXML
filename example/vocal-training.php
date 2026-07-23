@@ -179,7 +179,7 @@ $midi_base64_track = $trackOnlyMidi    ? base64_encode($trackOnlyMidi)    : '';
         // Track-only MIDI (for SVG sync reference)
         const TRACK_BASE64_STRING = '<?php echo $midi_base64_track; ?>';
         // Current track & transpose (used by loadScore())
-        const CURRENT_MIDI_TRACK_ID = '<?php echo htmlspecialchars($midiTrackId ?? ''); ?>';
+        const CURRENT_MIDI_TRACK_ID = '<?php echo isset($midiTrackId) ? htmlspecialchars($midiTrackId) : ''; ?>';
         const CURRENT_TRANSPOSE     = <?php echo $transpose; ?>;
     </script>
 
