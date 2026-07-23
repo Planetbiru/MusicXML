@@ -54,25 +54,32 @@ class BeamNote
      */
     public static function closeBeams($beamNotes)
     {
-        $numbers = 0;
-        foreach($beamNotes as $beamNote)
-        {
-            if($numbers < $beamNote->beam->number)
-            {
-                $numbers = $beamNote->beam->number;
+        if (empty($beamNotes)) {
+            return [];
+        }
+
+        $maxBeamLevel = 0;
+        foreach ($beamNotes as $beamNote) {
+            if ($beamNote->beam->number > $maxBeamLevel) {
+                $maxBeamLevel = $beamNote->beam->number;
             }
         }
-        $length = count($beamNotes);
-        for($number = $numbers; $number >= 1; $number--)
-        {
-            for($i = $length -1; $i >= 0; $i--)
-            {
-                if(isset($beamNotes[$i]) && $beamNotes[$i]->beam->number == $number)
-                {
-                    $beamNotes[$i]->beam->textContent = self::TYPE_END;
-                    break;
+
+        for ($level = 1; $level <= $maxBeamLevel; $level++) {
+            $firstNoteIndexForLevel = -1;
+            $lastNoteIndexForLevel = -1;
+
+            foreach ($beamNotes as $index => $beamNote) {
+                if ($beamNote->beam->number >= $level) {
+                    if ($firstNoteIndexForLevel === -1) {
+                        $firstNoteIndexForLevel = $index;
+                    }
+                    $lastNoteIndexForLevel = $index;
                 }
             }
+
+            $beamNotes[$firstNoteIndexForLevel]->beam->textContent = self::TYPE_BEGIN;
+            $beamNotes[$lastNoteIndexForLevel]->beam->textContent = self::TYPE_END;
         }
         return $beamNotes;
     }
