@@ -904,6 +904,9 @@ class MusicConverter
         $tieQueue = array(); // Antrian untuk menunda penggambaran tie
         $tickAccumulator = 0; // Akumulator untuk start-tick yang akurat
 
+        $startTick = 0; // Default value
+        $endTick = 0; // Default value
+
         for ($mIdx = 0; $mIdx < $totalMeasures; $mIdx++) {
             $measure = $measures[$mIdx];
             
