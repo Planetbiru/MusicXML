@@ -757,6 +757,7 @@ class MusicConverter
         $systemStartX = 0;
         $systemStartY = 0;
         $systemAttributesIndex = 0;
+        $defaultStemLength = 8.5;
         // Find part element and part name
         $targetPart = null;
         foreach ($xml->part as $part) {
@@ -1092,10 +1093,10 @@ class MusicConverter
             $pdf->SetDrawColor(0, 0, 0);
             if ($layoutIdx % $measuresPerSystem == 0) {
                 // Draw left barline of first measure in system
-                $pdf->Line($currentMeasureX, $systemY - 0.5, $currentMeasureX, $systemY + 8.5);
+                $pdf->Line($currentMeasureX, $systemY - 0.5, $currentMeasureX, $systemY + $defaultStemLength);
             }
             // Draw right barline of measure
-            $pdf->Line($currentMeasureX + $measureWidth, $systemY - 0.5, $currentMeasureX + $measureWidth, $systemY + 8.5);
+            $pdf->Line($currentMeasureX + $measureWidth, $systemY - 0.5, $currentMeasureX + $measureWidth, $systemY + $defaultStemLength);
             $pdf->SetLineWidth(0.2);
 
             // Close measure group for SVG
@@ -1648,7 +1649,7 @@ class MusicConverter
                 $pdf->SetLineWidth(0.35);
                 if ($stemDir === 'up') {
                     $stemX = $noteX + 1.512; // Posisi X tepi kiri tangkai
-                    $stemEndY = $noteY - 8.5; // Ujung atas tangkai
+                    $stemEndY = $noteY - $defaultStemLength; // Ujung atas tangkai
                     $pdf->Line($stemX, $noteY - 0.4, $stemX, $stemEndY + 1.4);
                     if (!isset($noteToBeamGroup[$idx])) {
                         // Posisikan bendera agar menyentuh tengah tangkai
@@ -1656,7 +1657,7 @@ class MusicConverter
                     }
                 } else {
                     $stemX = $noteX - 1.512; // Posisi X tepi kanan tangkai
-                    $stemEndY = $noteY + 8.5;
+                    $stemEndY = $noteY + $defaultStemLength;
                     $pdf->Line($stemX, $noteY + 0.4, $stemX, $stemEndY - 1.4);
                     if (!isset($noteToBeamGroup[$idx])) {
                         $pdf->DrawNoteFlag($noteX - 1.56, $stemEndY - 1.4, 'down', $typeStr);
@@ -1692,7 +1693,7 @@ class MusicConverter
                     }
                     
                     // Tentukan posisi Y awal dan akhir untuk balok utama
-                    $stemLength = 6.5; // Disesuaikan agar sama dengan panjang tangkai tanpa beam (8.5 - 1.4)
+                    $stemLength = $defaultStemLength; // Panjang tangkai
                     $beamWidth = 0.8; // Lebar garis balok
                     
                     // Sesuaikan offset Y agar pusat balok sejajar dengan ujung tangkai
