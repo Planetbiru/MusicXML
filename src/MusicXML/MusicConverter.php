@@ -1155,6 +1155,8 @@ class MusicConverter
             $lastDuration = 0;
             $prevNoteX = null;
             $ignoreDefaultX = false;
+            $measureNotesData = array();
+            $noteIndex = 0;
 
             foreach ($measure->note as $note) {
                 // Start SVG group for note/rest if applicable
@@ -1360,22 +1362,17 @@ class MusicConverter
 
                     $stemDir = ($stepIndex >= 4) ? 'down' : 'up';
 
-                    // Draw Stem (for all types except whole notes)
-                    // Draw Stem (for all types except whole notes)
-                    if ($typeStr !== 'whole') {
-                        $pdf->SetLineWidth(0.35);
-                        if ($stemDir === 'up') {
-                            $stemEndY = $noteY - 8.5;
-                            $pdf->Line($noteX + 1.512, $noteY - 0.4, $noteX + 1.512, $stemEndY + 1.4);
-                            $pdf->DrawNoteFlag($noteX + 1.56, $stemEndY + 1.4, 'up', $typeStr);
-                        } else {
-                            $stemEndY = $noteY + 8.5;
-                            $pdf->Line($noteX - 1.512, $noteY + 0.4, $noteX - 1.512, $stemEndY - 1.4);
-                            $pdf->DrawNoteFlag($noteX - 1.56, $stemEndY - 1.4, 'down', $typeStr);
-                        }
-
-                        $pdf->SetLineWidth(0.2);
-                    }
+                    // Store note data for drawing stems and beams later
+                    $measureNotesData[$noteIndex] = array(
+                        'x' => $noteX,
+                        'y' => $noteY,
+                        'stemDir' => $stemDir,
+                        'typeStr' => $typeStr,
+                        'isChord' => $isChord,
+                        'isRest' => isset($note->rest),
+                        'beam' => isset($note->beam) ? (string)$note->beam[0] : null,
+                        'beatIndex' => ($divisions > 0) ? floor($currentDiv / $divisions) : 0
+                    );
 
                     // Draw Tie / Tied Stop
                     if ($isTieStop && isset($activeTies[$pitchVal])) {
@@ -1510,6 +1507,193 @@ class MusicConverter
                 }
                 $lastDuration = $duration;
                 $currentDiv += $duration;
+                $noteIndex++;
+            }
+
+            // Process beams and draw stems
+            $beamGroups = array();
+            $currentBeamGroup = null;
+            
+            foreach ($measureNotesData as $idx => $nData) {
+                $isBeamable = in_array($nData['typeStr'], ['eighth', '16th', '32nd', '64th']);
+                
+                if ($nData['isRest'] || !$isBeamable) {
+                    if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                        $beamGroups[] = $currentBeamGroup;
+                    }
+                    $currentBeamGroup = null;
+                } else {
+                    if ($nData['beam'] === 'begin') {
+                        if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                            $beamGroups[] = $currentBeamGroup;
+                        }
+                        $currentBeamGroup = array('notes' => array($idx));
+                    } elseif ($nData['beam'] === 'continue') {
+                        if ($currentBeamGroup !== null) {
+                            $currentBeamGroup['notes'][] = $idx;
+                        }
+                    } elseif ($nData['beam'] === 'end') {
+                        if ($currentBeamGroup !== null) {
+                            $currentBeamGroup['notes'][] = $idx;
+                            $beamGroups[] = $currentBeamGroup;
+                        }
+                        $currentBeamGroup = null;
+                    } else {
+                        // Auto-beaming by beat
+                        if ($currentBeamGroup === null) {
+                            $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
+                        } else {
+                            if (isset($currentBeamGroup['beat']) && $currentBeamGroup['beat'] === $nData['beatIndex'] && !$nData['isChord']) {
+                                $currentBeamGroup['notes'][] = $idx;
+                            } else {
+                                if (count($currentBeamGroup['notes']) > 1) {
+                                    $beamGroups[] = $currentBeamGroup;
+                                }
+                                $currentBeamGroup = array('beat' => $nData['beatIndex'], 'notes' => array($idx));
+                            }
+                        }
+                    }
+                }
+            }
+            if ($currentBeamGroup !== null && count($currentBeamGroup['notes']) > 1) {
+                $beamGroups[] = $currentBeamGroup;
+            }
+
+            // Unify stem directions for beam groups
+            $noteToBeamGroup = array();
+            foreach ($beamGroups as $bIdx => $bg) {
+                $upCount = 0;
+                $downCount = 0;
+                foreach ($bg['notes'] as $idx) {
+                    if ($measureNotesData[$idx]['stemDir'] === 'up') $upCount++;
+                    else $downCount++;
+                    $noteToBeamGroup[$idx] = $bIdx;
+                }
+                $unifiedDir = ($downCount > $upCount) ? 'down' : 'up';
+                $beamGroups[$bIdx]['stemDir'] = $unifiedDir;
+                foreach ($bg['notes'] as $idx) {
+                    $measureNotesData[$idx]['stemDir'] = $unifiedDir;
+                }
+            }
+
+            // Draw stems, flags, and beams
+            foreach ($measureNotesData as $idx => $nData) {
+                if ($nData['isRest'] || $nData['typeStr'] === 'whole') continue;
+
+                $noteX = $nData['x'];
+                $noteY = $nData['y'];
+                $stemDir = $nData['stemDir'];
+                $typeStr = $nData['typeStr'];
+
+                $pdf->SetLineWidth(0.35);
+                if ($stemDir === 'up') {
+                    $stemEndY = $noteY - 8.5;
+                    $pdf->Line($noteX + 1.512, $noteY - 0.4, $noteX + 1.512, $stemEndY + 1.4);
+                    if (!isset($noteToBeamGroup[$idx])) {
+                        $pdf->DrawNoteFlag($noteX + 1.56, $stemEndY + 1.4, 'up', $typeStr);
+                    }
+                } else {
+                    $stemEndY = $noteY + 8.5;
+                    $pdf->Line($noteX - 1.512, $noteY + 0.4, $noteX - 1.512, $stemEndY - 1.4);
+                    if (!isset($noteToBeamGroup[$idx])) {
+                        $pdf->DrawNoteFlag($noteX - 1.56, $stemEndY - 1.4, 'down', $typeStr);
+                    }
+                }
+                $pdf->SetLineWidth(0.2);
+            }
+
+            // Draw Beam Lines
+            foreach ($beamGroups as $bg) {
+                $notes = $bg['notes'];
+                if (count($notes) < 2) continue;
+                
+                $stemDir = $bg['stemDir'];
+                $pdf->SetLineWidth(1.5);
+                
+                // Determine min/max Y for the primary beam
+                $baseY = $measureNotesData[$notes[0]]['y'];
+                foreach ($notes as $nIdx) {
+                    if ($stemDir === 'up') {
+                        if ($measureNotesData[$nIdx]['y'] < $baseY) $baseY = $measureNotesData[$nIdx]['y'];
+                    } else {
+                        if ($measureNotesData[$nIdx]['y'] > $baseY) $baseY = $measureNotesData[$nIdx]['y'];
+                    }
+                }
+                
+                $beamY = ($stemDir === 'up') ? ($baseY - 8.5 + 1.4) : ($baseY + 8.5 - 1.4);
+                $beamSpacing = ($stemDir === 'up') ? 1.5 : -1.5;
+                
+                // Max beams needed in this group
+                $maxBeams = 1;
+                $noteBeams = array();
+                foreach ($notes as $i => $nIdx) {
+                    $type = $measureNotesData[$nIdx]['typeStr'];
+                    $bCount = 1;
+                    if ($type === '16th') $bCount = 2;
+                    elseif ($type === '32nd') $bCount = 3;
+                    elseif ($type === '64th') $bCount = 4;
+                    
+                    $noteBeams[$i] = $bCount;
+                    if ($bCount > $maxBeams) $maxBeams = $bCount;
+                }
+                
+                // Draw each beam level
+                for ($level = 1; $level <= $maxBeams; $level++) {
+                    $levelY = $beamY + (($level - 1) * $beamSpacing);
+                    
+                    $inSegment = false;
+                    $segStart = -1;
+                    $segEnd = -1;
+                    
+                    for ($i = 0; $i < count($notes); $i++) {
+                        if ($noteBeams[$i] >= $level) {
+                            if (!$inSegment) {
+                                $inSegment = true;
+                                $segStart = $i;
+                            }
+                            $segEnd = $i;
+                        } else {
+                            if ($inSegment) {
+                                // Draw segment
+                                $startX = $measureNotesData[$notes[$segStart]]['x'] + (($stemDir === 'up') ? 1.512 : -1.512);
+                                $endX = $measureNotesData[$notes[$segEnd]]['x'] + (($stemDir === 'up') ? 1.512 : -1.512);
+                                
+                                if ($segStart === $segEnd) {
+                                    if ($segStart === 0) {
+                                        $endX = $startX + 3.0; // short beam right
+                                    } else {
+                                        $startX = $endX - 3.0; // short beam left
+                                    }
+                                }
+                                $pdf->Line($startX, $levelY, $endX, $levelY);
+                                $inSegment = false;
+                            }
+                        }
+                    }
+                    if ($inSegment) {
+                        $startX = $measureNotesData[$notes[$segStart]]['x'] + (($stemDir === 'up') ? 1.512 : -1.512);
+                        $endX = $measureNotesData[$notes[$segEnd]]['x'] + (($stemDir === 'up') ? 1.512 : -1.512);
+                        
+                        if ($segStart === $segEnd) {
+                            if ($segStart === 0) {
+                                $endX = $startX + 3.0;
+                            } else {
+                                $startX = $endX - 3.0;
+                            }
+                        }
+                        $pdf->Line($startX, $levelY, $endX, $levelY);
+                    }
+                }
+                
+                // Extend internal stems to the primary beam
+                $pdf->SetLineWidth(0.35);
+                foreach ($notes as $nIdx) {
+                    $nX = $measureNotesData[$nIdx]['x'] + (($stemDir === 'up') ? 1.512 : -1.512);
+                    $nY = $measureNotesData[$nIdx]['y'] + (($stemDir === 'up') ? -0.4 : 0.4);
+                    $pdf->Line($nX, $nY, $nX, $beamY);
+                }
+                
+                $pdf->SetLineWidth(0.2);
             }
 
             // Move to next system if we hit measures limit per system
