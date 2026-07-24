@@ -359,73 +359,107 @@ class MusicXMLSvgRenderer {
                 const mNode = partMeasures[pInfo.partIndex][measureIdx];
                 if (!mNode) continue;
 
-                let currentDiv = 0;
-                let lastBaseDiv = 0;
-                const parsedNotes = [];
+                // FIX: This entire block is rewritten to handle internal note splitting for ties.
+                let currentDiv = 0; // Running cursor for horizontal position in divisions.
+                let lastBaseDiv = 0; // For chord alignment
+                const allNotesInMeasure = []; // This will hold all noteData objects, including split ones.
 
-                mNode.querySelectorAll("note").forEach(noteNode => {
-                    const noteStaff = parseInt(noteNode.querySelector("staff")?.textContent || "1") || 1;
+                // Get current staff's divisions for this measure, which is crucial for duration calculations.
+                const currentStaffDivisions = staffState[s].divisions;
+
+                // Iterate through original note nodes from the XML
+                mNode.querySelectorAll("note").forEach(originalNoteNode => {
+                    const noteStaff = parseInt(originalNoteNode.querySelector("staff")?.textContent || "1") || 1;
                     if (noteStaff !== localStaff) return;
 
-                    const isChord = noteNode.querySelector("chord") !== null;
-                    const isRest = noteNode.querySelector("rest") !== null;
-                    const duration = parseInt(noteNode.querySelector("duration")?.textContent || "0") || 0;
-                    
+                    const isChord = originalNoteNode.querySelector("chord") !== null;
+                    const isRest = originalNoteNode.querySelector("rest") !== null;
+                    let originalDuration = parseInt(originalNoteNode.querySelector("duration")?.textContent || "0") || 0;
+
+                    // Determine original tie types from the XML node
                     let lyricText = null;
-                    const lyricTxtNode = noteNode.querySelector("lyric text");
+                    const lyricTxtNode = originalNoteNode.querySelector("lyric text");
                     if (lyricTxtNode) {
                         lyricText = lyricTxtNode.textContent;
                     } else {
-                        const rawLyric = noteNode.querySelector("lyric");
+                        const rawLyric = originalNoteNode.querySelector("lyric");
                         if (rawLyric) lyricText = rawLyric.textContent.trim();
                     }
 
-                    let onsetDiv = isChord ? lastBaseDiv : currentDiv;
-                    if (!isChord) lastBaseDiv = currentDiv;
+                    let originalTieStart = false;
+                    let originalTieStop = false;
+                    originalNoteNode.querySelectorAll("tie, tied").forEach(t => {
+                        const type = t.getAttribute("type");
+                        if (type === "start") originalTieStart = true;
+                        if (type === "stop") originalTieStop = true;
+                    });
 
-                    const step = noteNode.querySelector("pitch step")?.textContent || 
-                               noteNode.querySelector("unpitched display-step")?.textContent || "C";
-                    const octave = parseInt(noteNode.querySelector("pitch octave")?.textContent || 
-                                  noteNode.querySelector("unpitched display-octave")?.textContent || "4") || 4;
-                    const alter = parseInt(noteNode.querySelector("pitch alter")?.textContent || "0") || 0;
-                    const accidental = noteNode.querySelector("accidental")?.textContent;
+                    // Split duration if it's a tied note and not a standard representable duration
+                    let pieces = [originalDuration];
+                    if (originalTieStart && !isRest && originalDuration > 0 &&
+                        !MusicXMLSvgRenderer.isStandardDuration(originalDuration, currentStaffDivisions)) {
+                        pieces = MusicXMLSvgRenderer.splitDurationIntoRepresentablePieces(originalDuration, currentStaffDivisions);
+                    }
 
-                    const noteData = {
-                        node: noteNode,
-                        isRest: isRest,
-                        staff: s,
-                        step: step,
-                        octave: octave,
-                        alter: alter,
-                        accidental: accidental,
-                        type: noteNode.querySelector("type")?.textContent || "quarter",
-                        stem: noteNode.querySelector("stem")?.textContent,
-                        lyric: lyricText,
-                        onsetDiv: onsetDiv,
-                        duration: duration,
-                        articulations: {
-                            staccato: noteNode.querySelector("articulations staccato") !== null,
-                            accent: noteNode.querySelector("articulations accent") !== null,
-                            tenuto: noteNode.querySelector("articulations tenuto") !== null,
-                            fermata: noteNode.querySelector("fermata") !== null
+                    let pieceCurrentDiv = isChord ? lastBaseDiv : currentDiv;
+
+                    pieces.forEach((pieceDuration, pIdx) => {
+                        const isFirstPiece = (pIdx === 0);
+                        const isLastPiece = (pIdx === pieces.length - 1);
+
+                        // Calculate tie types for each piece
+                        let pieceTieStart = (originalTieStart && !isLastPiece);
+                        let pieceTieStop = (originalTieStart && !isFirstPiece);
+                        if (isFirstPiece && originalTieStop) pieceTieStop = true; // Inherit original stop
+                        if (isLastPiece && originalTieStart) pieceTieStart = true; // Inherit original start
+
+                        const noteData = {
+                            node: originalNoteNode, // Keep reference for other attributes
+                            isRest: isRest,
+                            staff: s,
+                            step: originalNoteNode.querySelector("pitch step, unpitched display-step")?.textContent || "C",
+                            octave: parseInt(originalNoteNode.querySelector("pitch octave, unpitched display-octave")?.textContent || "4") || 4,
+                            alter: parseInt(originalNoteNode.querySelector("pitch alter")?.textContent || "0") || 0,
+                            accidental: originalNoteNode.querySelector("accidental")?.textContent,
+                            type: MusicXMLSvgRenderer.getNoteType(pieceDuration, currentStaffDivisions),
+                            stem: originalNoteNode.querySelector("stem")?.textContent,
+                            lyric: isFirstPiece ? lyricText : null, // Only first piece gets the lyric
+                            onsetDiv: pieceCurrentDiv,
+                            duration: pieceDuration,
+                            articulations: {
+                                staccato: originalNoteNode.querySelector("articulations staccato") !== null,
+                                accent: originalNoteNode.querySelector("articulations accent") !== null,
+                                tenuto: originalNoteNode.querySelector("articulations tenuto") !== null,
+                                fermata: originalNoteNode.querySelector("fermata") !== null
+                            },
+                            tieStart: pieceTieStart,
+                            tieStop: pieceTieStop,
+                            divisions: currentStaffDivisions
                         }
-                    };
+                        allNotesInMeasure.push(noteData);
 
-                    parsedNotes.push(noteData);
-                    if (!isChord) currentDiv += duration;
+                        if (!isChord) {
+                            pieceCurrentDiv += pieceDuration;
+                        }
+                    });
+
+                    if (!isChord) {
+                        currentDiv = pieceCurrentDiv; // Update main cursor for the next original note
+                    }
+                    lastBaseDiv = currentDiv; // For chord alignment
                 });
 
                 const measureDuration = state.beats * state.divisions;
                 const totalMeasureDivs = Math.max(measureDuration, currentDiv, 1);
 
                 const columnsByOnset = {};
-                parsedNotes.forEach(note => {
+                allNotesInMeasure.forEach(note => {
                     if (!columnsByOnset[note.onsetDiv]) columnsByOnset[note.onsetDiv] = [];
                     columnsByOnset[note.onsetDiv].push(note);
                 });
 
                 const renderedStems = [];
-                Object.keys(columnsByOnset).forEach(onsetStr => {
+                Object.keys(columnsByOnset).sort((a, b) => parseInt(a) - parseInt(b)).forEach(onsetStr => {
                     const onset = parseInt(onsetStr) || 0;
                     const colNotes = columnsByOnset[onset];
                     const ratio = onset / totalMeasureDivs;
@@ -443,7 +477,6 @@ class MusicXMLSvgRenderer {
                 this.drawBeams(renderedStems);
 
                 // Update offset for the next staff
-                // This logic was missing from the note rendering loop, causing overlaps.
                 currentStaffYOffset += (4 * this.lineSpacing);
                 if (localStaff < pInfo.numStaves) {
                     currentStaffYOffset += this.staffSpacing;
@@ -831,14 +864,7 @@ class MusicXMLSvgRenderer {
             }
 
             // Slurs / Ties Bezier Arcs
-            let tieStart = false;
-            let tieStop = false;
-            note.node.querySelectorAll("tie, tied").forEach(t => {
-                const type = t.getAttribute("type");
-                if (type === "start") tieStart = true;
-                if (type === "stop") tieStop = true;
-            });
-            
+            const { tieStart, tieStop } = note; // Use pre-calculated tie flags from the noteData object
             const pitchKey = `${note.step}${note.alter}${note.octave}${note.staff}`;
             
             if (tieStop && activeTies[pitchKey]) {
@@ -928,7 +954,7 @@ class MusicXMLSvgRenderer {
             type: firstNoteType,
             isBeamable: isBeamable,
             // FIX: Pass beat index for correct beaming logic
-            beatIndex: Math.floor(lowestNote.onsetDiv / (notes[0].divisions || 1)),
+            beatIndex: Math.floor(lowestNote.onsetDiv / (notes[0].divisions || 4)),
             divisions: notes[0].divisions,
             flagElement: flagElement, // Keep for potential removal
             stemLine: stemLine
@@ -1209,4 +1235,99 @@ class MusicXMLSvgRenderer {
         txt.textContent = text || "";
         this.svg.appendChild(txt);
     }
+
+    // --- Static helper methods for duration calculation ---
+
+    static NOTE_TYPE_VALUES = [
+        { name: 'maxima', val: 8 }, { name: 'long', val: 4 }, { name: 'breve', val: 2 },
+        { name: 'whole', val: 1 }, { name: 'half', val: 0.5 }, { name: 'quarter', val: 0.25 },
+        { name: 'eighth', val: 0.125 }, { name: '16th', val: 0.0625 }, { name: '32nd', val: 0.03125 },
+        { name: '64th', val: 0.015625 }, { name: '128th', val: 0.0078125 }
+    ];
+
+    /**
+     * Converts a duration in divisions to a MusicXML note type string.
+     * @param {number} duration Duration in divisions.
+     * @param {number} divisions Divisions per quarter note.
+     * @returns {string} The note type (e.g., 'quarter', 'eighth').
+     */
+    static getNoteType(duration, divisions) {
+        if (divisions <= 0 || duration <= 0) return '128th';
+        const value = duration / (4 * divisions); // Value relative to a whole note
+        for (const type of MusicXMLSvgRenderer.NOTE_TYPE_VALUES) {
+            if (value >= type.val - 0.0001) {
+                return type.name;
+            }
+        }
+        return '128th';
+    }
+
+    /**
+     * Checks if a duration can be represented by a single standard (dotted) note.
+     * @param {number} duration Duration in divisions.
+     * @param {number} divisions Divisions per quarter note.
+     * @returns {boolean} True if it's a standard duration.
+     */
+    static isStandardDuration(duration, divisions) {
+        if (duration <= 0 || divisions <= 0) return false;
+        const value = duration / (4 * divisions); // Value relative to a whole note
+        for (const type of MusicXMLSvgRenderer.NOTE_TYPE_VALUES) {
+            const baseDuration = type.val;
+            // Check for undotted, single, double, or triple dotted
+            if (Math.abs(value - baseDuration) < 0.001 ||
+                Math.abs(value - baseDuration * 1.5) < 0.001 ||
+                Math.abs(value - baseDuration * 1.75) < 0.001 ||
+                Math.abs(value - baseDuration * 1.875) < 0.001) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Splits a non-standard duration into a series of standard, representable durations.
+     * @param {number} duration The total duration in divisions to split.
+     * @param {number} divisions Divisions per quarter note.
+     * @returns {number[]} An array of durations (in divisions) that sum to the original duration.
+     */
+    static splitDurationIntoRepresentablePieces(duration, divisions) {
+        const pieces = [];
+        let remaining = duration;
+        const epsilon = 0.01; // Tolerance for float comparisons
+
+        while (remaining > epsilon) {
+            let bestPieceDuration = 0;
+
+            // Iterate through standard note types from largest to smallest
+            for (const type of MusicXMLSvgRenderer.NOTE_TYPE_VALUES) {
+                const baseDurationDivs = type.val * 4 * divisions;
+
+                // Check for dotted notes (triple, double, single) and undotted
+                const dottedFactors = [1.875, 1.75, 1.5, 1.0];
+                for (const factor of dottedFactors) {
+                    const candidateDuration = Math.round(baseDurationDivs * factor);
+                    
+                    // If this candidate fits within the remaining duration and is larger than the current best
+                    if (candidateDuration > 0 && candidateDuration <= remaining + epsilon && candidateDuration > bestPieceDuration) {
+                        bestPieceDuration = candidateDuration;
+                    }
+                }
+            }
+
+            if (bestPieceDuration > 0) {
+                pieces.push(bestPieceDuration);
+                remaining -= bestPieceDuration;
+            } else {
+                // If no standard piece fits (e.g., remaining is very small), take the rest as one piece.
+                const finalPiece = Math.round(remaining);
+                if (finalPiece > 0) {
+                    pieces.push(finalPiece);
+                }
+                remaining = 0;
+            }
+        }
+        return pieces;
+    }
 }
+
+window.MusicXMLSvgRenderer = MusicXMLSvgRenderer;
