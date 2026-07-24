@@ -29,11 +29,13 @@ class MusicXMLSvgRenderer {
         
         // Base Layout Metrics
         this.baseLineSpacing = 9.5;
-        this.baseStaffSpacing = 65; // gap between staves
+        this.baseStaffSpacing = 90; // gap between staves
+        this.basePartSpacing = 65; // additional gap between different parts within a system
         this.systemSpacing = 80; // Configurable gap between system rows (in pixels)
         this.baseRowSpacingSingle = 150;
         this.baseRowSpacingDouble = 220;
         this.measuresPerLine = 3;
+        this.liricYOffset = 80;
         
         // Engraving Color Palette
         this.engraverColor = "#0f172a"; // Solid dark engraver ink
@@ -135,10 +137,25 @@ class MusicXMLSvgRenderer {
         const hasLyrics = xmlDoc.querySelector("lyric") !== null;
         this.measuresPerLine = hasLyrics ? 2 : 3;
         
-        // Configurable System Spacing Gap
-        const staffSystemHeight = (totalSystemStaves - 1) * this.staffSpacing + 4 * this.lineSpacing;
-        const systemGap = (this.systemSpacing !== undefined ? this.systemSpacing : 80) * scale;
-        this.rowSpacing = staffSystemHeight + (hasLyrics ? 90 : 70) * scale + systemGap;
+        // FIX: Correctly calculate the total height of all staves in a system.
+        // This calculation now accounts for additional spacing between different parts.
+        let calculatedStaffSystemHeight = 0;
+        const staffHeight = 4 * this.lineSpacing; // Height of one 5-line staff (4 spaces between 5 lines)
+
+        for (let i = 0; i < partStaffMap.length; i++) {
+            const pInfo = partStaffMap[i];
+            calculatedStaffSystemHeight += pInfo.numStaves * staffHeight; // Height of staff lines for this part
+            calculatedStaffSystemHeight += Math.max(0, pInfo.numStaves - 1) * this.staffSpacing; // Spacing *within* this part's staves
+
+            if (i < partStaffMap.length - 1) { // If not the last part, add extra spacing between parts
+                calculatedStaffSystemHeight += this.basePartSpacing * scale;
+            }
+        }
+        // Ensure a minimum height if no staves are rendered (e.g., empty score)
+        if (totalSystemStaves === 0) calculatedStaffSystemHeight = staffHeight;
+
+        const systemGap = (this.systemSpacing ?? 80) * scale;
+        this.rowSpacing = calculatedStaffSystemHeight + (hasLyrics ? 90 : 70) * scale + systemGap; // Add extra padding for lyrics/general system spacing
 
         // Metadata Header Details
         const songTitle = xmlDoc.querySelector("work-title")?.textContent || 
@@ -195,6 +212,9 @@ class MusicXMLSvgRenderer {
         // Measure Iteration across maxMeasures
         for (let measureIdx = 0; measureIdx < maxMeasures; measureIdx++) {
             const isSystemStart = (measureIdx % this.measuresPerLine === 0);
+            // Declare offset variables here to be accessible throughout the measure loop
+            let currentStaffYOffset = 0;
+            let previousPartIndex = -1;
             
             // Advance to next system row if row is full
             if (measureIdx > 0 && isSystemStart) {
@@ -255,23 +275,40 @@ class MusicXMLSvgRenderer {
 
                 // Draw continuous 5 staff lines for each active staff in full system
                 for (let s = 1; s <= totalSystemStaves; s++) {
-                    const sY = currentY + (s - 1) * this.staffSpacing;
-                    this.drawStaffLines(systemStartX, sY, systemRowWidth);
+                    const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
+                    if (!pInfo) continue; // Should not happen
+
+                    const localStaff = (s - pInfo.startStaffId) + 1; // 1-based local staff index within its part
                     
+                    // Add extra spacing when moving to a new part
+                    if (pInfo.partIndex !== previousPartIndex && previousPartIndex !== -1) {
+                        currentStaffYOffset += this.basePartSpacing * scale; // Add part spacing for new part
+                    }
+                    const sY = currentY + currentStaffYOffset; // Top line of the current staff
+
+                    this.drawStaffLines(systemStartX, sY, systemRowWidth);
+
                     // Draw Clef, Key, Time Signature at system start for this staff
                     const state = staffState[s];
                     this.drawClef(state.clef, systemStartX + 6 * scale, sY);
                     this.drawKeySignature(systemStartX + 26 * scale, sY, state.fifths, state.clef);
                     this.drawTimeSignature(systemStartX + 46 * scale, sY, state.beats, state.beatType, state.timeSymbol);
+
+                    // Update offset for the next staff
+                    currentStaffYOffset += (4 * this.lineSpacing); // Height of the staff lines
+                    if (localStaff < pInfo.numStaves) { // If there are more staves in this part, add internal staff spacing
+                        currentStaffYOffset += this.staffSpacing;
+                    }
+                    previousPartIndex = pInfo.partIndex;
                 }
 
                 // Vertical System Start Bar Line across all staves
-                this.drawSystemStartLine(systemStartX, currentY, totalSystemStaves);
+                this.drawSystemStartLine(systemStartX, currentY, calculatedStaffSystemHeight);
 
                 // Curly Grand Staff Brace (if 2 staves in Part 0)
                 if (totalSystemStaves >= 2 && partStaffMap[0].numStaves === 2) {
-                    const bottomStaffY = currentY + (partStaffMap[0].numStaves - 1) * this.staffSpacing;
-                    this.drawGrandStaffBrace(systemStartX - 6 * scale, currentY, bottomStaffY + 4 * this.lineSpacing);
+                    const firstPartHeight = partStaffMap[0].numStaves * (4 * this.lineSpacing) + Math.max(0, partStaffMap[0].numStaves - 1) * this.staffSpacing;
+                    this.drawGrandStaffBrace(systemStartX - 6 * scale, currentY, currentY + firstPartHeight);
                 }
 
                 // Measure Number
@@ -296,19 +333,25 @@ class MusicXMLSvgRenderer {
             }
 
             // Measure Right Barline across all staves
-            const isLastMeasure = (measureIdx === maxMeasures - 1);
-            this.drawBarLine(currentX + measureWidth, currentY, isLastMeasure, totalSystemStaves);
+            const isLastMeasureInScore = (measureIdx === maxMeasures - 1);
+            this.drawBarLine(currentX + measureWidth, currentY, isLastMeasureInScore, calculatedStaffSystemHeight);
 
             // Parse & Render Notes across all parts and staves for this measure
+            currentStaffYOffset = 0; // Reset offset for the note rendering pass
+            previousPartIndex = -1; // Reset part index tracker
+
             for (let s = 1; s <= totalSystemStaves; s++) {
-                const sY = currentY + (s - 1) * this.staffSpacing;
-                const state = staffState[s];
-                
-                // Find which part & local staff this staff ID belongs to
                 const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
                 if (!pInfo) continue;
-                
+ 
                 const localStaff = (s - pInfo.startStaffId) + 1;
+                
+                // Add extra spacing when moving to a new part
+                if (pInfo.partIndex !== previousPartIndex && previousPartIndex !== -1) {
+                    currentStaffYOffset += this.basePartSpacing * scale;
+                }
+                const sY = currentY + currentStaffYOffset;
+                const state = staffState[s];
                 const mNode = partMeasures[pInfo.partIndex][measureIdx];
                 if (!mNode) continue;
 
@@ -394,13 +437,21 @@ class MusicXMLSvgRenderer {
 
                 // Render beams for this staff
                 this.drawBeams(renderedStems);
+
+                // Update offset for the next staff
+                // This logic was missing from the note rendering loop, causing overlaps.
+                currentStaffYOffset += (4 * this.lineSpacing);
+                if (localStaff < pInfo.numStaves) {
+                    currentStaffYOffset += this.staffSpacing;
+                }
+                previousPartIndex = pInfo.partIndex;
             }
 
             // CRITICAL FIX: Advance currentX to the next measure column!
             currentX += measureWidth;
         }
 
-        const totalHeight = currentY + this.rowSpacing + 40 * scale;
+        const totalHeight = currentY + calculatedStaffSystemHeight + 40 * scale;
         this.svg.setAttribute("height", `${totalHeight}px`);
         this.svg.setAttribute("viewBox", `0 0 ${containerWidth} ${totalHeight}`);
     }
@@ -425,10 +476,10 @@ class MusicXMLSvgRenderer {
     /**
      * Draw System Start Bar Line across active staves
      */
-    drawSystemStartLine(x, y, numStaves) {
+    drawSystemStartLine(x, y, totalSystemHeight) {
         const scale = this.zoom || 1.0;
         const topY = y;
-        const bottomY = y + (numStaves - 1) * this.staffSpacing + 4 * this.lineSpacing;
+        const bottomY = y + totalSystemHeight;
         
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("x1", x);
@@ -464,10 +515,10 @@ class MusicXMLSvgRenderer {
     /**
      * Draw Vertical Bar Line spanning across staves
      */
-    drawBarLine(x, y, isFinalEnd, numStaves) {
+    drawBarLine(x, y, isFinalEnd, totalSystemHeight) {
         const scale = this.zoom || 1.0;
         const topY = y;
-        const bottomY = y + (numStaves - 1) * this.staffSpacing + 4 * this.lineSpacing;
+        const bottomY = y + totalSystemHeight;
 
         if (isFinalEnd) {
             const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -499,7 +550,7 @@ class MusicXMLSvgRenderer {
         }
     }
 
-    /**
+    /** 
      * Draw Clefs (G-clef, F-clef, C-clef)
      */
     drawClef(clefSign, x, y) {
@@ -767,7 +818,7 @@ class MusicXMLSvgRenderer {
 
             // Lyric Text
             if (note.lyric) {
-                this.drawText(x, y + 54 * scale, note.lyric, `${Math.round(11 * scale)}px`, "#1e293b", "middle", false, "'Inter', sans-serif");
+                this.drawText(x, y + (this.liricYOffset * scale), note.lyric, `${Math.round(11 * scale)}px`, "#1e293b", "middle", false, "'Inter', sans-serif");
             }
 
             // Slurs / Ties Bezier Arcs
