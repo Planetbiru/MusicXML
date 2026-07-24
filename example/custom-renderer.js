@@ -23,10 +23,10 @@ class MusicXMLSvgRenderer {
         this.container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         this.svg = null;
         this.zoom = 1.0;
-        
+
         // Render Mode: false = OSMD Classic Engraver Monochrome, true = Color-Coded Learning
         this.colorCoded = false;
-        
+
         // Base Layout Metrics
         this.baseLineSpacing = 9.5;
         this.baseStaffSpacing = 90; // gap between staves
@@ -36,13 +36,13 @@ class MusicXMLSvgRenderer {
         this.baseRowSpacingDouble = 220;
         this.measuresPerLine = 3;
         this.liricYOffset = 80;
-        
+
         // Engraving Color Palette
         this.engraverColor = "#0f172a"; // Solid dark engraver ink
         this.staffLineColor = "#475569"; // Crisp staff line
         this.lightLineColor = "#cbd5e1"; // Measure divider
         this.paperBg = "#ffffff";
-        
+
         // Educational Pitch Color Palette
         this.pitchColors = {
             'C': '#ef4444', // Red
@@ -53,7 +53,7 @@ class MusicXMLSvgRenderer {
             'A': '#6366f1', // Indigo
             'B': '#a855f7'  // Purple
         };
-        
+
         this.stepOffsets = { 'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6 };
     }
 
@@ -64,7 +64,7 @@ class MusicXMLSvgRenderer {
     render(xmlText) {
         if (!this.container) return;
         this.container.innerHTML = "";
-        
+
         if (!xmlText || typeof xmlText !== 'string') {
             this.container.innerHTML = "<div style='color:#ef4444; padding:2rem; text-align:center;'>No MusicXML data provided.</div>";
             return;
@@ -73,11 +73,11 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         this.lineSpacing = this.baseLineSpacing * scale;
         this.staffSpacing = this.baseStaffSpacing * scale;
-        
+
         // Parse MusicXML
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-        
+
         const parserError = xmlDoc.querySelector("parsererror");
         if (parserError) {
             throw new Error("Invalid MusicXML structure: " + parserError.textContent);
@@ -88,8 +88,6 @@ class MusicXMLSvgRenderer {
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         // FIX: Remove explicit width and height. Let viewBox control the aspect ratio and scaling.
         this.svg.style.backgroundColor = this.paperBg; // The container should control the width (e.g., via CSS `width: 100%`).
-        this.svg.style.borderRadius = "12px";
-        this.svg.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.15)";
         this.svg.style.display = "block";
         this.svg.style.margin = "0 auto";
         this.container.appendChild(this.svg);
@@ -136,7 +134,7 @@ class MusicXMLSvgRenderer {
         // Dynamic Line Wrapping (2 measures per line if lyrics present, else 3)
         const hasLyrics = xmlDoc.querySelector("lyric") !== null;
         this.measuresPerLine = hasLyrics ? 2 : 3;
-        
+
         // FIX: Correctly calculate the total height of all staves in a system.
         // This calculation now accounts for additional spacing between different parts.
         let calculatedStaffSystemHeight = 0;
@@ -158,41 +156,41 @@ class MusicXMLSvgRenderer {
         this.rowSpacing = calculatedStaffSystemHeight + (hasLyrics ? 90 : 70) * scale + systemGap; // Add extra padding for lyrics/general system spacing
 
         // Metadata Header Details
-        const songTitle = xmlDoc.querySelector("work-title")?.textContent || 
-                          xmlDoc.querySelector("movement-title")?.textContent || 
-                          xmlDoc.querySelector("credit-words")?.textContent || 
-                          "Untitled Score";
-        const composer = xmlDoc.querySelector("creator[type='composer']")?.textContent || 
-                         xmlDoc.querySelector("creator")?.textContent || 
-                         "";
+        const songTitle = xmlDoc.querySelector("work-title")?.textContent ||
+            xmlDoc.querySelector("movement-title")?.textContent ||
+            xmlDoc.querySelector("credit-words")?.textContent ||
+            "Untitled Score";
+        const composer = xmlDoc.querySelector("creator[type='composer']")?.textContent ||
+            xmlDoc.querySelector("creator")?.textContent ||
+            "";
         const initialY = 30 * scale; // Define the starting Y position for all content
         const subtitle = xmlDoc.querySelector("movement-title")?.textContent || "";
-        const partName = parts.length === 1 
+        const partName = parts.length === 1
             ? (xmlDoc.querySelector("part-name")?.textContent || (totalSystemStaves === 2 ? "Piano" : "Score"))
             : "Full Score";
 
         // Header Title Block
         let currentY = initialY; // Use the defined starting Y
-        
+
         // Title
         // Draw title at the initial currentY position
         this.drawText(containerWidth / 2, currentY, songTitle, `${Math.round(22 * scale)}px`, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
-        
+
         // Subtitle
         if (subtitle && subtitle !== songTitle) {
             currentY += 18 * scale;
             this.drawText(containerWidth / 2, currentY, subtitle, `${Math.round(12 * scale)}px`, "#64748b", "middle", false);
         }
-        
+
         // Composer
         if (composer) {
             this.drawText(containerWidth - 40 * scale, currentY + 15 * scale, composer, `${Math.round(11 * scale)}px`, this.engraverColor, "end", false, "'Inter', sans-serif");
         }
-        
+
         // Part Name / Instrument
         currentY += 22 * scale;
         this.drawText(50 * scale, currentY, partName, `${Math.round(12 * scale)}px`, "#475569", "start", true, "'Inter', sans-serif");
-        
+
         // System Layout Metrics
         currentY += 25 * scale; // Add space before the first staff system
         const leftMargin = 85 * scale;
@@ -200,7 +198,7 @@ class MusicXMLSvgRenderer {
         const systemStartX = leftMargin - 60 * scale;
         const usableWidth = containerWidth - leftMargin - rightMargin;
         const measureWidth = Math.max(220 * scale, usableWidth / this.measuresPerLine);
-        
+
         let currentX = leftMargin;
         let nextSystemY = currentY; // FIX: Use a separate variable to track the Y of the next system
 
@@ -209,16 +207,16 @@ class MusicXMLSvgRenderer {
         for (let s = 1; s <= totalSystemStaves; s++) {
             staffState[s] = { clef: "G", fifths: 0, beats: 4, beatType: 4, timeSymbol: null, divisions: 4 };
         }
-        
+
         const activeTies = {};
-        
+
         // Measure Iteration across maxMeasures
         for (let measureIdx = 0; measureIdx < maxMeasures; measureIdx++) {
             const isSystemStart = (measureIdx % this.measuresPerLine === 0);
             // Declare offset variables here to be accessible throughout the measure loop
             let currentStaffYOffset = 0;
             let previousPartIndex = -1;
-            
+
             // Advance to next system row if row is full
             if (measureIdx > 0 && isSystemStart) {
                 currentX = leftMargin; // Reset X position for the new system
@@ -230,12 +228,12 @@ class MusicXMLSvgRenderer {
             partStaffMap.forEach(pInfo => {
                 const mNode = partMeasures[pInfo.partIndex][measureIdx];
                 if (!mNode) return;
-                
+
                 const attrNode = mNode.querySelector("attributes");
                 if (attrNode) {
                     const divisionsNode = attrNode.querySelector("divisions");
                     const divVal = divisionsNode ? (parseInt(divisionsNode.textContent) || 4) : 4;
-                    
+
                     const fifthsNode = attrNode.querySelector("key fifths");
                     const fifthsVal = fifthsNode ? (parseInt(fifthsNode.textContent) || 0) : 0;
 
@@ -283,7 +281,7 @@ class MusicXMLSvgRenderer {
                     if (!pInfo) continue; // Should not happen
 
                     const localStaff = (s - pInfo.startStaffId) + 1; // 1-based local staff index within its part
-                    
+
                     // Add extra spacing when moving to a new part
                     if (pInfo.partIndex !== previousPartIndex && previousPartIndex !== -1) {
                         currentStaffYOffset += this.basePartSpacing * scale; // Add part spacing for new part
@@ -347,9 +345,9 @@ class MusicXMLSvgRenderer {
             for (let s = 1; s <= totalSystemStaves; s++) {
                 const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
                 if (!pInfo) continue;
- 
+
                 const localStaff = (s - pInfo.startStaffId) + 1;
-                
+
                 // Add extra spacing when moving to a new part
                 if (pInfo.partIndex !== previousPartIndex && previousPartIndex !== -1) {
                     currentStaffYOffset += this.basePartSpacing * scale;
@@ -394,9 +392,9 @@ class MusicXMLSvgRenderer {
                         if (type === "stop") originalTieStop = true;
                     });
 
-                    // Split duration if it's a tied note and not a standard representable duration
+                    // Split duration if it's not a standard representable duration
                     let pieces = [originalDuration];
-                    if (originalTieStart && !isRest && originalDuration > 0 &&
+                    if (!isRest && originalDuration > 0 &&
                         !MusicXMLSvgRenderer.isStandardDuration(originalDuration, currentStaffDivisions)) {
                         pieces = MusicXMLSvgRenderer.splitDurationIntoRepresentablePieces(originalDuration, currentStaffDivisions);
                     }
@@ -408,10 +406,24 @@ class MusicXMLSvgRenderer {
                         const isLastPiece = (pIdx === pieces.length - 1);
 
                         // Calculate tie types for each piece
-                        let pieceTieStart = (originalTieStart && !isLastPiece);
-                        let pieceTieStop = (originalTieStart && !isFirstPiece);
-                        if (isFirstPiece && originalTieStop) pieceTieStop = true; // Inherit original stop
-                        if (isLastPiece && originalTieStart) pieceTieStart = true; // Inherit original start
+                        let pieceTieStart = false;
+                        let pieceTieStop = false;
+
+                        if (pieces.length > 1) {
+                            if (isFirstPiece) {
+                                pieceTieStart = true;
+                                pieceTieStop = originalTieStop;
+                            } else if (isLastPiece) {
+                                pieceTieStart = originalTieStart;
+                                pieceTieStop = true;
+                            } else {
+                                pieceTieStart = true;
+                                pieceTieStop = true;
+                            }
+                        } else {
+                            pieceTieStart = originalTieStart;
+                            pieceTieStop = originalTieStop;
+                        }
 
                         const noteData = {
                             node: originalNoteNode, // Keep reference for other attributes
@@ -493,7 +505,7 @@ class MusicXMLSvgRenderer {
         const finalContentBottomY = currentY + calculatedStaffSystemHeight + 40 * scale;
         const viewBoxStartY = initialY - topMargin; // Start viewBox above the first content element
         const totalContentHeight = finalContentBottomY - viewBoxStartY;
- 
+
         // FIX: Set only the viewBox. This makes the SVG intrinsically responsive.
         // The browser will scale it correctly to fit the container's width without distortion.
         this.svg.setAttribute("viewBox", `0 ${viewBoxStartY} ${containerWidth} ${totalContentHeight}`);
@@ -522,7 +534,7 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const topY = y;
         const bottomY = y + totalSystemHeight;
-        
+
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("x1", x);
         line.setAttribute("y1", topY);
@@ -544,10 +556,10 @@ class MusicXMLSvgRenderer {
 
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const d = `M ${x} ${topY} ` +
-                  `C ${x - depth * 0.8} ${topY + height * 0.1}, ${x - depth * 0.8} ${midY - height * 0.1}, ${x - depth} ${midY} ` +
-                  `C ${x - depth * 0.8} ${midY + height * 0.1}, ${x - depth * 0.8} ${bottomY - height * 0.1}, ${x} ${bottomY} ` +
-                  `C ${x - depth * 0.5} ${bottomY - height * 0.05}, ${x - depth * 0.4} ${midY + height * 0.05}, ${x - depth * 0.6} ${midY} ` +
-                  `C ${x - depth * 0.4} ${midY - height * 0.05}, ${x - depth * 0.5} ${topY + height * 0.05}, ${x} ${topY} Z`;
+            `C ${x - depth * 0.8} ${topY + height * 0.1}, ${x - depth * 0.8} ${midY - height * 0.1}, ${x - depth} ${midY} ` +
+            `C ${x - depth * 0.8} ${midY + height * 0.1}, ${x - depth * 0.8} ${bottomY - height * 0.1}, ${x} ${bottomY} ` +
+            `C ${x - depth * 0.5} ${bottomY - height * 0.05}, ${x - depth * 0.4} ${midY + height * 0.05}, ${x - depth * 0.6} ${midY} ` +
+            `C ${x - depth * 0.4} ${midY - height * 0.05}, ${x - depth * 0.5} ${topY + height * 0.05}, ${x} ${topY} Z`;
 
         path.setAttribute("d", d);
         path.setAttribute("fill", this.engraverColor);
@@ -612,12 +624,12 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const pathData = "M165 177q-24 30-26 60-2 34 19 64 23 32 57 34h21l4 23q3 15 2 26-1 15-9 24-9 10-23 9-6 0-11-3l10-5q9-7 10-19 0-12-6-21-8-9-20-10t-22 9q-7 10-9 22-1 19 14 31 13 11 31 12a52 52 0 0 0 34-9q17-13 18-31 1-15-2-34l-4-29q17-5 28-20 12-15 13-36 3-25-12-46a51 51 0 0 0-46-23l-5-36q20-16 32-42 12-24 14-53 0-17-5-41-7-31-22-33-6 0-12 6a89 89 0 0 0-25 37 167 167 0 0 0-3 89q-31 29-45 45m98 97c0 12-5 31-13 36l-9-63q21 6 22 27m-41-169q1-18 9-37 10-22 16-22h3c5 0 10 2 9 15q-1 17-13 35-10 15-22 25-3-7-2-16m-6 76 3 27q-14 6-23 18-12 13-13 30-1 18 8 31 4 7 12 13c7 5 16 5 18 2q0-4-8-15-4-5-4-13 1-18 16-25l9 70-16 1q-22-2-39-19a48 48 0 0 1-16-38q3-42 53-82";
-        
+
         const tx = x - 7.5 * scale;
         const ty = y - 20.0 * scale;
         const sx = 0.2075 * scale;
         const sy = 0.2075 * scale;
-        
+
         path.setAttribute("d", pathData);
         path.setAttribute("transform", `translate(${tx}, ${ty}) scale(${sx}, ${sy})`);
         path.setAttribute("fill", this.engraverColor);
@@ -631,17 +643,17 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const pathData = "M205 23c-67 0-107 39-118 77-11 39 3 77 17 98h1a64 64 0 0 0 52 26 64 64 0 0 0 64-64 64 64 0 0 0-64-64 64 64 0 0 0-50 24l3-18c10-33 34-61 95-61 60 0 94 64 92 153-1 80-12 128-60 171q-72 65-180 107c-13 5-1 19 7 16 73-28 145-53 196-98 51-46 96-87 96-198 1-97-44-169-151-169";
-        
+
         const tx = x + 2.5 * scale;
         const ty = y - 1.5 * scale;
         const sx = 0.09 * scale;
         const sy = 0.09 * scale;
-        
+
         path.setAttribute("d", pathData);
         path.setAttribute("transform", `translate(${tx}, ${ty}) scale(${sx}, ${sy})`);
         path.setAttribute("fill", this.engraverColor);
         this.svg.appendChild(path);
-        
+
         // Double dots around line 4
         const dotX = x + 18.5 * scale;
         const r = 1.5 * scale;
@@ -656,7 +668,7 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const pathData = "M 0 0 L 4 0 L 4 38 L 0 38 Z M 6 0 L 10 0 L 10 38 L 6 38 Z M 10 9 C 18 9 20 14 20 19 C 20 24 18 29 10 29 Z";
-        
+
         path.setAttribute("d", pathData);
         path.setAttribute("transform", `translate(${x}, ${y}) scale(${scale})`);
         path.setAttribute("fill", this.engraverColor);
@@ -677,7 +689,7 @@ class MusicXMLSvgRenderer {
      */
     drawTimeSignature(x, y, beats, beatType, symbol = null) {
         const scale = this.zoom || 1.0;
-        
+
         if (symbol === "common" || (beats === 4 && beatType === 4 && symbol === "C")) {
             this.drawText(x, y + 24 * scale, "C", `${Math.round(24 * scale)}px`, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
         } else if (symbol === "cut") {
@@ -686,7 +698,7 @@ class MusicXMLSvgRenderer {
             const topY = y + 1.5 * this.lineSpacing; // FIX: Position relative to staff lines
             const bottomY = y + 3.5 * this.lineSpacing; // FIX: Position relative to staff lines
             const size = `${Math.round(18 * scale)}px`;
-            
+
             this.drawText(x, topY, `${beats}`, size, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif"); // Centered on space 1
             this.drawText(x, bottomY, `${beatType}`, size, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif"); // Centered on space 3
         }
@@ -697,19 +709,19 @@ class MusicXMLSvgRenderer {
      */
     drawKeySignature(x, y, fifths, clefType) {
         if (!fifths || fifths === 0) return;
-        
+
         const scale = this.zoom || 1.0;
         const count = Math.abs(fifths);
-        
+
         const trebleSharps = [10, 7, 11, 8, 5, 9, 6];
         const trebleFlats = [6, 9, 5, 8, 4, 7, 3];
         const bassSharps = [-4, -7, -3, -6, -9, -5, -8];
         const bassFlats = [-8, -5, -9, -6, -10, -7, -11];
-        
-        const positions = fifths > 0 
+
+        const positions = fifths > 0
             ? (clefType === "F" ? bassSharps : trebleSharps)
             : (clefType === "F" ? bassFlats : trebleFlats);
-            
+
         for (let i = 0; i < Math.min(count, positions.length); i++) {
             const diatonic = positions[i];
             const symY = this.getNoteY(diatonic, y, clefType);
@@ -737,7 +749,7 @@ class MusicXMLSvgRenderer {
         const ty = y - 10.5 * scale;
         const sx = 2.25 * scale;
         const sy = 2.25 * scale;
-        
+
         paths.forEach(d => {
             const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
             p.setAttribute("d", d);
@@ -757,7 +769,7 @@ class MusicXMLSvgRenderer {
         const ty = y - 30.35 * scale;
         const sx = 2.25 * scale;
         const sy = 2.25 * scale;
-        
+
         const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
         p.setAttribute("d", d);
         p.setAttribute("transform", `translate(${tx}, ${ty}) scale(${sx}, ${sy})`);
@@ -775,7 +787,7 @@ class MusicXMLSvgRenderer {
         const ty = y - 10.5 * scale;
         const sx = 2.25 * scale;
         const sy = 2.25 * scale;
-        
+
         const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
         p.setAttribute("d", d);
         p.setAttribute("transform", `translate(${tx}, ${ty}) scale(${sx}, ${sy})`);
@@ -787,10 +799,10 @@ class MusicXMLSvgRenderer {
      * Render Note Column / Chord
      */
     drawNoteColumn(x, y, notes, clefType, activeTies) {
-        const scale = this.zoom || 1.0;        
+        const scale = this.zoom || 1.0;
         let hasRest = false;
         let restType = "quarter";
-        
+
         const rests = notes.filter(n => n.isRest);
         if (rests.length > 0) {
             hasRest = true;
@@ -820,7 +832,7 @@ class MusicXMLSvgRenderer {
         calculatedNotes.forEach(note => {
             const color = this.colorCoded ? (this.pitchColors[note.step] || this.engraverColor) : this.engraverColor;
             const isHollow = note.type === "whole" || note.type === "half";
-            
+
             this.drawNotehead(x, note.y, color, isHollow);
 
             // Educational letter label inside notehead (only if colorCoded is enabled)
@@ -866,13 +878,13 @@ class MusicXMLSvgRenderer {
             // Slurs / Ties Bezier Arcs
             const { tieStart, tieStop } = note; // Use pre-calculated tie flags from the noteData object
             const pitchKey = `${note.step}${note.alter}${note.octave}${note.staff}`;
-            
+
             if (tieStop && activeTies[pitchKey]) {
                 const prev = activeTies[pitchKey];
                 const yOffset = (stemDown ? -8 : 8) * scale;
                 const sy1 = prev.y + yOffset;
                 const sy2 = note.y + yOffset;
-                
+
                 // System boundary check (x <= prev.x or Y distance > 50*scale)
                 const isCrossSystem = (x <= prev.x) || (Math.abs(prev.y - note.y) > 50 * scale);
 
@@ -901,7 +913,7 @@ class MusicXMLSvgRenderer {
                 } else {
                     const cx = (prev.x + x) / 2;
                     const cy = ((sy1 + sy2) / 2) + (stemDown ? -7 : 7) * scale;
-                    
+
                     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                     path.setAttribute("d", `M ${prev.x} ${sy1} Q ${cx} ${cy} ${x} ${sy2}`);
                     path.setAttribute("fill", "none");
@@ -909,10 +921,10 @@ class MusicXMLSvgRenderer {
                     path.setAttribute("stroke-width", `${1.3 * scale}`);
                     this.svg.appendChild(path);
                 }
-                
+
                 delete activeTies[pitchKey];
             }
-            
+
             if (tieStart) {
                 activeTies[pitchKey] = { x: x, y: note.y };
             }
@@ -996,7 +1008,7 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const first = group[0];
         const last = group[group.length - 1];
-        
+
         group.forEach(s => {
             if (s.flagElement && s.flagElement.parentNode) {
                 s.flagElement.parentNode.removeChild(s.flagElement);
@@ -1011,7 +1023,7 @@ class MusicXMLSvgRenderer {
         // Align intermediate stem endpoints to touch the sloped beam vector exactly
         const dx = x2 - x1;
         const dy = y2 - y1;
-        
+
         if (dx > 0) {
             group.forEach(s => {
                 const ratio = (s.stemX - x1) / dx;
@@ -1055,14 +1067,14 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const rx = 7.75 * scale;
         const ry = 4.6 * scale;
-        
+
         const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
         ellipse.setAttribute("cx", cx);
         ellipse.setAttribute("cy", cy);
         ellipse.setAttribute("rx", rx);
         ellipse.setAttribute("ry", ry);
         ellipse.setAttribute("transform", `rotate(-15 ${cx} ${cy})`);
-        
+
         if (isHollow) {
             ellipse.setAttribute("fill", "#ffffff");
             ellipse.setAttribute("stroke", color);
@@ -1113,17 +1125,17 @@ class MusicXMLSvgRenderer {
         const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
         const flagPathUp = "M -0.112 3.631 C -0.112 0 -0.3031 0 0 0 C 0.28 0.1911 0 0 0 0 C 0.42 0.6879 0.512 0.7834 0.531 0.898 C 1.4 2.8 1.4 2.8 2.327 4.051 C 4.028 5.943 4.525 7.071 4.525 8.581 C 4.506 9.994 3.263 13.014 2.996 12.899 C 3.378 11.829 3.913 10.682 4.047 9.727 C 4.219 8.561 3.741 6.879 1.831 5.16 C 0.779 4.294 0 4.2 -0.112 3.631 Z";
         const flagPathDown = "M -0.112 -3.631 C -0.112 0 -0.3031 0 0 0 C 0.28 -0.1911 0 0 0 0 C 0.42 -0.6879 0.512 -0.7834 0.531 -0.898 C 1.4 -2.8 1.4 -2.8 2.327 -4.051 C 4.028 -5.943 4.525 -7.071 4.525 -8.581 C 4.506 -9.994 3.263 -13.014 2.996 -12.899 C 3.378 -11.829 3.913 -10.682 4.047 -9.727 C 4.219 -8.561 3.741 -6.879 1.831 -5.16 C 0.779 -4.294 0 -4.2 -0.112 -3.631 Z";
-        
+
         const path = isDown ? flagPathDown : flagPathUp;
         const sx = 2.0 * scale;
         const sy = 1.6 * scale;
-        
+
         const p1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
         p1.setAttribute("d", path);
         p1.setAttribute("transform", `translate(${x}, ${y}) scale(${sx}, ${sy})`);
         p1.setAttribute("fill", this.engraverColor);
         group.appendChild(p1);
-        
+
         if (isDouble) {
             const yOffset = (isDown ? -8.5 : 8.5) * scale;
             const p2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -1132,7 +1144,7 @@ class MusicXMLSvgRenderer {
             p2.setAttribute("fill", this.engraverColor);
             group.appendChild(p2);
         }
-        
+
         this.svg.appendChild(group);
         return group;
     }
@@ -1142,7 +1154,7 @@ class MusicXMLSvgRenderer {
      */
     drawRestSymbol(x, y, type) {
         const scale = this.zoom || 1.0;
-        
+
         switch (type) {
             case 'whole':
                 const rWhole = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -1153,7 +1165,7 @@ class MusicXMLSvgRenderer {
                 rWhole.setAttribute("fill", this.engraverColor);
                 this.svg.appendChild(rWhole);
                 break;
-                
+
             case 'half':
                 const rHalf = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                 rHalf.setAttribute("x", x - 10 * scale);
@@ -1163,7 +1175,7 @@ class MusicXMLSvgRenderer {
                 rHalf.setAttribute("fill", this.engraverColor);
                 this.svg.appendChild(rHalf);
                 break;
-                
+
             case 'quarter':
                 const qPath = "M349 372c-14-12-44-43-65-102-21-58 25-95 50-114q12-7-1-21L219 9c-13-17-30-7-20 7 120 171-35 197-35 197s17 44 97 115c-84-22-139 40-97 104 41 64 120 78 127 80s18-4 7-11c-26-17-79-61-54-93 34-42 84-23 97-17 22 11 31-1 8-19";
                 const pQ = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -1172,13 +1184,13 @@ class MusicXMLSvgRenderer {
                 pQ.setAttribute("fill", this.engraverColor);
                 this.svg.appendChild(pQ);
                 break;
-                
+
             case 'eighth':
             case '16th':
             case '32nd':
                 const hookPath = "M 1.098 0 C 0.578 0.098 0.18 0.457 0 0.953 C -0.039 1.113 -0.039 1.152 -0.039 1.371 C -0.039 1.672 -0.02 1.832 0.121 2.07 C 0.32 2.469 0.738 2.789 1.215 2.906 C 1.715 3.047 3 3.153 4 2.153 L 4.941 0.598 C 4.844 0.477 4.645 0.438 4.523 0.535 C 4.484 0.574 4.422 0.656 4.383 0.715 C 4.203 1.016 3.746 1.551 3.508 1.75 C 3.289 1.93 3.168 1.949 2.969 1.871 C 2.789 1.773 2.73 1.672 2.609 1.133 C 2.492 0.598 2.352 0.355 2.051 0.156 C 1.773 -0.023 1.414 -0.082 1.098 0 z";
                 const hookScale = 2.75 * scale;
-                
+
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
                 line.setAttribute("x1", x + 15 * scale);
                 line.setAttribute("y1", y + 10 * scale);
@@ -1187,13 +1199,13 @@ class MusicXMLSvgRenderer {
                 line.setAttribute("stroke", this.engraverColor);
                 line.setAttribute("stroke-width", `${1.1 * scale}`);
                 this.svg.appendChild(line);
-                
+
                 const pH1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 pH1.setAttribute("d", hookPath);
                 pH1.setAttribute("transform", `translate(${x + 1.5 * scale}, ${y + 11 * scale}) scale(${hookScale})`);
                 pH1.setAttribute("fill", this.engraverColor);
                 this.svg.appendChild(pH1);
-                
+
                 if (type === '16th' || type === '32nd') {
                     const pH2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
                     pH2.setAttribute("d", hookPath);
@@ -1306,7 +1318,7 @@ class MusicXMLSvgRenderer {
                 const dottedFactors = [1.875, 1.75, 1.5, 1.0];
                 for (const factor of dottedFactors) {
                     const candidateDuration = Math.round(baseDurationDivs * factor);
-                    
+
                     // If this candidate fits within the remaining duration and is larger than the current best
                     if (candidateDuration > 0 && candidateDuration <= remaining + epsilon && candidateDuration > bestPieceDuration) {
                         bestPieceDuration = candidateDuration;
