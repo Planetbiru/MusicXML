@@ -61,6 +61,7 @@ class MidiParser {
         const meta = [];
         const tracks = [];
         const timeSignatures = [];
+        const keySignatures = [];
         let maxTicks = 0;
 
         // Global state to track instruments assigned to each of the 16 MIDI channels
@@ -182,6 +183,23 @@ class MidiParser {
                             numerator: numerator,
                             denominator: 2 ** denominatorExp
                         });
+                    }
+                    // Key Signature (2 bytes: fifths, mode)
+                    else if (metaType === 0x59 && len >= 2) {
+                        let fifths = readUint8();
+                        if (fifths > 7) {
+                            fifths -= 256;
+                        }
+                        const modeVal = readUint8();
+                        const mode = modeVal === 0 ? 'major' : 'minor';
+                        keySignatures.push({
+                            ticks: tick,
+                            fifths: fifths,
+                            mode: mode
+                        });
+                        if (len > 2) {
+                            offset += (len - 2);
+                        }
                     }
                     // Sequence/Track Name
                     else if (metaType === 0x03) {
@@ -368,6 +386,7 @@ class MidiParser {
             tempos,
             meta,
             timeSignatures,
+            keySignatures,
             maxTicks: maxTicks,
             firstNoteTick: globalFirstTick === Infinity ? 0 : globalFirstTick,
             channelProgramChanges,
@@ -575,4 +594,9 @@ class MidiParser {
 
         return { header, tracks, instruments };
     }
+}
+
+// Export for Node.js
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = MidiParser;
 }

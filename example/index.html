@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI to MusicXML Converter | Planetbiru</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Convert MIDI files to valid MusicXML 4.0 in your web browser. Preview rendered sheet music and view parsed MIDI metadata.">
+    <meta name="keywords" content="midi, musicxml, converter, browser, parser, sheet music, music notation">
+    
+    <!-- Google Fonts: Outfit (headings) & Inter (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- OpenSheetMusicDisplay Renderer CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.8/build/opensheetmusicdisplay.min.js"></script>
+    
+    <!-- Core MIDI Parser & Converter Libraries (Local Workspace Files) -->
+    <script src="midi-parser.js"></script>
+    <script src="midi-to-musicxml.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #1e1b4b 100%);
+            --primary: #8b5cf6;
+            --primary-hover: #a78bfa;
+            --primary-glow: rgba(139, 92, 246, 0.4);
+            --secondary: #06b6d4;
+            --secondary-hover: #22d3ee;
+            --accent: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-bg: rgba(30, 41, 59, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --panel-bg: #1e293b;
+            --input-bg: rgba(15, 23, 42, 0.6);
+            --border-radius: 16px;
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        /* Custom Scrollbars */
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphic Background Glows */
+        .glow-sphere {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: var(--primary-glow);
+            filter: blur(120px);
+            z-index: -1;
+            pointer-events: none;
+        }
+        .glow-1 { top: -100px; left: -100px; }
+        .glow-2 { bottom: 10%, right: -100px; background: rgba(6, 182, 212, 0.25); }
+
+        header {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, var(--primary-hover), var(--secondary-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo i {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .version-tag {
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        main {
+            max-width: 1400px;
+            width: 100%;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            flex-grow: 1;
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Glassmorphic Panel/Card Styles */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-card-shadow);
+            border-radius: var(--border-radius);
+            padding: 1.75rem;
+            height: fit-content;
+            transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+        }
+
+        .glass-panel:hover {
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.75rem;
+        }
+
+        h2 i {
+            color: var(--primary-hover);
+        }
+
+        /* Drag & Drop Upload Zone */
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: var(--border-radius);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+            background: rgba(15, 23, 42, 0.2);
+            overflow: hidden;
+            margin-bottom: 1.25rem;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(139, 92, 246, 0.08);
+            box-shadow: inset 0 0 12px rgba(139, 92, 246, 0.15);
+        }
+
+        .upload-zone i.upload-icon {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary-hover), var(--secondary-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .upload-zone:hover i.upload-icon {
+            transform: translateY(-5px);
+        }
+
+        .upload-text {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-subtext {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+
+        /* Load Sample Button */
+        .btn-sample {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .btn-sample:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: var(--text-muted);
+            transform: scale(1.02);
+        }
+
+        .btn-sample i {
+            color: var(--secondary-hover);
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Checkbox & Switch Styles */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            background: rgba(15, 23, 42, 0.2);
+            padding: 0.65rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .switch-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .switch-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .switch-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Channel List Panel */
+        .channel-list-card {
+            margin-top: 1.25rem;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .channel-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.4rem 0.5rem;
+            border-radius: 6px;
+            transition: background var(--transition-speed);
+        }
+
+        .channel-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .channel-num {
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .channel-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel-instrument {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .channel-notes {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Action Buttons */
+        .btn-convert {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), #6d28d9);
+            color: var(--text-main);
+            border: none;
+            padding: 0.85rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            margin-top: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all var(--transition-speed) ease;
+            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-convert:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+            background: linear-gradient(135deg, var(--primary-hover), var(--primary));
+        }
+
+        .btn-convert:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-convert:disabled {
+            background: #334155;
+            color: #64748b;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Right Column (Results Area) */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: 100%;
+        }
+
+        .file-info-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--glass-border);
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--border-radius);
+            font-size: 0.85rem;
+        }
+
+        .file-info-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-info-title i {
+            color: var(--secondary-hover);
+        }
+
+        /* Tabs System */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1.25rem;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+        }
+
+        .tab:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab.active {
+            color: var(--primary-hover);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.55rem;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            flex-grow: 1;
+            min-height: 450px;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Sheet Music View */
+        #sheet-music-container {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            color: #000000;
+            flex-grow: 1;
+            overflow: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* Monospace Source Code view */
+        .source-view-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            height: 100%;
+            flex-grow: 1;
+        }
+
+        .source-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .btn-action:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+        }
+
+        .xml-textarea {
+            width: 100%;
+            flex-grow: 1;
+            height: 500px;
+            background: #0f172a;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 1rem;
+            color: #38bdf8;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            resize: none;
+            outline: none;
+        }
+
+        .xml-textarea:focus {
+            border-color: var(--secondary);
+        }
+
+        /* Metadata Inspector Grid */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .meta-card {
+            background: rgba(15, 23, 42, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .meta-val {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: var(--secondary-hover);
+            margin-top: 0.25rem;
+        }
+
+        .meta-lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        /* Tempos list / Lyrics List */
+        .data-list-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .data-list-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .data-card {
+            background: rgba(15, 23, 42, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .data-card h3 {
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 0.4rem;
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 0.25rem 0;
+            color: var(--text-muted);
+        }
+
+        .data-item span:last-child {
+            font-family: monospace;
+            color: var(--text-main);
+        }
+
+        /* Empty States & Alert Boxes */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+            border: 2px dashed rgba(255, 255, 255, 0.05);
+            border-radius: var(--border-radius);
+            background: rgba(15, 23, 42, 0.1);
+        }
+
+        .empty-state i {
+            font-size: 3.5rem;
+            color: #334155;
+            margin-bottom: 1.5rem;
+        }
+
+        .empty-state h3 {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .empty-state p {
+            max-width: 400px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* Status & Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #0f172a;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border-radius: 6px;
+            padding: 0.85rem 1.5rem;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateY(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 0.85rem;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+        }
+
+        .toast.success { border-left-color: #10b981; }
+        .toast.error { border-left-color: var(--accent); }
+        
+        /* Spinners / Process Loaders */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border-left-color: var(--text-main);
+            animation: spin 1s linear infinite;
+        }
+
+        .screen-loader {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            z-index: 10;
+            border-radius: 8px;
+        }
+
+        .screen-loader span {
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 2rem;
+        }
+
+        footer a {
+            color: var(--secondary-hover);
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Glow Spheres -->
+    <div class="glow-sphere glow-1"></div>
+    <div class="glow-sphere glow-2"></div>
+
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <i class="fa-solid fa-file-music"></i> Planetbiru MIDI Converter
+            </div>
+            <div class="version-tag">MusicXML 4.0 JS Engine v1.0</div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Left Side: Controls & Options -->
+        <section class="glass-panel" style="width: 100%;">
+            <h2><i class="fa-solid fa-sliders"></i> Input & Settings</h2>
+            
+            <!-- File Drag & Drop Zone -->
+            <div class="upload-zone" id="drop-zone">
+                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                <div class="upload-text">Upload MIDI File</div>
+                <div class="upload-subtext">Drag & drop or click to browse (.mid, .midi)</div>
+                <input type="file" id="file-input" class="hidden-file-input" accept=".mid,.midi">
+                
+                <button type="button" class="btn-sample" id="btn-load-sample" onclick="event.stopPropagation(); loadSampleMidi();">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample MIDI (example.mid)
+                </button>
+            </div>
+
+            <!-- Conversion Options form -->
+            <form id="settings-form" onsubmit="event.preventDefault();">
+                <div class="form-group">
+                    <label for="score-title">Score Title</label>
+                    <input type="text" id="score-title" class="form-control" value="MIDI Export" placeholder="e.g. Moonlight Sonata">
+                </div>
+
+                <div class="form-group">
+                    <label for="score-creator">Composer / Creator</label>
+                    <input type="text" id="score-creator" class="form-control" value="Planetbiru MusicXML JS" placeholder="e.g. Beethoven">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="divisions">Divisions</label>
+                        <select id="divisions" class="form-control">
+                            <option value="2">2 (Eighth Note)</option>
+                            <option value="4" selected>4 (16th Note)</option>
+                            <option value="8">8 (32nd Note)</option>
+                            <option value="12">12 (Triplet / 32nd)</option>
+                            <option value="16">16 (64th Note)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <div style="height: 38px; display: flex; align-items: center; justify-content: flex-end;">
+                            <!-- Filler to balance layout -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Switches -->
+                <div class="switch-container">
+                    <div class="switch-label">
+                        <span class="switch-title">Fill Rests</span>
+                        <span class="switch-desc">Fill gaps between notes with rests</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="use-rest-filling" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="switch-container">
+                    <div class="switch-label">
+                        <span class="switch-title">Normalize Note Times</span>
+                        <span class="switch-desc">Align first note to start at tick 0</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="normalize">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="switch-container" style="display: none;">
+                    <div class="switch-label">
+                        <span class="switch-title">Force Update Events</span>
+                        <span class="switch-desc">Rebuild event timestamps</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="force-update-events" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Channels Inspector/Selector -->
+                <div id="channels-panel" style="display: none;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">
+                        Select Channels to Convert
+                    </label>
+                    <div class="channel-list-card" id="channels-list">
+                        <!-- Dynamic checkboxes loaded on parsing -->
+                    </div>
+                </div>
+
+                <button type="button" class="btn-convert" id="btn-convert" disabled onclick="convertMIDI();">
+                    <i class="fa-solid fa-arrows-rotate"></i> Convert to MusicXML
+                </button>
+            </form>
+        </section>
+
+        <!-- Right Side: Viewers / Output -->
+        <section class="results-container">
+            <!-- Active file info banner -->
+            <div class="file-info-bar" id="file-info-bar" style="visibility: hidden;">
+                <div class="file-info-title">
+                    <i class="fa-solid fa-file-audio"></i> <span id="info-filename">No MIDI loaded</span>
+                </div>
+                <div id="info-filesize">0 KB</div>
+            </div>
+
+            <!-- Output Box -->
+            <div class="glass-panel" style="flex-grow: 1; display: flex; flex-direction: column;">
+                <!-- Tab headers -->
+                <div class="tabs">
+                    <button type="button" class="tab active" onclick="switchTab('tab-sheet')">
+                        <i class="fa-solid fa-music"></i> Sheet Music
+                    </button>
+                    <button type="button" class="tab" onclick="switchTab('tab-source')">
+                        <i class="fa-solid fa-code"></i> MusicXML Source
+                    </button>
+                    <button type="button" class="tab" onclick="switchTab('tab-metadata')">
+                        <i class="fa-solid fa-circle-info"></i> MIDI Inspector
+                    </button>
+                </div>
+
+                <!-- Main view areas -->
+                <div style="position: relative; flex-grow: 1; display: flex; flex-direction: column;">
+                    
+                    <!-- Renderer loading overlay -->
+                    <div id="render-loader" class="screen-loader" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Rendering Notation...</span>
+                    </div>
+
+                    <!-- EMPTY STATE (default shown before any load) -->
+                    <div id="empty-state-view" class="empty-state">
+                        <i class="fa-solid fa-file-import"></i>
+                        <h3>Convert Your MIDI File</h3>
+                        <p>Upload a standard MIDI file or load the sample `example.mid` to begin. The app parses the file and exports valid MusicXML structure locally.</p>
+                    </div>
+
+                    <!-- TAB 1: Sheet Music Render -->
+                    <div id="tab-sheet" class="tab-content">
+                        <div class="sheet-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; background: rgba(15, 23, 42, 0.2); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-magnifying-glass-plus"></i> Zoom:</span>
+                                <input type="range" id="zoom-slider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateZoom(this.value);" style="cursor: pointer; width: 100px;">
+                                <span id="zoom-val" style="font-size: 0.8rem; font-weight: 600; min-width: 35px;">100%</span>
+                            </div>
+                            <button type="button" class="btn-action" onclick="resetZoom();" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 4px; margin: 0; min-height: unset; height: unset;">
+                                <i class="fa-solid fa-arrows-rotate"></i> Reset
+                            </button>
+                        </div>
+                        <div id="sheet-music-container">
+                            <!-- SVG render output from OSMD -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: MusicXML Source Output -->
+                    <div id="tab-source" class="tab-content">
+                        <div class="source-view-container">
+                            <div class="source-actions">
+                                <button type="button" class="btn-action" onclick="copyXMLToClipboard();">
+                                    <i class="fa-solid fa-copy"></i> Copy XML
+                                </button>
+                                <button type="button" class="btn-action" onclick="downloadMusicXML();">
+                                    <i class="fa-solid fa-download"></i> Download MusicXML
+                                </button>
+                            </div>
+                            <textarea id="xml-output" class="xml-textarea" readonly></textarea>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: MIDI Metadata Inspector -->
+                    <div id="tab-metadata" class="tab-content">
+                        <div class="meta-grid">
+                            <div class="meta-card">
+                                <div class="meta-lbl">MIDI Format</div>
+                                <div id="meta-format" class="meta-val">-</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-lbl">Total Tracks</div>
+                                <div id="meta-tracks" class="meta-val">-</div>
+                            </div>
+                            <div class="meta-card">
+                                <div class="meta-lbl">PPQ (Divisions)</div>
+                                <div id="meta-ppq" class="meta-val">-</div>
+                            </div>
+                        </div>
+
+                        <div class="data-list-container">
+                            <div class="data-card">
+                                <h3>Tempos Detected</h3>
+                                <div id="meta-tempos-list">
+                                    <!-- Dynamic list -->
+                                </div>
+                            </div>
+                            <div class="data-card">
+                                <h3>Time Signatures</h3>
+                                <div id="meta-time-sigs-list">
+                                    <!-- Dynamic list -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="data-list-container" style="grid-template-columns: 1fr; margin-top: 1.5rem;">
+                            <div class="data-card" style="max-height: 350px;">
+                                <h3>Key Signatures</h3>
+                                <div id="meta-key-sigs-list">
+                                    <!-- Dynamic list -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Built with <i class="fa-solid fa-heart" style="color: var(--accent);"></i> using HTML5, Vanilla CSS, and JavaScript. Powered by Planetbiru MusicXML Core.</p>
+    </footer>
+
+    <!-- Toast Notification Popup -->
+    <div id="toast" class="toast">
+        <i id="toast-icon" class="fa-solid fa-circle-info"></i>
+        <span id="toast-message">Message text</span>
+    </div>
+
+    <!-- UI/JS Logic -->
+    <script>
+        let currentMidiBuffer = null;
+        let currentFilename = "";
+        let currentParsedMidi = null;
+        let currentXmlContent = "";
+        let osmd = null;
+
+        // Drag & Drop Setup
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        // Drag events
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleUploadedFile(files[0]);
+            }
+        });
+
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleUploadedFile(e.target.files[0]);
+            }
+        });
+
+        // Show/Hide toast alert
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const text = document.getElementById('toast-message');
+
+            toast.className = 'toast'; // reset
+            if (type === 'success') {
+                toast.classList.add('success');
+                icon.className = 'fa-solid fa-circle-check';
+                icon.style.color = '#10b981';
+            } else if (type === 'error') {
+                toast.classList.add('error');
+                icon.className = 'fa-solid fa-circle-xmark';
+                icon.style.color = 'var(--accent)';
+            } else {
+                icon.className = 'fa-solid fa-circle-info';
+                icon.style.color = 'var(--secondary)';
+            }
+
+            text.innerText = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        // Fetch sample file from repo
+        function loadSampleMidi() {
+            showToast("Fetching sample MIDI file 'example.mid'...", "info");
+            fetch('example.mid')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Server returned status ${response.status}`);
+                    }
+                    return response.arrayBuffer();
+                })
+                .then(buffer => {
+                    currentFilename = "example.mid";
+                    currentMidiBuffer = buffer;
+                    
+                    // Show file info
+                    updateFileInfo(currentFilename, buffer.byteLength);
+                    
+                    // Parse & Convert
+                    parseAndProcessMIDI();
+                    showToast("Sample MIDI file loaded successfully!", "success");
+                })
+                .catch(err => {
+                    console.error("Error loading sample MIDI:", err);
+                    showToast("Could not load local sample: " + err.message + ". Please drag and drop a MIDI file instead.", "error");
+                });
+        }
+
+        // Process a raw uploaded file
+        function handleUploadedFile(file) {
+            if (!file.name.endsWith('.mid') && !file.name.endsWith('.midi')) {
+                showToast("Please upload a valid MIDI (.mid or .midi) file.", "error");
+                return;
+            }
+
+            currentFilename = file.name;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentMidiBuffer = e.target.result;
+                updateFileInfo(currentFilename, currentMidiBuffer.byteLength);
+                parseAndProcessMIDI();
+                showToast("MIDI file uploaded successfully!", "success");
+            };
+            reader.onerror = function() {
+                showToast("Error reading files.", "error");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Update top-right display of active filename
+        function updateFileInfo(name, bytes) {
+            const bar = document.getElementById('file-info-bar');
+            const nameEl = document.getElementById('info-filename');
+            const sizeEl = document.getElementById('info-filesize');
+            
+            nameEl.innerText = name;
+            sizeEl.innerText = (bytes / 1024).toFixed(1) + " KB";
+            bar.style.visibility = 'visible';
+            
+            // Enable button
+            document.getElementById('btn-convert').disabled = false;
+        }
+
+        // Run parser to populate channel options and basic details
+        function parseAndProcessMIDI() {
+            if (!currentMidiBuffer) return;
+
+            try {
+                // Parse MIDI binary using the project's MidiParser
+                const forceUpdate = document.getElementById('force-update-events').checked;
+                const normalize = document.getElementById('normalize').checked;
+                
+                currentParsedMidi = MidiParser.parse(currentMidiBuffer, {
+                    normalize: normalize,
+                    forceUpdateEvents: forceUpdate
+                });
+
+                // Display channels checklist
+                renderChannelsSelector(currentParsedMidi);
+                
+                // Show metadata in the Inspector Tab
+                displayMetadata(currentParsedMidi);
+                
+                // Automatically run conversion
+                convertMIDI();
+
+            } catch (err) {
+                console.error("MIDI parsing error:", err);
+                showToast("Failed to parse MIDI: " + err.message, "error");
+            }
+        }
+
+        // Render dynamic list of channels found in MIDI
+        function renderChannelsSelector(parsed) {
+            const panel = document.getElementById('channels-panel');
+            const container = document.getElementById('channels-list');
+            container.innerHTML = "";
+            
+            // Count notes per channel
+            const channelNotesCount = new Array(16).fill(0);
+            parsed.tracks.forEach(track => {
+                if (track.notes) {
+                    track.notes.forEach(n => {
+                        channelNotesCount[n.channel]++;
+                    });
+                }
+            });
+
+            // Find active channels
+            let activeCount = 0;
+            for (let ch = 0; ch < 16; ch++) {
+                const notesCount = channelNotesCount[ch];
+                if (notesCount > 0) {
+                    activeCount++;
+                    const programList = parsed.instruments[ch] || [0];
+                    const instNames = programList.map(prog => {
+                        if (ch === 9) return "Percussion/Drums";
+                        const inst = MidiToMusicXML.INSTRUMENT_LIST[prog];
+                        return inst ? inst[0] : "Instrument " + (prog + 1);
+                    }).join(", ");
+
+                    // Build dynamic UI row
+                    const item = document.createElement('div');
+                    item.className = "channel-item";
+                    item.innerHTML = `
+                        <div class="channel-info">
+                            <input type="checkbox" id="ch-check-${ch}" value="${ch}" checked onchange="convertMIDI();" style="cursor: pointer; width: 16px; height: 16px;">
+                            <span class="channel-num">${ch + 1}</span>
+                            <div class="channel-details">
+                                <span class="channel-instrument">${instNames}</span>
+                                <span class="channel-notes">${notesCount} notes</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                }
+            }
+
+            if (activeCount > 0) {
+                panel.style.display = "block";
+            } else {
+                panel.style.display = "none";
+                container.innerHTML = "<div style='font-size:0.8rem; color:var(--text-muted); padding:0.5rem;'>No midi note channels detected</div>";
+            }
+        }
+
+        // Display general MIDI details inside Inspector
+        function displayMetadata(parsed) {
+            document.getElementById('meta-format').innerText = parsed.header.format !== undefined ? parsed.header.format : "0/1";
+            document.getElementById('meta-tracks').innerText = parsed.tracks.length;
+            document.getElementById('meta-ppq').innerText = parsed.header.ppq;
+
+            // Tempos List
+            const temposContainer = document.getElementById('meta-tempos-list');
+            temposContainer.innerHTML = "";
+            let tempoCount = 0;
+            parsed.tracks.forEach((track, tIdx) => {
+                if (track.tempos) {
+                    track.tempos.forEach(tmp => {
+                        tempoCount++;
+                        const bpm = Math.round(tmp.bpm);
+                        const item = document.createElement('div');
+                        item.className = "data-item";
+                        item.innerHTML = `<span>Track ${tIdx + 1} - Tick ${tmp.ticks}</span><span>${bpm} BPM</span>`;
+                        temposContainer.appendChild(item);
+                    });
+                }
+            });
+            if (tempoCount === 0) {
+                temposContainer.innerHTML = "<div style='font-size:0.8rem; color:var(--text-muted);'>No tempo changes defined (Default: 120 BPM)</div>";
+            }
+
+            // Time Signatures List
+            const timeSigsContainer = document.getElementById('meta-time-sigs-list');
+            timeSigsContainer.innerHTML = "";
+            let timeSigCount = 0;
+            parsed.tracks.forEach((track, tIdx) => {
+                if (track.timeSignatures) {
+                    track.timeSignatures.forEach(sig => {
+                        timeSigCount++;
+                        const item = document.createElement('div');
+                        item.className = "data-item";
+                        item.innerHTML = `<span>Track ${tIdx + 1} - Tick ${sig.ticks}</span><span>${sig.numerator}/${sig.denominator}</span>`;
+                        timeSigsContainer.appendChild(item);
+                    });
+                }
+            });
+            if (timeSigCount === 0) {
+                timeSigsContainer.innerHTML = "<div style='font-size:0.8rem; color:var(--text-muted);'>No time signature defined (Default: 4/4)</div>";
+            }
+
+            // Key Signatures List
+            const keySigsContainer = document.getElementById('meta-key-sigs-list');
+            keySigsContainer.innerHTML = "";
+            let keySigCount = 0;
+            parsed.tracks.forEach((track, tIdx) => {
+                if (track.keySignatures) {
+                    track.keySignatures.forEach(key => {
+                        keySigCount++;
+                        const item = document.createElement('div');
+                        item.className = "data-item";
+                        item.innerHTML = `<span>Track ${tIdx + 1} - Tick ${key.ticks}</span><span>Key: ${key.key} (fifths: ${key.fifths}, mode: ${key.mode})</span>`;
+                        keySigsContainer.appendChild(item);
+                    });
+                }
+            });
+            if (keySigCount === 0) {
+                keySigsContainer.innerHTML = "<div style='font-size:0.8rem; color:var(--text-muted);'>No key signatures defined (Default: C Major)</div>";
+            }
+        }
+
+        // Convert MIDI to MusicXML using input forms & checkboxes
+        function convertMIDI() {
+            if (!currentMidiBuffer) return;
+            
+            // Show loading animation on sheet music tab if active
+            const loader = document.getElementById('render-loader');
+            loader.style.display = "flex";
+
+            // Hide empty state
+            document.getElementById('empty-state-view').style.display = "none";
+
+            setTimeout(() => {
+                try {
+                    // Assemble options
+                    const title = document.getElementById('score-title').value || "MIDI Export";
+                    const creator = document.getElementById('score-creator').value || "Planetbiru MusicXML JS";
+                    const divisions = parseInt(document.getElementById('divisions').value) || 4;
+                    const useRestFilling = document.getElementById('use-rest-filling').checked;
+                    const normalize = document.getElementById('normalize').checked;
+                    const forceUpdateEvents = document.getElementById('force-update-events').checked;
+
+                    // Get selected channels
+                    const selectedChannels = [];
+                    const checkboxes = document.querySelectorAll('[id^="ch-check-"]');
+                    if (checkboxes.length > 0) {
+                        checkboxes.forEach(cb => {
+                            if (cb.checked) {
+                                selectedChannels.push(parseInt(cb.value));
+                            }
+                        });
+                    }
+
+                    // Perform conversion using local class
+                    // Re-parse with active normalization setting
+                    const parsed = MidiParser.parse(currentMidiBuffer, {
+                        normalize: normalize,
+                        forceUpdateEvents: forceUpdateEvents
+                    });
+
+                    // Build options object
+                    const conversionOptions = {
+                        title: title,
+                        creator: creator,
+                        divisions: divisions,
+                        useRestFilling: useRestFilling,
+                        selectedChannels: selectedChannels.length > 0 ? selectedChannels : null,
+                        normalize: normalize,
+                        forceUpdateEvents: forceUpdateEvents
+                    };
+
+                    currentXmlContent = MidiToMusicXML.convertParsed(parsed, conversionOptions);
+
+                    // Render XML to viewer
+                    document.getElementById('xml-output').value = currentXmlContent;
+
+                    // Ensure the tab views are active
+                    const activeTabId = document.querySelector('.tab.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+                    showTabElements(activeTabId);
+
+                    // Render Sheet Music notation visually
+                    renderNotation(currentXmlContent);
+                    
+                } catch (err) {
+                    console.error("Conversion error:", err);
+                    showToast("Conversion failed: " + err.message, "error");
+                    loader.style.display = "none";
+                }
+            }, 50);
+        }
+
+        // Render MusicXML visually using OpenSheetMusicDisplay
+        function renderNotation(xmlText) {
+            const container = document.getElementById("sheet-music-container");
+            const loader = document.getElementById('render-loader');
+            
+            // Clean container
+            container.innerHTML = "";
+            
+            try {
+                // Initialize OpenSheetMusicDisplay
+                osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, {
+                    autoResize: true,
+                    backend: "svg", // Render using SVG for highest resolution vector rendering
+                    drawTitle: true,
+                    drawSubtitle: true,
+                    drawComposer: true,
+                    drawLyricist: true,
+                    drawCredits: true,
+                    drawPartNames: true,
+                    renderingParameters: {
+                        drawFromMeasureNumber: 1
+                    }
+                });
+
+                const currentZoom = parseFloat(document.getElementById('zoom-slider').value) || 1.0;
+                osmd.Zoom = currentZoom;
+
+                osmd.load(xmlText)
+                    .then(() => {
+                        try {
+                            osmd.render();
+                            scaleSvgToFit();
+                            loader.style.display = "none";
+                        } catch (renderError) {
+                            console.error("OSMD render step failed:", renderError);
+                            container.innerHTML = `<div style="color:#ef4444; padding:2rem; text-align:center;">
+                                <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+                                <p>Render Error: ${renderError.message}</p>
+                                <small style="color:var(--text-muted);">The MusicXML is generated correctly, but the sheet music rendering engine failed to draw notation.</small>
+                            </div>`;
+                            loader.style.display = "none";
+                        }
+                    })
+                    .catch(loadError => {
+                        console.error("OSMD load failed:", loadError);
+                        container.innerHTML = `<div style="color:#ef4444; padding:2rem; text-align:center;">
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+                            <p>Sheet Music Load Error: ${loadError.message}</p>
+                        </div>`;
+                        loader.style.display = "none";
+                    });
+            } catch (err) {
+                console.error("Failed to initialize OSMD:", err);
+                container.innerHTML = `<div style="color:#ef4444; padding:2rem; text-align:center;">Failed to initialize Sheet Music Renderer.</div>`;
+                loader.style.display = "none";
+            }
+        }
+
+        // Tab Switching Actions
+        function switchTab(tabId) {
+            // Remove active from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+
+            // Find tab button that triggers tabId
+            tabs.forEach(t => {
+                if (t.getAttribute('onclick').includes(tabId)) {
+                    t.classList.add('active');
+                }
+            });
+
+            showTabElements(tabId);
+
+            // Re-render to scale correctly in newly visible container
+            if (tabId === 'tab-sheet' && osmd) {
+                try {
+                    osmd.render();
+                    scaleSvgToFit();
+                } catch (e) {
+                    console.error("OSMD render on tab switch failed:", e);
+                }
+            }
+        }
+
+        // Scale SVG vectors to fill the container width smoothly
+        function scaleSvgToFit() {
+            const container = document.getElementById("sheet-music-container");
+            const svgs = container.querySelectorAll("svg");
+            svgs.forEach(svg => {
+                const width = svg.getAttribute("width");
+                const height = svg.getAttribute("height");
+                if (width && height && !svg.getAttribute("viewBox")) {
+                    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+                }
+                svg.style.width = "100%";
+                svg.style.height = "auto";
+                svg.style.display = "block";
+            });
+        }
+
+        // Zoom actions
+        function updateZoom(val) {
+            if (osmd) {
+                osmd.Zoom = parseFloat(val);
+                document.getElementById('zoom-val').innerText = Math.round(val * 100) + "%";
+                try {
+                    osmd.render();
+                    scaleSvgToFit();
+                } catch (e) {
+                    console.error("Zoom render error:", e);
+                }
+            }
+        }
+
+        function resetZoom() {
+            document.getElementById('zoom-slider').value = 1.0;
+            updateZoom(1.0);
+        }
+
+        function showTabElements(tabId) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(c => c.classList.remove('active'));
+
+            // Show active tab contents (if file loaded, else empty state stays)
+            if (currentMidiBuffer) {
+                document.getElementById('empty-state-view').style.display = "none";
+                document.getElementById(tabId).classList.add('active');
+            } else {
+                document.getElementById('empty-state-view').style.display = "flex";
+            }
+        }
+
+        // Copy XML code to clipboard
+        function copyXMLToClipboard() {
+            const textarea = document.getElementById('xml-output');
+            textarea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast("MusicXML copied to clipboard!", "success");
+                } else {
+                    showToast("Failed to copy text.", "error");
+                }
+            } catch (err) {
+                showToast("Could not copy clipboard: " + err, "error");
+            }
+        }
+
+        // Download MusicXML file in browser
+        function downloadMusicXML() {
+            if (!currentXmlContent) {
+                showToast("No generated content to download.", "error");
+                return;
+            }
+
+            const cleanName = currentFilename.replace(/\.[^/.]+$/, ""); // strip extension
+            const outputName = `${cleanName || 'score'}.musicxml`;
+            
+            const blob = new Blob([currentXmlContent], { type: 'application/vnd.recordare.musicxml+xml;charset=utf-8' });
+            const link = document.createElement('a');
+            
+            if (window.navigator.msSaveOrOpenBlob) {
+                window.navigator.msSaveBlob(blob, outputName);
+            } else {
+                link.href = URL.createObjectURL(blob);
+                link.download = outputName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+            showToast(`Downloaded ${outputName}!`, "success");
+        }
+    </script>
+</body>
+</html>
