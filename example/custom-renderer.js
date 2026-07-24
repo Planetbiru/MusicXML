@@ -754,7 +754,7 @@ class MusicXMLSvgRenderer {
      * Render Note Column / Chord
      */
     drawNoteColumn(x, y, notes, clefType, activeTies) {
-        const scale = this.zoom || 1.0;
+        const scale = this.zoom || 1.0;        
         let hasRest = false;
         let restType = "quarter";
         
@@ -927,7 +927,10 @@ class MusicXMLSvgRenderer {
             stemDown: stemDown,
             type: firstNoteType,
             isBeamable: isBeamable,
-            flagElement: flagElement,
+            // FIX: Pass beat index for correct beaming logic
+            beatIndex: Math.floor(lowestNote.onsetDiv / (notes[0].divisions || 1)),
+            divisions: notes[0].divisions,
+            flagElement: flagElement, // Keep for potential removal
             stemLine: stemLine
         };
     }
@@ -936,27 +939,32 @@ class MusicXMLSvgRenderer {
      * Draw Multi-Note Beams (8th/16th/32nd note groups)
      */
     drawBeams(stems) {
-        if (stems.length < 2) return;
-        const scale = this.zoom || 1.0;
-        
-        let currentGroup = [stems[0]];
-        for (let i = 1; i < stems.length; i++) {
-            const prev = stems[i - 1];
-            const curr = stems[i];
-            
-            if (curr.stemDown === prev.stemDown && (curr.x - prev.x) < 120 * scale) {
-                currentGroup.push(curr);
-            } else {
-                if (currentGroup.length >= 2) {
-                    this.renderBeamGroup(currentGroup);
-                }
-                currentGroup = [curr];
+        if (!stems || stems.length < 2) return;
+
+        let i = 0;
+        while (i < stems.length) {
+            // Find the start of a potential beam group
+            if (!stems[i].isBeamable) {
+                i++;
+                continue;
             }
-        }
-        if (currentGroup.length >= 2) {
-            this.renderBeamGroup(currentGroup);
+
+            let currentGroup = [stems[i]];
+            let j = i + 1;
+            while (j < stems.length && stems[j].isBeamable && stems[j].beatIndex === stems[i].beatIndex && stems[j].stemDown === stems[i].stemDown) {
+                currentGroup.push(stems[j]);
+                j++;
+            }
+
+            if (currentGroup.length > 1) {
+                this.renderBeamGroup(currentGroup);
+            } else {
+                // Not enough notes for a beam, do nothing
+            }
+            i = j; // Move to the next note after the processed group
         }
     }
+
 
     renderBeamGroup(group) {
         const scale = this.zoom || 1.0;
