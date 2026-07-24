@@ -164,16 +164,17 @@ class MusicXMLSvgRenderer {
                           "Untitled Score";
         const composer = xmlDoc.querySelector("creator[type='composer']")?.textContent || 
                          xmlDoc.querySelector("creator")?.textContent || 
-                         "";
+                         ""; 
         const subtitle = xmlDoc.querySelector("movement-title")?.textContent || "";
         const partName = parts.length === 1 
             ? (xmlDoc.querySelector("part-name")?.textContent || (totalSystemStaves === 2 ? "Piano" : "Score"))
             : "Full Score";
 
         // Header Title Block
-        let currentY = 45 * scale;
+        let currentY = 30 * scale; // Start with a small top margin
         
         // Title
+        // Draw title at the initial currentY position
         this.drawText(containerWidth / 2, currentY, songTitle, `${Math.round(22 * scale)}px`, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
         
         // Subtitle
@@ -188,11 +189,11 @@ class MusicXMLSvgRenderer {
         }
         
         // Part Name / Instrument
-        currentY += 28 * scale;
+        currentY += 22 * scale;
         this.drawText(50 * scale, currentY, partName, `${Math.round(12 * scale)}px`, "#475569", "start", true, "'Inter', sans-serif");
         
         // System Layout Metrics
-        currentY += 15 * scale;
+        currentY += 25 * scale; // Add space before the first staff system
         const leftMargin = 85 * scale;
         const rightMargin = 40 * scale;
         const systemStartX = leftMargin - 60 * scale;
@@ -451,9 +452,12 @@ class MusicXMLSvgRenderer {
             currentX += measureWidth;
         }
 
+        // Adjust viewBox to remove top padding and fit content snugly
+        const viewBoxY = 10 * scale; 
         const totalHeight = currentY + calculatedStaffSystemHeight + 40 * scale;
-        this.svg.setAttribute("height", `${totalHeight}px`);
-        this.svg.setAttribute("viewBox", `0 0 ${containerWidth} ${totalHeight}`);
+        const viewBoxHeight = totalHeight - viewBoxY;
+        this.svg.setAttribute("height", `${viewBoxHeight}px`);
+        this.svg.setAttribute("viewBox", `0 ${viewBoxY} ${containerWidth} ${viewBoxHeight}`);
     }
 
     /**
