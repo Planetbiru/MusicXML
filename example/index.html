@@ -23,6 +23,7 @@
     <!-- Core MIDI Parser & Converter Libraries (Local Workspace Files) -->
     <script src="midi-parser.js"></script>
     <script src="midi-to-musicxml.js"></script>
+    <script src="custom-renderer.js"></script>
 
     <style>
         :root {
@@ -971,11 +972,22 @@
 
                     <!-- TAB 1: Sheet Music Render -->
                     <div id="tab-sheet" class="tab-content">
-                        <div class="sheet-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; background: rgba(15, 23, 42, 0.2); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-magnifying-glass-plus"></i> Zoom:</span>
-                                <input type="range" id="zoom-slider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateZoom(this.value);" style="cursor: pointer; width: 100px;">
-                                <span id="zoom-val" style="font-size: 0.8rem; font-weight: 600; min-width: 35px;">100%</span>
+                        <div class="sheet-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; background: rgba(15, 23, 42, 0.2); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border); flex-wrap: wrap; gap: 0.75rem;">
+                            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                                <!-- Renderer Mode Selector -->
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-paintbrush"></i> Engine:</span>
+                                    <select id="renderer-select" onchange="changeRenderer(this.value);" style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); color: var(--text-main); font-family: inherit; font-size: 0.8rem; padding: 0.25rem 0.5rem; border-radius: 4px; outline: none; cursor: pointer;">
+                                        <option value="osmd" selected>OSMD Vector Engine</option>
+                                        <option value="custom">Planetbiru SVG Engine (Learning Mode)</option>
+                                    </select>
+                                </div>
+                                <!-- Zoom Slider -->
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fa-solid fa-magnifying-glass-plus"></i> Zoom:</span>
+                                    <input type="range" id="zoom-slider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateZoom(this.value);" style="cursor: pointer; width: 100px;">
+                                    <span id="zoom-val" style="font-size: 0.8rem; font-weight: 600; min-width: 35px;">100%</span>
+                                </div>
                             </div>
                             <button type="button" class="btn-action" onclick="resetZoom();" style="padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 4px; margin: 0; min-height: unset; height: unset;">
                                 <i class="fa-solid fa-arrows-rotate"></i> Reset
@@ -1065,6 +1077,7 @@
         let currentParsedMidi = null;
         let currentXmlContent = "";
         let osmd = null;
+        let customRenderer = null;
 
         // Drag & Drop Setup
         const dropZone = document.getElementById('drop-zone');
@@ -1414,13 +1427,35 @@
             }, 50);
         }
 
-        // Render MusicXML visually using OpenSheetMusicDisplay
+        // Render MusicXML visually using OpenSheetMusicDisplay or Custom SVG Renderer
         function renderNotation(xmlText) {
             const container = document.getElementById("sheet-music-container");
             const loader = document.getElementById('render-loader');
             
             // Clean container
             container.innerHTML = "";
+            
+            const renderMode = document.getElementById('renderer-select').value;
+            
+            if (renderMode === 'custom') {
+                try {
+                    if (!customRenderer) {
+                        customRenderer = new MusicXMLSvgRenderer("sheet-music-container");
+                    }
+                    const currentZoom = parseFloat(document.getElementById('zoom-slider').value) || 1.0;
+                    customRenderer.zoom = currentZoom;
+                    customRenderer.render(xmlText);
+                    loader.style.display = "none";
+                } catch (err) {
+                    console.error("Custom renderer failed:", err);
+                    container.innerHTML = `<div style="color:#ef4444; padding:2rem; text-align:center;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:0.5rem;"></i>
+                        <p>Renderer Error: ${err.message}</p>
+                    </div>`;
+                    loader.style.display = "none";
+                }
+                return;
+            }
             
             try {
                 // Initialize OpenSheetMusicDisplay
@@ -1472,6 +1507,17 @@
             }
         }
 
+        // Change sheet music engine type
+        function changeRenderer(mode) {
+            if (currentXmlContent) {
+                const loader = document.getElementById('render-loader');
+                loader.style.display = "flex";
+                setTimeout(() => {
+                    renderNotation(currentXmlContent);
+                }, 50);
+            }
+        }
+
         // Tab Switching Actions
         function switchTab(tabId) {
             // Remove active from all tabs
@@ -1488,12 +1534,21 @@
             showTabElements(tabId);
 
             // Re-render to scale correctly in newly visible container
-            if (tabId === 'tab-sheet' && osmd) {
-                try {
-                    osmd.render();
-                    scaleSvgToFit();
-                } catch (e) {
-                    console.error("OSMD render on tab switch failed:", e);
+            if (tabId === 'tab-sheet') {
+                const renderMode = document.getElementById('renderer-select').value;
+                if (renderMode === 'custom' && customRenderer && currentXmlContent) {
+                    try {
+                        customRenderer.render(currentXmlContent);
+                    } catch (e) {
+                        console.error("Custom render on tab switch failed:", e);
+                    }
+                } else if (renderMode === 'osmd' && osmd) {
+                    try {
+                        osmd.render();
+                        scaleSvgToFit();
+                    } catch (e) {
+                        console.error("OSMD render on tab switch failed:", e);
+                    }
                 }
             }
         }
@@ -1516,9 +1571,18 @@
 
         // Zoom actions
         function updateZoom(val) {
-            if (osmd) {
+            document.getElementById('zoom-val').innerText = Math.round(val * 100) + "%";
+            const renderMode = document.getElementById('renderer-select').value;
+            
+            if (renderMode === 'custom' && customRenderer && currentXmlContent) {
+                customRenderer.zoom = parseFloat(val);
+                try {
+                    customRenderer.render(currentXmlContent);
+                } catch (e) {
+                    console.error("Custom zoom render failed:", e);
+                }
+            } else if (renderMode === 'osmd' && osmd) {
                 osmd.Zoom = parseFloat(val);
-                document.getElementById('zoom-val').innerText = Math.round(val * 100) + "%";
                 try {
                     osmd.render();
                     scaleSvgToFit();
