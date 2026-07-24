@@ -86,8 +86,8 @@ class MusicXMLSvgRenderer {
         // SVG Canvas dimensions
         const containerWidth = Math.max(this.container.clientWidth || 0, 850);
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        this.svg.setAttribute("width", "100%");
-        this.svg.style.backgroundColor = this.paperBg;
+        // FIX: Remove explicit width and height. Let viewBox control the aspect ratio and scaling.
+        this.svg.style.backgroundColor = this.paperBg; // The container should control the width (e.g., via CSS `width: 100%`).
         this.svg.style.borderRadius = "12px";
         this.svg.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.15)";
         this.svg.style.display = "block";
@@ -164,14 +164,15 @@ class MusicXMLSvgRenderer {
                           "Untitled Score";
         const composer = xmlDoc.querySelector("creator[type='composer']")?.textContent || 
                          xmlDoc.querySelector("creator")?.textContent || 
-                         ""; 
+                         "";
+        const initialY = 30 * scale; // Define the starting Y position for all content
         const subtitle = xmlDoc.querySelector("movement-title")?.textContent || "";
         const partName = parts.length === 1 
             ? (xmlDoc.querySelector("part-name")?.textContent || (totalSystemStaves === 2 ? "Piano" : "Score"))
             : "Full Score";
 
         // Header Title Block
-        let currentY = 30 * scale; // Start with a small top margin
+        let currentY = initialY; // Use the defined starting Y
         
         // Title
         // Draw title at the initial currentY position
@@ -201,7 +202,8 @@ class MusicXMLSvgRenderer {
         const measureWidth = Math.max(220 * scale, usableWidth / this.measuresPerLine);
         
         let currentX = leftMargin;
-        
+        let nextSystemY = currentY; // FIX: Use a separate variable to track the Y of the next system
+
         // Track clefs, key, and time signatures for each staff ID (1..totalSystemStaves)
         const staffState = {};
         for (let s = 1; s <= totalSystemStaves; s++) {
@@ -219,8 +221,9 @@ class MusicXMLSvgRenderer {
             
             // Advance to next system row if row is full
             if (measureIdx > 0 && isSystemStart) {
-                currentX = leftMargin;
-                currentY += this.rowSpacing;
+                currentX = leftMargin; // Reset X position for the new system
+                currentY = nextSystemY; // FIX: Set currentY to the pre-calculated start of the new system
+                nextSystemY += this.rowSpacing; // FIX: Calculate the Y for the *next* system row
             }
 
             // Update metadata attributes across all parts for this measure
@@ -452,14 +455,16 @@ class MusicXMLSvgRenderer {
             currentX += measureWidth;
         }
 
-        // Adjust viewBox to remove top padding and fit content snugly
-        const viewBoxY = 10 * scale; 
-        const totalHeight = currentY + calculatedStaffSystemHeight + 40 * scale;
-        const viewBoxHeight = totalHeight - viewBoxY;
-        this.svg.setAttribute("height", `${viewBoxHeight}px`);
-        this.svg.setAttribute("viewBox", `0 ${viewBoxY} ${containerWidth} ${viewBoxHeight}`);
+        // FIX: Correctly calculate viewBox to fit the rendered content without extra top space.
+        const topMargin = 20 * scale; // Explicit top margin inside the SVG
+        const finalContentBottomY = currentY + calculatedStaffSystemHeight + 40 * scale;
+        const viewBoxStartY = initialY - topMargin; // Start viewBox above the first content element
+        const totalContentHeight = finalContentBottomY - viewBoxStartY;
+ 
+        // FIX: Set only the viewBox. This makes the SVG intrinsically responsive.
+        // The browser will scale it correctly to fit the container's width without distortion.
+        this.svg.setAttribute("viewBox", `0 ${viewBoxStartY} ${containerWidth} ${totalContentHeight}`);
     }
-
     /**
      * Draw 5 Horizontal Staff Lines
      */
@@ -605,10 +610,10 @@ class MusicXMLSvgRenderer {
         this.svg.appendChild(path);
         
         // Double dots around line 4
-        const dotX = x + 18.25 * scale;
-        const r = 2.25 * scale;
-        this.drawCircle(dotX, y + 4.25 * scale, r, this.engraverColor);
-        this.drawCircle(dotX, y + 15.75 * scale, r, this.engraverColor);
+        const dotX = x + 18.5 * scale;
+        const r = 1.5 * scale;
+        this.drawCircle(dotX, y + 1 * this.lineSpacing, r, this.engraverColor); // FIX: Position relative to staff lines
+        this.drawCircle(dotX, y + 3 * this.lineSpacing, r, this.engraverColor); // FIX: Position relative to staff lines
     }
 
     /**
@@ -643,14 +648,14 @@ class MusicXMLSvgRenderer {
         if (symbol === "common" || (beats === 4 && beatType === 4 && symbol === "C")) {
             this.drawText(x, y + 24 * scale, "C", `${Math.round(24 * scale)}px`, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
         } else if (symbol === "cut") {
-            this.drawText(x, y + 24 * scale, "¢", `${Math.round(24 * scale)}px`, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
+            this.drawText(x, y + 2 * this.lineSpacing, "¢", `${Math.round(24 * scale)}px`, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
         } else {
-            const topY = y + 13 * scale;
-            const bottomY = y + 33 * scale;
+            const topY = y + 1.5 * this.lineSpacing; // FIX: Position relative to staff lines
+            const bottomY = y + 3.5 * this.lineSpacing; // FIX: Position relative to staff lines
             const size = `${Math.round(18 * scale)}px`;
             
-            this.drawText(x, topY, `${beats}`, size, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
-            this.drawText(x, bottomY, `${beatType}`, size, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif");
+            this.drawText(x, topY, `${beats}`, size, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif"); // Centered on space 1
+            this.drawText(x, bottomY, `${beatType}`, size, this.engraverColor, "middle", true, "'Outfit', 'Times New Roman', serif"); // Centered on space 3
         }
     }
 
@@ -1174,8 +1179,10 @@ class MusicXMLSvgRenderer {
 
     getNoteY(diatonic, startY, clefType) {
         if (clefType === "F") {
-            return startY + (-2 - diatonic) * (this.lineSpacing / 2);
+            // FIX: Correct logic for F-clef (Bass clef). Diatonic 0 (G2) is on the bottom line.
+            return startY + (8 - diatonic) * (this.lineSpacing / 2);
         } else {
+            // G-clef (Treble clef). Diatonic 0 (E4) is on the bottom line.
             return startY + (10 - diatonic) * (this.lineSpacing / 2);
         }
     }
