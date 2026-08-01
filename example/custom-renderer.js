@@ -309,11 +309,16 @@ class MusicXMLSvgRenderer {
                     currentSystemMeta.xEnd = systemStartX + systemRowWidth;
                     currentSystemMeta.yEnd = currentY + calculatedStaffSystemHeight;
                     this._systemMetadata.push(currentSystemMeta);
+                    if (currentSystemGroup) {
+                        currentSystemGroup.setAttribute("data-start-tick", currentSystemMeta.startTick);
+                        currentSystemGroup.setAttribute("data-end-tick", currentSystemMeta.endTick);
+                    }
                 }
                 systemNumber += 1;
                 currentSystemGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
                 currentSystemGroup.setAttribute("id", `system-${systemNumber}`);
                 currentSystemGroup.setAttribute("data-system-number", `${systemNumber}`);
+                currentSystemGroup.setAttribute("data-start-tick", this._cumulativeTick);
                 svgRoot.appendChild(currentSystemGroup);
                 this.svg = currentSystemGroup;
 
@@ -655,6 +660,10 @@ let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisi
             currentSystemMeta.xEnd = systemStartX + systemRowWidth;
             currentSystemMeta.yEnd = currentY + calculatedStaffSystemHeight;
             this._systemMetadata.push(currentSystemMeta);
+            if (currentSystemGroup) {
+                currentSystemGroup.setAttribute("data-start-tick", currentSystemMeta.startTick);
+                currentSystemGroup.setAttribute("data-end-tick", currentSystemMeta.endTick);
+            }
         }
 
         // FIX: Correctly calculate viewBox to fit the rendered content without extra top space.

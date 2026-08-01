@@ -1692,7 +1692,7 @@
                 return;
             }
 
-            const svg = customRenderer._svgRoot; // Menggunakan SVG root
+            const svg = customRenderer._svgRoot;
             let playheadLine = svg.querySelector('#playhead-line');
             if (!playheadLine) {
                 playheadLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1702,47 +1702,34 @@
                 playheadLine.style.pointerEvents = 'none';
                 svg.appendChild(playheadLine);
             } else {
-                // Clear previous highlights from the root SVG
                 svg.querySelectorAll('g[data-element="true"].active').forEach(el => el.classList.remove('active'));
             }
 
-
-            // Find active measure
             const pos = currentParsedMidi.header.tickToPosition(tick);
-
-            const currentMeasureNum = pos.measure; // Renderer uses 0-based measure numbers
+            const currentMeasureNum = pos.measure;
             const activeMeasure = svg.querySelector(`g[data-measure-number="${currentMeasureNum}"]`);
-
 
             if (activeMeasure) {
                 const activeSystem = activeMeasure.closest('g[data-system-number]');
                 if (!activeSystem) return;
 
-                const systemNumber = parseInt(activeSystem.dataset.systemNumber);
-                
-                // systemX, systemY, systemWidth, systemHeight are absolute coordinates from the root SVG
                 const systemX = parseFloat(activeSystem.getAttribute('x'));
                 const systemY = parseFloat(activeSystem.getAttribute('y'));
                 const systemHeight = parseFloat(activeSystem.getAttribute('height'));
 
-                const measureStartTick = parseFloat(activeMeasure.dataset.startTick);
-                const measureEndTick = parseFloat(activeMeasure.dataset.endTick);
-                const measureWidth = parseFloat(activeMeasure.getAttribute('width'));
                 const measureX = parseFloat(activeMeasure.getAttribute('x'));
+                const measureWidth = parseFloat(activeMeasure.getAttribute('width'));
 
-                let progress = 0;
-                if (measureEndTick > measureStartTick && tick >= measureStartTick) {
-                    progress = (tick - measureStartTick) / (measureEndTick - measureStartTick);
-                }
-                progress = Math.max(0, Math.min(1, progress)); // Clamp between 0 and 1
+                const progress = pos.ticksPerMeasure > 0
+                    ? Math.max(0, Math.min(1, pos.tickInMeasure / pos.ticksPerMeasure))
+                    : 0;
 
-                const xPos = parseFloat(activeMeasure.getAttribute('x')) + progress * parseFloat(activeMeasure.getAttribute('width'));
+                const xPos = systemX + measureX + progress * measureWidth;
                 playheadLine.setAttribute('x1', xPos);
                 playheadLine.setAttribute('x2', xPos);
                 playheadLine.setAttribute('y1', systemY);
                 playheadLine.setAttribute('y2', systemY + systemHeight);
 
-                // Highlight current notes
                 const notesToHighlight = customRenderer.selectNotesByTick(tick);
                 notesToHighlight.forEach(el => {
                     if (el instanceof SVGGElement) el.classList.add('active');
