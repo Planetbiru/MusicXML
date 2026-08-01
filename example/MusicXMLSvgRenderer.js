@@ -713,6 +713,19 @@ class MusicXMLSvgRenderer {
 
         const viewBoxWidth = this.forceMobile ? 425 : containerWidth;
         this.svg.setAttribute("viewBox", `0 ${viewBoxStartY} ${viewBoxWidth} ${totalContentHeight}`);
+        // Attach click handler to report tick value for DAW seeking
+        if (typeof this.tickClickCallback === 'function') {
+            this.svg.addEventListener('click', (e) => {
+                const grp = e.target.closest('[data-start-tick]');
+                if (grp) {
+                    const tickStr = grp.getAttribute('data-start-tick');
+                    const tick = tickStr !== null ? parseInt(tickStr, 10) : null;
+                    if (tick !== null && !isNaN(tick)) {
+                        this.tickClickCallback(tick, e);
+                    }
+                }
+            });
+        }
     }
     /**
      * Draw 5 Horizontal Staff Lines

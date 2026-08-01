@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.4.0 - 2026-08-01
+
+### Added
+- **MIDI to MusicXML conversion with JavaScript**: Enables converting MIDI files to MusicXML directly in the browser.
+- **Dynamic MusicXML to SVG rendering with JavaScript**: Allows real‑time SVG rendering of MusicXML, facilitating integration with digital audio workstations (DAWs).
+
+### Changed
+- **Rest length adjustments**: Improved handling of rests such as 1 + 1/4 notes and similar complex durations.
+
 ## v1.3.1 - 2026-07-26
 
 ### Changed

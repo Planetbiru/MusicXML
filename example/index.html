@@ -1501,7 +1501,7 @@
             if (renderMode.startsWith('custom')) {
                 try {
                     if (!customRenderer) {
-                        customRenderer = new MusicXMLSvgRenderer("sheet-music-container", {forceMobile: true, autoDetectMobile: false});
+                        customRenderer = new MusicXMLSvgRenderer("sheet-music-container", {forceMobile: false, autoDetectMobile: false});
                         // If forced mobile, reduce zoom to 0.5 to keep size readable on small screens
                         if (customRenderer.forceMobile) {
                             customRenderer.zoom = 0.5;
