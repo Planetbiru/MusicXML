@@ -373,6 +373,9 @@ class MusicXMLSvgRenderer {
                 // Vertical System Start Bar Line across all staves
                 this.drawSystemStartLine(systemStartX, currentY, calculatedStaffSystemHeight);
 
+                // Draw an additional barline at the beginning of the first measure in the system
+                this.drawBarLine(leftMargin, currentY, false, calculatedStaffSystemHeight);
+
                 // Curly Grand Staff Brace (if 2 staves in Part 0)
                 if (totalSystemStaves >= 2 && partStaffMap[0].numStaves === 2) {
                     const firstPartHeight = partStaffMap[0].numStaves * (4 * this.lineSpacing) + Math.max(0, partStaffMap[0].numStaves - 1) * this.staffSpacing;
@@ -455,8 +458,8 @@ class MusicXMLSvgRenderer {
                 }
 
                 // FIX: This entire block is rewritten to handle internal note splitting for ties.
-// Determine measure duration (beats * divisions) using the first staff's state.
-let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisions : 0;
+                // Determine measure duration (beats * divisions) using the first staff's state.
+                let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisions : 0;
                 let currentDiv = 0; // Running cursor for horizontal position in divisions.
                 let lastBaseDiv = 0; // For chord alignment
                 const allNotesInMeasure = []; // This will hold all noteData objects, including split ones.
@@ -1509,7 +1512,7 @@ let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisi
                 ? Math.max(0, Math.min(1, pos.tickInMeasure / pos.ticksPerMeasure))
                 : 0;
 
-            const xPos = systemX + measureX + progress * measureWidth;
+            const xPos = systemX + measureX + (progress * measureWidth) - 23; // Adjust for SVG coordinate system
             playheadLine.setAttribute('x1', xPos);
             playheadLine.setAttribute('x2', xPos);
             playheadLine.setAttribute('y1', systemY);
