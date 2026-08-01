@@ -466,6 +466,7 @@ class MusicXMLSvgRenderer {
 
             for (let s = 1; s <= totalSystemStaves; s++) {
                 
+                let channelId = -1; // Inisialisasi channelId untuk staff ini
                 const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
                 if (!pInfo) continue;
 
@@ -476,6 +477,12 @@ class MusicXMLSvgRenderer {
                     currentStaffYOffset += this.basePartSpacing * scale;
                 }
                 const sY = currentY + currentStaffYOffset;
+
+                // Dapatkan channelId dari part
+                const partId = pInfo.partNode.getAttribute('id');
+                const partListEntry = xmlDoc.querySelector(`part-list score-part[id="${partId}"]`);
+                const midiChannelNode = partListEntry?.querySelector('midi-instrument midi-channel');
+                if (midiChannelNode) channelId = parseInt(midiChannelNode.textContent, 10);
                 const state = staffState[s];
 
                 const measureNumber = measureIdx + firstMeasureNumber;
@@ -564,6 +571,7 @@ class MusicXMLSvgRenderer {
                         }
 
                         const noteData = {
+                            channelId: channelId, // <-- Tambahkan channelId ke data not
                             node: originalNoteNode, // Keep reference for other attributes
                             isRest: isRest,
                             staff: s,
@@ -573,6 +581,7 @@ class MusicXMLSvgRenderer {
                             accidental: originalNoteNode.querySelector("accidental")?.textContent,
                             type: MusicXMLSvgRenderer.getNoteType(pieceDuration, currentStaffDivisions),
                             stem: originalNoteNode.querySelector("stem")?.textContent,
+                            notehead: originalNoteNode.querySelector("notehead")?.textContent,
                             lyric: isFirstPiece ? lyricText : null, // Only first piece gets the lyric
                             onsetDiv: pieceCurrentDiv,
                             duration: pieceDuration,
@@ -661,7 +670,7 @@ class MusicXMLSvgRenderer {
                     const xRange = measureWidth - padding - 18 * scale;
                     const colX = currentX + padding + ratio * xRange;
 
-                    const stemData = this.drawNoteColumn(colX, sY, colNotes, state.clef, activeTies);
+                    const stemData = this.drawNoteColumn(colX, sY, colNotes, state.clef, activeTies, channelId);
                     if (stemData && stemData.isBeamable) {
                         renderedStems.push(stemData);
                     }
@@ -1018,7 +1027,7 @@ class MusicXMLSvgRenderer {
     /**
      * Render Note Column / Chord
      */
-    drawNoteColumn(x, y, notes, clefType, activeTies) {
+    drawNoteColumn(x, y, notes, clefType, activeTies, channelId) {
         const scale = this.zoom || 1.0;
         let hasRest = false;
         let restType = "quarter";
@@ -1053,7 +1062,7 @@ class MusicXMLSvgRenderer {
             const color = this.colorCoded ? (this.pitchColors[note.step] || this.engraverColor) : this.engraverColor;
             const isHollow = note.type === "whole" || note.type === "half";
 
-            this.drawNotehead(x, note.y, color, isHollow);
+            this.drawNotehead(x, note.y, color, isHollow, note.notehead, channelId);
 
             // Educational letter label inside notehead (only if colorCoded is enabled)
             if (this.colorCoded) {
@@ -1285,10 +1294,30 @@ class MusicXMLSvgRenderer {
     /**
      * Draw Notehead Tilted Ellipse (-15 degrees)
      */
-    drawNotehead(cx, cy, color, isHollow) {
+    drawNotehead(cx, cy, color, isHollow, noteheadType = 'normal', channelId = -1) {
         const scale = this.zoom || 1.0;
         const rx = 7.75 * scale;
         const ry = 4.6 * scale;
+
+        if (channelId === 10 && noteheadType === 'x') {
+            const xPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const size = 8 * scale;
+            xPath.setAttribute("d", `M ${cx - size/2} ${cy - size/2} L ${cx + size/2} ${cy + size/2} M ${cx - size/2} ${cy + size/2} L ${cx + size/2} ${cy - size/2}`);
+            xPath.setAttribute("stroke", color);
+            xPath.setAttribute("stroke-width", `${1.8 * scale}`);
+            xPath.setAttribute("stroke-linecap", "butt");
+            this.svg.appendChild(xPath);
+            return;
+        } else if (channelId === 10 && noteheadType === 'slash') {
+            const slashPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const size = 10 * scale;
+            slashPath.setAttribute("d", `M ${cx - size/2} ${cy + size/2} L ${cx + size/2} ${cy - size/2}`);
+            slashPath.setAttribute("stroke", color);
+            slashPath.setAttribute("stroke-width", `${2.5 * scale}`);
+            slashPath.setAttribute("stroke-linecap", "butt");
+            this.svg.appendChild(slashPath);
+            return;
+        }
 
         const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
         ellipse.setAttribute("cx", cx);
