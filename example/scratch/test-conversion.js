@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Set global MidiParser since midi-to-musicxml.js relies on it globally
-global.MidiParser = require('../midi-parser.js');
+global.MidiParser = require('../MidiParser.js');
 const MidiToMusicXML = require('../midi-to-musicxml.js');
 
 const midiPath = path.join(__dirname, '../example.mid');

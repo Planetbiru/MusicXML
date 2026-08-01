@@ -1,6 +1,6 @@
 import sys
 
-with open('D:/MagicServer/www/MusicXML/example/midi-parser.js', 'r', encoding='utf-8') as f:
+with open('D:/MagicServer/www/MusicXML/example/MidiParser.js', 'r', encoding='utf-8') as f:
     content = f.read()
 
 old_code = '''        // Always normalize globally by default if options.normalize is not explicitly false
@@ -47,6 +47,6 @@ new_code = '''        // Combine lyrics that fall within the same note's duratio
 
 content = content.replace(old_code, new_code)
 
-with open('D:/MagicServer/www/MusicXML/example/midi-parser.js', 'w', encoding='utf-8') as f:
+with open('D:/MagicServer/www/MusicXML/example/MidiParser.js', 'w', encoding='utf-8') as f:
     f.write(content)
-print("Patched midi-parser.js lyrics merging")
+print("Patched MidiParser.js lyrics merging")

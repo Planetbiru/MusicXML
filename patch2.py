@@ -1,6 +1,6 @@
 import sys
 
-with open('D:/MagicServer/www/MusicXML/example/midi-parser.js', 'r', encoding='utf-8') as f:
+with open('D:/MagicServer/www/MusicXML/example/MidiParser.js', 'r', encoding='utf-8') as f:
     content = f.read()
 
 # Fix 1: Global normalization
@@ -55,6 +55,6 @@ new_global = '''        // Find the earliest note tick across all tracks
 
 content = content.replace(old_global, new_global)
 
-with open('D:/MagicServer/www/MusicXML/example/midi-parser.js', 'w', encoding='utf-8') as f:
+with open('D:/MagicServer/www/MusicXML/example/MidiParser.js', 'w', encoding='utf-8') as f:
     f.write(content)
-print("Patched midi-parser.js")
+print("Patched MidiParser.js")

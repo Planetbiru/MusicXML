@@ -1,6 +1,6 @@
 import sys
 
-with open('D:/MagicServer/www/MusicXML/example/midi-parser.js', 'r', encoding='utf-8') as f:
+with open('D:/MagicServer/www/MusicXML/example/MidiParser.js', 'r', encoding='utf-8') as f:
     content = f.read()
     
 # Let's check if there's any logic combining lyrics

@@ -188,7 +188,7 @@ $midi_base64_track = $trackOnlyMidi    ? base64_encode($trackOnlyMidi)    : '';
     <script type="text/javascript" src="//www.midijs.net/lib/midi.js"></script>
 
     <!-- ── Application scripts ──────────────────────────────────────────── -->
-    <script src="midi-parser.js"></script>
+    <script src="MidiParser.js"></script>
     <script src="vocal-training.js"></script>
 </body>
 
