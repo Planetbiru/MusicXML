@@ -398,7 +398,7 @@ class MusicXMLSvgRenderer {
 
             // Create a group for the entire measure content
             const measureGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-            measureGroup.setAttribute("data-measure-number", measureIdx); // Use 0-based index
+            measureGroup.setAttribute("data-measure-number", measureIdx + 1); // Use 1-based index for consistency with MusicXML
             measureGroup.setAttribute("data-start-tick", this._cumulativeTick);
             measureGroup.setAttribute("x", currentX);
             measureGroup.setAttribute("width", measureWidth);

@@ -897,6 +897,15 @@
                         placeholder="e.g. Beethoven">
                 </div>
                 <div class="form-group">
+                    <label for="part-selector">Part to Render</label>
+                    <select id="part-selector" class="form-control" onchange="convertMIDI();" disabled>
+                        <option value="all">All Parts (Full Score)</option>
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+
+
+                <div class="form-group" style="display:none;">
                     <label for="divisions">Divisions</label>
                     <select id="divisions" class="form-control">
                         <option value="2">2 (Eighth Note)</option>
@@ -939,17 +948,6 @@
                         <input type="checkbox" id="force-update-events" checked>
                         <span class="slider"></span>
                     </label>
-                </div>
-
-                <!-- Channels Inspector/Selector -->
-                <div id="channels-panel" style="display: none;">
-                    <label
-                        style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">
-                        Select Channels to Convert
-                    </label>
-                    <div class="channel-list-card" id="channels-list">
-                        <!-- Dynamic checkboxes loaded on parsing -->
-                    </div>
                 </div>
 
                 <button type="button" class="btn-convert" id="btn-convert" disabled onclick="convertMIDI();">
@@ -1283,6 +1281,7 @@
 
                 // --- NEW: Update playhead seeker max value ---
                 const playheadSeeker = document.getElementById('playhead-seeker');
+                document.getElementById('part-selector').disabled = false;
                 if (playheadSeeker && currentParsedMidi.header && currentParsedMidi.header.maxTicks !== undefined) {
                     playheadSeeker.max = currentParsedMidi.header.maxTicks;
                     playheadSeeker.value = 0; // Reset seeker to start
@@ -1290,8 +1289,8 @@
                 }
                 // --- END NEW ---
                 // Display channels checklist
-                renderChannelsSelector(currentParsedMidi);
-
+                renderPartSelector(currentParsedMidi);
+                
                 // Show metadata in the Inspector Tab
                 displayMetadata(currentParsedMidi);
 
@@ -1304,57 +1303,47 @@
             }
         }
 
-        // Render dynamic list of channels found in MIDI
-        function renderChannelsSelector(parsed) {
-            const panel = document.getElementById('channels-panel');
-            const container = document.getElementById('channels-list');
-            container.innerHTML = "";
-
-            // Count notes per channel
-            const channelNotesCount = new Array(16).fill(0);
-            parsed.tracks.forEach(track => {
-                if (track.notes) {
-                    track.notes.forEach(n => {
-                        channelNotesCount[n.channel]++;
-                    });
-                }
-            });
-
-            // Find active channels
-            let activeCount = 0;
-            for (let ch = 0; ch < 16; ch++) {
-                const notesCount = channelNotesCount[ch];
-                if (notesCount > 0) {
-                    activeCount++;
-                    const programList = parsed.instruments[ch] || [0];
-                    const instNames = programList.map(prog => {
-                        if (ch === 9) return "Percussion/Drums";
-                        const inst = MidiToMusicXML.INSTRUMENT_LIST[prog];
-                        return inst ? inst[0] : "Instrument " + (prog + 1);
-                    }).join(", ");
-
-                    // Build dynamic UI row
-                    const item = document.createElement('div');
-                    item.className = "channel-item";
-                    item.innerHTML = `
-                        <div class="channel-info">
-                            <input type="checkbox" id="ch-check-${ch}" value="${ch}" checked onchange="convertMIDI();" style="cursor: pointer; width: 16px; height: 16px;">
-                            <span class="channel-num">${ch + 1}</span>
-                            <div class="channel-details">
-                                <span class="channel-instrument">${instNames}</span>
-                                <span class="channel-notes">${notesCount} notes</span>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(item);
-                }
+        // Render dynamic list of parts (tracks or channels) to the selector
+        function renderPartSelector(parsed) {
+            const selector = document.getElementById('part-selector');
+            // Clear previous options except the first one ("All Parts")
+            while (selector.options.length > 1) {
+                selector.remove(1);
             }
 
-            if (activeCount > 0) {
-                panel.style.display = "block";
+            const isMultiTrack = parsed.header.format === 1 && parsed.tracks.filter(t => t.notes && t.notes.length > 0).length > 1;
+
+            if (isMultiTrack) {
+                // Multi-track MIDI (Format 1): Populate with tracks
+                parsed.tracks.forEach((track, index) => {
+                    if (track.notes && track.notes.length > 0) {
+                        const trackName = track.name || `Track ${index + 1}`;
+                        const option = new Option(`${trackName} (${track.notes.length} notes)`, `track_${index}`);
+                        selector.add(option);
+                    }
+                });
             } else {
-                panel.style.display = "none";
-                container.innerHTML = "<div style='font-size:0.8rem; color:var(--text-muted); padding:0.5rem;'>No midi note channels detected</div>";
+                // Single-track MIDI (Format 0) or simple Format 1: Populate with channels
+                const activeChannels = new Set();
+                parsed.tracks.forEach(track => {
+                    if (track.notes) {
+                        track.notes.forEach(note => activeChannels.add(note.channel));
+                    }
+                });
+
+                if (activeChannels.size > 1) {
+                     activeChannels.forEach(ch => {
+                        const programList = parsed.instruments[ch] || [0];
+                        const instName = programList.map(prog => {
+                            if (ch === 9) return "Percussion";
+                            const inst = MidiToMusicXML.INSTRUMENT_LIST[prog];
+                            return inst ? inst[0] : `Instrument ${prog + 1}`;
+                        }).join(', ');
+
+                        const option = new Option(`Channel ${ch + 1}: ${instName}`, `channel_${ch}`);
+                        selector.add(option);
+                    });
+                }
             }
         }
 
@@ -1444,15 +1433,21 @@
                     const normalize = document.getElementById('normalize').checked;
                     const forceUpdateEvents = document.getElementById('force-update-events').checked;
 
-                    // Get selected channels
-                    const selectedChannels = [];
-                    const checkboxes = document.querySelectorAll('[id^="ch-check-"]');
-                    if (checkboxes.length > 0) {
-                        checkboxes.forEach(cb => {
-                            if (cb.checked) {
-                                selectedChannels.push(parseInt(cb.value));
-                            }
-                        });
+                    // Get selected part from the dropdown
+                    const partSelector = document.getElementById('part-selector');
+                    const selectedPart = partSelector.value;
+                    let selectedChannels = null;
+                    let selectedTrack = null;
+
+                    if (selectedPart.startsWith('channel_')) {
+                        selectedChannels = [parseInt(selectedPart.split('_')[1])];
+                    } else if (selectedPart.startsWith('track_')) {
+                        selectedTrack = parseInt(selectedPart.split('_')[1]);
+                        // Find the channel(s) used in this track
+                        const track = parsed.tracks[selectedTrack];
+                        if (track && track.notes) {
+                            selectedChannels = [...new Set(track.notes.map(n => n.channel))];
+                        }
                     }
 
                     // Perform conversion using local class
@@ -1468,7 +1463,7 @@
                         creator: creator,
                         divisions: divisions,
                         useRestFilling: useRestFilling,
-                        selectedChannels: selectedChannels.length > 0 ? selectedChannels : null,
+                        selectedChannels: selectedChannels,
                         normalize: normalize,
                         forceUpdateEvents: forceUpdateEvents
                     };
