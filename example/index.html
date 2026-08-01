@@ -1502,6 +1502,10 @@
                 try {
                     if (!customRenderer) {
                         customRenderer = new MusicXMLSvgRenderer("sheet-music-container", {forceMobile: true, autoDetectMobile: false});
+                        // If forced mobile, reduce zoom to 0.5 to keep size readable on small screens
+                        if (customRenderer.forceMobile) {
+                            customRenderer.zoom = 0.5;
+                        }
             // Set container width to half of viewport for mobile to avoid over‑scaling
             if (customRenderer.forceMobile) {
                 container.style.width = `${window.innerWidth / 2}px`;

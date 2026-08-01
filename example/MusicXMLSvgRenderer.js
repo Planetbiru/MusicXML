@@ -89,8 +89,8 @@ class MusicXMLSvgRenderer {
             throw new Error("Invalid MusicXML structure: " + parserError.textContent);
         }
 
-        // SVG Canvas dimensions
-        const containerWidth = Math.max(this.container.clientWidth || 0, 850);
+        // SVG Canvas dimensions (mobile‑aware)
+        const containerWidth = this.forceMobile ? 425 : Math.max(this.container.clientWidth || 0, 850);
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         // FIX: Remove explicit width and height. Let viewBox control the aspect ratio and scaling.
         this.svg.style.backgroundColor = this.paperBg; // The container should control the width (e.g., via CSS `width: 100%`).
@@ -711,9 +711,8 @@ class MusicXMLSvgRenderer {
         const viewBoxStartY = initialY - topMargin; // Start viewBox above the first content element
         const totalContentHeight = finalContentBottomY - viewBoxStartY;
 
-        // FIX: Set only the viewBox. This makes the SVG intrinsically responsive.
-        // The browser will scale it correctly to fit the container's width without distortion.
-        this.svg.setAttribute("viewBox", `0 ${viewBoxStartY} ${containerWidth} ${totalContentHeight}`);
+        const viewBoxWidth = this.forceMobile ? 425 : containerWidth;
+        this.svg.setAttribute("viewBox", `0 ${viewBoxStartY} ${viewBoxWidth} ${totalContentHeight}`);
     }
     /**
      * Draw 5 Horizontal Staff Lines
@@ -1549,7 +1548,7 @@ class MusicXMLSvgRenderer {
                 ? Math.max(0, Math.min(1, pos.tickInMeasure / pos.ticksPerMeasure))
                 : 0;
 
-            const xPos = systemX + measureX + (progress * measureWidth);
+            const xPos = systemX + measureX + (progress * measureWidth) - (24.75 * scale); // Adjust for notehead width. DO NOT change this value without testing with various scores, as it may break the alignment of the playhead with the notes.
             playheadLine.setAttribute('x1', xPos);
             playheadLine.setAttribute('x2', xPos);
             const extraPadding = this.lineSpacing * 2; // extend beyond system for ledger notes
