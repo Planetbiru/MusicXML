@@ -156,9 +156,14 @@ class MusicXMLSvgRenderer {
             totalSystemStaves += numStaves;
         });
 
-        // Dynamic Line Wrapping (2 measures per line if lyrics present, else 3)
+        // Determine number of measures per line based on screen size and lyric presence
         const hasLyrics = xmlDoc.querySelector("lyric") !== null;
-        this.measuresPerLine = hasLyrics ? 2 : 3;
+        const isMobile = window.innerWidth <= 360; // Mobile viewport width threshold
+        if (isMobile) {
+            this.measuresPerLine = 1; // One measure per system for mobile
+        } else {
+            this.measuresPerLine = hasLyrics ? 2 : 3; // Default behavior for larger screens
+        }
 
         // FIX: Correctly calculate the total height of all staves in a system.
         // This calculation now accounts for additional spacing between different parts.
@@ -1535,7 +1540,7 @@ class MusicXMLSvgRenderer {
                 ? Math.max(0, Math.min(1, pos.tickInMeasure / pos.ticksPerMeasure))
                 : 0;
 
-            const xPos = systemX + measureX + (progress * measureWidth) - (24.75 * scale); // Adjust for SVG coordinate system
+            const xPos = systemX + measureX + (progress * measureWidth);
             playheadLine.setAttribute('x1', xPos);
             playheadLine.setAttribute('x2', xPos);
             const extraPadding = this.lineSpacing * 2; // extend beyond system for ledger notes
