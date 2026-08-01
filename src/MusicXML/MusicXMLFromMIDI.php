@@ -1966,6 +1966,7 @@ class MusicXMLFromMIDI extends MusicXMLBase
         sort($boundaries);
 
         $currentXml = $xmlStart;
+$rests = [];
         foreach ($boundaries as $nextXml) {
             $dur = $nextXml - $currentXml;
             if ($dur > 0) { // Only add rest if there is a duration
@@ -1991,9 +1992,16 @@ class MusicXMLFromMIDI extends MusicXMLBase
                     $rest->lyric = array($this->createLyricModel($lyricsAt[$currentXml]));
                 }
                 $measure->elements[] = $rest;
+                $rests[] = $rest;
                 $currentXml = $nextXml;
             }
         }
+        // Add tie notation if a rest spans multiple segments
+        $restCount = count($rests);
+        if ($restCount > 1) {
+            $rests[0]->tie = new Tie(['type' => 'start']);
+            $rests[$restCount - 1]->tie = new Tie(['type' => 'stop']);
+        };
     }
     
     /**

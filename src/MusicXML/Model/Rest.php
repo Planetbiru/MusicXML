@@ -46,4 +46,20 @@ class Rest extends MusicXMLWriter
      * @var DisplayOctave
      */
     public $displayOctave;
+
+	/**
+	 * Dot elements for augmentation dots
+	 *
+	 * @Element(name="dot")
+	 * @var Dot[]
+	 */
+	public $dot;
+
+	/**
+	 * Tie element for tied rests
+	 *
+	 * @Element(name="tie")
+	 * @var Tie
+	 */
+	public $tie;
 }

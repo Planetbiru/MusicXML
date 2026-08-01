@@ -34,7 +34,7 @@ $song_name    = 'Example Song';
 $composerName = '';
 
 // ── Read MIDI file from disk ──────────────────────────────────────────────────
-$midiFilePath     = __DIR__ . '/example.mid';
+$midiFilePath     = __DIR__ . '/dotted.mid';
 $midiData         = file_exists($midiFilePath) ? file_get_contents($midiFilePath) : '';
 $filteredMidiData = '';
 $trackOnlyMidi    = '';

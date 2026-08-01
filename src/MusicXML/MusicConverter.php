@@ -1283,17 +1283,35 @@ class MusicConverter
                 // Draw Rest Note
                 if (isset($note->rest)) {
                     $pdf->SetDrawColor(0, 0, 0);
+                    // Determine dot count if any
+                    $dotsCount = 0;
+                    if (isset($note->rest->dot)) {
+                        $dotsCount = is_array($note->rest->dot) ? count($note->rest->dot) : 1;
+                    }
                     if ($duration >= $measureDuration) {
                         // Whole rest: box hanging from line 4 (D5, which is systemY + 6.0)
                         $pdf->Rect($noteX - 2, $systemY + 6.0, 4.0, 1.5, 'F');
+                        $restY = $systemY + 6.0;
                     } elseif ($duration >= $measureDuration / 2) {
-                        // Half rest: box sitting on line 3 (B4, which is systemY + 4.0)
+                        // Half rest: box sitting on line 3 (B4, which is systemY + 2.5)
                         $pdf->Rect($noteX - 2, $systemY + 2.5, 4.0, 1.5, 'F');
+                        $restY = $systemY + 2.5;
                     } else {
                         $typeStr = isset($note->type) ? (string)$note->type : 'quarter';
                         $pdf->DrawRest($noteX - 2, $systemY, $typeStr);
+                        $restY = $systemY; // baseline for custom rests
                     }
-                } 
+                    // Draw augmentation dots for rests if present
+                    if ($dotsCount > 0) {
+                        $dotX = $noteX + 2.5; // position to the right of the rest
+                        $dotY = $restY + 1.0; // slightly above the rest glyph
+                        $dotRadius = 0.35;
+                        for ($d = 0; $d < $dotsCount; $d++) {
+                            $pdf->Circle($dotX, $dotY, $dotRadius, 'F');
+                            $dotX += 1.2; // space between multiple dots
+                        }
+                    }
+                }
                 // Draw Sound Note (pitched or unpitched)
                 else {
                     $pitchVal = 71; // Default middle B4
