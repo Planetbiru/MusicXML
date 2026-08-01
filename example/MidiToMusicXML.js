@@ -32,11 +32,19 @@ class MidiToMusicXML {
             forceUpdateEvents: true
         }, options);
 
-        // Parse MIDI binary using the project's MidiParser
+                // Parse MIDI binary using the project's MidiParser
         const parsed = MidiParser.parse(buffer, {
             normalize: opts.normalize,
             forceUpdateEvents: opts.forceUpdateEvents
         });
+
+        // If a specific track is requested, keep only that track (ignore others)
+        if (opts.selectedTrack != null && typeof opts.selectedTrack === 'number') {
+            const trackIdx = opts.selectedTrack;
+            if (trackIdx >= 0 && trackIdx < parsed.tracks.length) {
+                parsed.tracks = [parsed.tracks[trackIdx]];
+            } // else ignore invalid index, keep all tracks
+        }
 
         return this.convertParsed(parsed, opts);
     }

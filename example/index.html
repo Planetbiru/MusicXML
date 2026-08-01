@@ -1433,16 +1433,21 @@
                     const normalize = document.getElementById('normalize').checked;
                     const forceUpdateEvents = document.getElementById('force-update-events').checked;
 
+                    // Re-parse with active normalization/update setting before determining selected channels
+                    const parsed = MidiParser.parse(currentMidiBuffer, {
+                        normalize: normalize,
+                        forceUpdateEvents: forceUpdateEvents
+                    });
+
                     // Get selected part from the dropdown
                     const partSelector = document.getElementById('part-selector');
                     const selectedPart = partSelector.value;
                     let selectedChannels = null;
-                    let selectedTrack = null;
 
                     if (selectedPart.startsWith('channel_')) {
                         selectedChannels = [parseInt(selectedPart.split('_')[1])];
                     } else if (selectedPart.startsWith('track_')) {
-                        selectedTrack = parseInt(selectedPart.split('_')[1]);
+                        const selectedTrack = parseInt(selectedPart.split('_')[1]);
                         // Find the channel(s) used in this track
                         const track = parsed.tracks[selectedTrack];
                         if (track && track.notes) {
@@ -1451,11 +1456,6 @@
                     }
 
                     // Perform conversion using local class
-                    // Re-parse with active normalization setting
-                    const parsed = MidiParser.parse(currentMidiBuffer, {
-                        normalize: normalize,
-                        forceUpdateEvents: forceUpdateEvents
-                    });
 
                     // Build options object
                     const conversionOptions = {
