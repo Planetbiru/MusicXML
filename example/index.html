@@ -1501,7 +1501,13 @@
             if (renderMode.startsWith('custom')) {
                 try {
                     if (!customRenderer) {
-                        customRenderer = new MusicXMLSvgRenderer("sheet-music-container");
+                        customRenderer = new MusicXMLSvgRenderer("sheet-music-container", {forceMobile: true, autoDetectMobile: false});
+            // Set container width to half of viewport for mobile to avoid over‑scaling
+            if (customRenderer.forceMobile) {
+                container.style.width = `${window.innerWidth / 2}px`;
+            } else {
+                container.style.width = "100%";
+            }
                     }
                     const currentZoom = parseFloat(document.getElementById('zoom-slider').value) || 1.0;
                     const currentGap = parseFloat(document.getElementById('system-gap-slider').value) || 50;

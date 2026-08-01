@@ -19,10 +19,12 @@
  * - Measure numbers, Tempo markings, Lyrics, and Document Header formatting
  */
 class MusicXMLSvgRenderer {
-    constructor(containerId) {
+    constructor(containerId, options = {}) {
         this.container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
         this.svg = null;
-        this.zoom = 1.0;
+        // Options: { forceMobile: boolean, autoDetectMobile: boolean }
+        this.forceMobile = !!options.forceMobile;
+        this.autoDetectMobile = options.autoDetectMobile !== false; // default true (auto-detect based on viewport)
 
         // Render Mode: false = OSMD Classic Engraver Monochrome, true = Color-Coded Learning
         this.colorCoded = false;
@@ -156,9 +158,16 @@ class MusicXMLSvgRenderer {
             totalSystemStaves += numStaves;
         });
 
-        // Determine number of measures per line based on screen size and lyric presence
+        // Determine number of measures per line based on constructor options and lyric presence
         const hasLyrics = xmlDoc.querySelector("lyric") !== null;
-        const isMobile = window.innerWidth <= 360; // Mobile viewport width threshold
+        let isMobile;
+        if (this.autoDetectMobile) {
+            // Auto-detect based on viewport width, but allow explicit override via forceMobile
+            isMobile = this.forceMobile || window.innerWidth <= 360; // Mobile viewport width threshold or forced mode
+        } else {
+            // Rely solely on the forceMobile flag provided via constructor
+            isMobile = !!this.forceMobile;
+        }
         if (isMobile) {
             this.measuresPerLine = 1; // One measure per system for mobile
         } else {
