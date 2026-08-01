@@ -767,8 +767,8 @@ class MusicXMLSvgRenderer {
             line.setAttribute("y1", topY);
             line.setAttribute("x2", x);
             line.setAttribute("y2", bottomY);
-            line.setAttribute("stroke", this.lightLineColor);
-            line.setAttribute("stroke-width", `${1.0 * scale}`);
+            line.setAttribute("stroke", this.staffLineColor);
+            line.setAttribute("stroke-width", `${1.2 * scale}`);
             this.svg.appendChild(line);
         }
     }
