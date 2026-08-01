@@ -341,7 +341,10 @@ class MusicXMLSvgRenderer {
                     // end values will be set later
                 };
 
-                // Draw continuous 5 staff lines for each active staff in full system
+                // Draw vertical system start line across all staves
+                this.drawSystemStartLine(systemStartX, currentY, calculatedStaffSystemHeight);
+
+                // Draw continuous 5 staff lines and a left bar line for each staff (height of one staff)
                 for (let s = 1; s <= totalSystemStaves; s++) {
                     const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
                     if (!pInfo) continue; // Should not happen
@@ -354,7 +357,12 @@ class MusicXMLSvgRenderer {
                     }
                     const sY = currentY + currentStaffYOffset; // Top line of the current staff
 
+                    // Draw staff lines
                     this.drawStaffLines(systemStartX, sY, systemRowWidth);
+
+                    // Draw vertical bar line at the left margin for this staff (height = one staff)
+                    const staffHeight = 4 * this.lineSpacing;
+                    this.drawBarLine(leftMargin, sY, false, staffHeight);
 
                     // Draw Clef, Key, Time Signature at system start for this staff
                     const state = staffState[s];
@@ -364,18 +372,13 @@ class MusicXMLSvgRenderer {
 
                     // Update offset for the next staff
                     currentStaffYOffset += (4 * this.lineSpacing); // Height of the staff lines
-                    if (localStaff < pInfo.numStaves) { // If there are more staves in this part, add internal staff spacing
+                    if (localStaff < pInfo.numStaves) {
                         currentStaffYOffset += this.staffSpacing;
                     }
                     previousPartIndex = pInfo.partIndex;
                 }
 
-                // Vertical System Start Bar Line across all staves
-                this.drawSystemStartLine(systemStartX, currentY, calculatedStaffSystemHeight);
-
-                // Draw an additional barline at the beginning of the first measure in the system
-                this.drawBarLine(leftMargin, currentY, false, calculatedStaffSystemHeight);
-
+                // Curly Grand Staff Brace (if 2 staves in Part 0)
                 // Curly Grand Staff Brace (if 2 staves in Part 0)
                 if (totalSystemStaves >= 2 && partStaffMap[0].numStaves === 2) {
                     const firstPartHeight = partStaffMap[0].numStaves * (4 * this.lineSpacing) + Math.max(0, partStaffMap[0].numStaves - 1) * this.staffSpacing;
@@ -418,9 +421,28 @@ class MusicXMLSvgRenderer {
             const originalSvgTarget = this.svg;
             this.svg = measureGroup;
 
-            // Measure Right Barline across all staves
+            // Measure Right Barline per staff (height = one staff)
             const isLastMeasureInScore = (measureIdx === totalMeasures - 1);
-            this.drawBarLine(currentX + measureWidth, currentY, isLastMeasureInScore, calculatedStaffSystemHeight);
+            const staffHeight = 4 * this.lineSpacing;
+            // Compute vertical position for each staff similar to left barline logic
+            let rightBarOffset = 0;
+            let rightPrevPart = -1;
+            for (let s = 1; s <= totalSystemStaves; s++) {
+                const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
+                if (!pInfo) continue;
+                if (pInfo.partIndex !== rightPrevPart && rightPrevPart !== -1) {
+                    rightBarOffset += this.basePartSpacing * scale;
+                }
+                const sY = currentY + rightBarOffset; // Top line of this staff
+                this.drawBarLine(currentX + measureWidth, sY, isLastMeasureInScore, staffHeight);
+                // Update offset for next staff
+                rightBarOffset += (4 * this.lineSpacing);
+                const localStaff = (s - pInfo.startStaffId) + 1;
+                if (localStaff < pInfo.numStaves) {
+                    rightBarOffset += this.staffSpacing;
+                }
+                rightPrevPart = pInfo.partIndex;
+            }
 
             // Parse & Render Notes across all parts and staves for this measure
             currentStaffYOffset = 0; // Reset offset for the note rendering pass
