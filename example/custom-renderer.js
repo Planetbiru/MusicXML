@@ -716,7 +716,7 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const pathData = "M165 177q-24 30-26 60-2 34 19 64 23 32 57 34h21l4 23q3 15 2 26-1 15-9 24-9 10-23 9-6 0-11-3l10-5q9-7 10-19 0-12-6-21-8-9-20-10t-22 9q-7 10-9 22-1 19 14 31 13 11 31 12a52 52 0 0 0 34-9q17-13 18-31 1-15-2-34l-4-29q17-5 28-20 12-15 13-36 3-25-12-46a51 51 0 0 0-46-23l-5-36q20-16 32-42 12-24 14-53 0-17-5-41-7-31-22-33-6 0-12 6a89 89 0 0 0-25 37 167 167 0 0 0-3 89q-31 29-45 45m98 97c0 12-5 31-13 36l-9-63q21 6 22 27m-41-169q1-18 9-37 10-22 16-22h3c5 0 10 2 9 15q-1 17-13 35-10 15-22 25-3-7-2-16m-6 76 3 27q-14 6-23 18-12 13-13 30-1 18 8 31 4 7 12 13c7 5 16 5 18 2q0-4-8-15-4-5-4-13 1-18 16-25l9 70-16 1q-22-2-39-19a48 48 0 0 1-16-38q3-42 53-82";
-
+        x = x - (25 * scale);
         const tx = x - 7.5 * scale;
         const ty = y - 20.0 * scale;
         const sx = 0.2075 * scale;
@@ -735,8 +735,8 @@ class MusicXMLSvgRenderer {
         const scale = this.zoom || 1.0;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         const pathData = "M205 23c-67 0-107 39-118 77-11 39 3 77 17 98h1a64 64 0 0 0 52 26 64 64 0 0 0 64-64 64 64 0 0 0-64-64 64 64 0 0 0-50 24l3-18c10-33 34-61 95-61 60 0 94 64 92 153-1 80-12 128-60 171q-72 65-180 107c-13 5-1 19 7 16 73-28 145-53 196-98 51-46 96-87 96-198 1-97-44-169-151-169";
-
-        const tx = x + 2.5 * scale;
+        x = x - (11 * scale);
+        const tx = x + (2.5 * scale);
         const ty = y - 1.5 * scale;
         const sx = 0.09 * scale;
         const sy = 0.09 * scale;
@@ -747,10 +747,12 @@ class MusicXMLSvgRenderer {
         this.svg.appendChild(path);
 
         // Double dots around line 4
-        const dotX = x + 18.5 * scale;
+        x = x + (22 * scale);
+        y = y - (5 * scale);
+        const dotX = x + (18.5 * scale);
         const r = 1.5 * scale;
-        this.drawCircle(dotX, y + 1 * this.lineSpacing, r, this.engraverColor); // FIX: Position relative to staff lines
-        this.drawCircle(dotX, y + 3 * this.lineSpacing, r, this.engraverColor); // FIX: Position relative to staff lines
+        this.drawCircle(dotX, y + (1 * this.lineSpacing), r, this.engraverColor); // FIX: Position relative to staff lines
+        this.drawCircle(dotX, y + (2 * this.lineSpacing), r, this.engraverColor); // FIX: Position relative to staff lines
     }
 
     /**
