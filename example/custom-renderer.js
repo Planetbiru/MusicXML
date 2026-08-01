@@ -92,6 +92,10 @@ class MusicXMLSvgRenderer {
         this.svg.style.margin = "0 auto";
         this.container.appendChild(this.svg);
 
+        const svgRoot = this.svg;
+        let currentSystemGroup = null;
+        let systemNumber = 0;
+
         // Find parts & measures across all parts
         const parts = Array.from(xmlDoc.querySelectorAll("part"));
         if (parts.length === 0) {
@@ -100,8 +104,23 @@ class MusicXMLSvgRenderer {
         }
 
         const partMeasures = parts.map(p => Array.from(p.querySelectorAll("measure")));
-        const maxMeasures = Math.max(...partMeasures.map(mList => mList.length));
-        if (maxMeasures === 0) {
+        const partMeasureMap = partMeasures.map(mList => {
+            const map = new Map();
+            mList.forEach(measureNode => {
+                const measureNumber = parseInt(measureNode.getAttribute("number") || "1", 10) || 1;
+                map.set(measureNumber, measureNode);
+            });
+            return map;
+        });
+        // Render must begin at the first measure in the MusicXML file without trimming any leading content.
+        const firstMeasureNumber = 1;
+        const measureOffset = 0;
+        const maxMeasureNumber = Math.max(
+            1,
+            ...partMeasures.flatMap(mList => mList.map(m => parseInt(m.getAttribute("number") || "1", 10) || 1))
+        );
+        const totalMeasures = maxMeasureNumber;
+        if (totalMeasures === 0) {
             this.container.innerHTML = "<div style='color:#ef4444; padding:2rem; text-align:center;'>No measures found in MusicXML.</div>";
             return;
         }
@@ -200,7 +219,7 @@ class MusicXMLSvgRenderer {
         const measureWidth = Math.max(220 * scale, usableWidth / this.measuresPerLine);
 
         let currentX = leftMargin;
-        let nextSystemY = currentY; // FIX: Use a separate variable to track the Y of the next system
+        let nextSystemY = currentY + this.rowSpacing; // Next system row starts below the current system
 
         // Track clefs, key, and time signatures for each staff ID (1..totalSystemStaves)
         const staffState = {};
@@ -211,7 +230,7 @@ class MusicXMLSvgRenderer {
         const activeTies = {};
 
         // Measure Iteration across maxMeasures
-        for (let measureIdx = 0; measureIdx < maxMeasures; measureIdx++) {
+        for (let measureIdx = 0; measureIdx < totalMeasures; measureIdx++) {
             const isSystemStart = (measureIdx % this.measuresPerLine === 0);
             // Declare offset variables here to be accessible throughout the measure loop
             let currentStaffYOffset = 0;
@@ -220,13 +239,14 @@ class MusicXMLSvgRenderer {
             // Advance to next system row if row is full
             if (measureIdx > 0 && isSystemStart) {
                 currentX = leftMargin; // Reset X position for the new system
-                currentY = nextSystemY; // FIX: Set currentY to the pre-calculated start of the new system
-                nextSystemY += this.rowSpacing; // FIX: Calculate the Y for the *next* system row
+                currentY = nextSystemY; // Move to the next system row
+                nextSystemY += this.rowSpacing; // Advance the row anchor for the following system
             }
 
             // Update metadata attributes across all parts for this measure
             partStaffMap.forEach(pInfo => {
-                const mNode = partMeasures[pInfo.partIndex][measureIdx];
+                const measureNumber = measureIdx + firstMeasureNumber;
+                const mNode = partMeasureMap[pInfo.partIndex].get(measureNumber);
                 if (!mNode) return;
 
                 const attrNode = mNode.querySelector("attributes");
@@ -269,9 +289,17 @@ class MusicXMLSvgRenderer {
                 }
             });
 
+
             // At System Start: Draw Continuous System Staff Lines & Connectors
             if (isSystemStart) {
-                const remainingMeasures = maxMeasures - measureIdx;
+                systemNumber += 1;
+                currentSystemGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                currentSystemGroup.setAttribute("id", `system-${systemNumber}`);
+                currentSystemGroup.setAttribute("data-system", `${systemNumber}`);
+                svgRoot.appendChild(currentSystemGroup);
+                this.svg = currentSystemGroup;
+
+                const remainingMeasures = totalMeasures - measureIdx;
                 const systemMeasuresInRow = Math.min(this.measuresPerLine, remainingMeasures);
                 const systemRowWidth = systemMeasuresInRow * measureWidth + 60 * scale;
 
@@ -314,16 +342,12 @@ class MusicXMLSvgRenderer {
                 }
 
                 // Measure Number
-                const measureNumberNode = partMeasures[0][measureIdx];
-                const measureNumberAttr = measureNumberNode?.getAttribute("number");
-                const displayMeasureNumber = measureNumberAttr && !isNaN(parseInt(measureNumberAttr, 10))
-                    ? parseInt(measureNumberAttr, 10)
-                    : measureIdx + 1;
+                const displayMeasureNumber = measureIdx + firstMeasureNumber;
                 this.drawText(systemStartX, currentY - 14 * scale, `${displayMeasureNumber}`, `${Math.round(10 * scale)}px`, "#64748b", "start", true, "'Inter', sans-serif");
             }
 
             // Tempo Markings from primary measure
-            const firstM = partMeasures[0][measureIdx];
+            const firstM = partMeasureMap[0].get(measureIdx + firstMeasureNumber);
             if (firstM) {
                 let tempoBpm = null;
                 const metroNode = firstM.querySelector("metronome per-minute");
@@ -340,14 +364,17 @@ class MusicXMLSvgRenderer {
             }
 
             // Measure Right Barline across all staves
-            const isLastMeasureInScore = (measureIdx === maxMeasures - 1);
+            const isLastMeasureInScore = (measureIdx === totalMeasures - 1);
             this.drawBarLine(currentX + measureWidth, currentY, isLastMeasureInScore, calculatedStaffSystemHeight);
 
             // Parse & Render Notes across all parts and staves for this measure
             currentStaffYOffset = 0; // Reset offset for the note rendering pass
             previousPartIndex = -1; // Reset part index tracker
 
+            
+
             for (let s = 1; s <= totalSystemStaves; s++) {
+                
                 const pInfo = partStaffMap.find(p => s >= p.startStaffId && s < p.startStaffId + p.numStaves);
                 if (!pInfo) continue;
 
@@ -359,7 +386,8 @@ class MusicXMLSvgRenderer {
                 }
                 const sY = currentY + currentStaffYOffset;
                 const state = staffState[s];
-                const mNode = partMeasures[pInfo.partIndex][measureIdx];
+                const measureNumber = measureIdx + firstMeasureNumber;
+                const mNode = partMeasureMap[pInfo.partIndex].get(measureNumber);
                 if (!mNode) {
                     // Compute full measure duration in divisions
                     const beatFactor = 4 / state.beatType; // quarter‑note factor
@@ -372,6 +400,8 @@ class MusicXMLSvgRenderer {
                     // No notes to draw for this staff in this measure
                     continue;
                 }
+
+                console.log(`measureNumber=${measureNumber}, partIndex=${pInfo.partIndex}, staff=${s}, localStaff=${localStaff}, divisions=${state.divisions}, beats=${state.beats}, beatType=${state.beatType}`);
 
                 // FIX: This entire block is rewritten to handle internal note splitting for ties.
                 let currentDiv = 0; // Running cursor for horizontal position in divisions.
@@ -559,6 +589,8 @@ class MusicXMLSvgRenderer {
             // CRITICAL FIX: Advance currentX to the next measure column!
             currentX += measureWidth;
         }
+
+        this.svg = svgRoot;
 
         // FIX: Correctly calculate viewBox to fit the rendered content without extra top space.
         const topMargin = 20 * scale; // Explicit top margin inside the SVG
@@ -1209,6 +1241,13 @@ class MusicXMLSvgRenderer {
 
         this.svg.appendChild(group);
         return group;
+    }
+
+    /**
+     * Backward-compatible alias for rest rendering.
+     */
+    drawRest(x, y, type) {
+        this.drawRestSymbol(x, y, type);
     }
 
     /**
