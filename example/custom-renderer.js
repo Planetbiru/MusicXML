@@ -401,8 +401,6 @@ class MusicXMLSvgRenderer {
                     continue;
                 }
 
-                console.log(`measureNumber=${measureNumber}, partIndex=${pInfo.partIndex}, staff=${s}, localStaff=${localStaff}, divisions=${state.divisions}, beats=${state.beats}, beatType=${state.beatType}`);
-
                 // FIX: This entire block is rewritten to handle internal note splitting for ties.
                 let currentDiv = 0; // Running cursor for horizontal position in divisions.
                 let lastBaseDiv = 0; // For chord alignment
