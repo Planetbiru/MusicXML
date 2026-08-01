@@ -789,12 +789,11 @@ let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisi
     drawTrebleClef(x, y) {
         const scale = this.zoom || 1.0;
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        const pathData = "M165 177q-24 30-26 60-2 34 19 64 23 32 57 34h21l4 23q3 15 2 26-1 15-9 24-9 10-23 9-6 0-11-3l10-5q9-7 10-19 0-12-6-21-8-9-20-10t-22 9q-7 10-9 22-1 19 14 31 13 11 31 12a52 52 0 0 0 34-9q17-13 18-31 1-15-2-34l-4-29q17-5 28-20 12-15 13-36 3-25-12-46a51 51 0 0 0-46-23l-5-36q20-16 32-42 12-24 14-53 0-17-5-41-7-31-22-33-6 0-12 6a89 89 0 0 0-25 37 167 167 0 0 0-3 89q-31 29-45 45m98 97c0 12-5 31-13 36l-9-63q21 6 22 27m-41-169q1-18 9-37 10-22 16-22h3c5 0 10 2 9 15q-1 17-13 35-10 15-22 25-3-7-2-16m-6 76 3 27q-14 6-23 18-12 13-13 30-1 18 8 31 4 7 12 13c7 5 16 5 18 2q0-4-8-15-4-5-4-13 1-18 16-25l9 70-16 1q-22-2-39-19a48 48 0 0 1-16-38q3-42 53-82";
-        x = x - (18 * scale);
-        const tx = x - 7.5 * scale;
-        const ty = y - 20.0 * scale;
-        const sx = 0.2075 * scale * 0.8;
-        const sy = 0.2075 * scale * 0.8;
+        const pathData = "M12.5 44.3c-2.6 3.4-2.8 7-0.2 10.9 2.8 4.3 7.8 6.5 13.1 6.5h1.1c0.2-1.8 0.5-3.5 0.8-5.3-2.5-0.2-4.9-1.5-6.3-3.6-1.3-1.9-1.2-4.1 0.2-5.9 1.5-1.9 3.8-2.9 6.3-2.7l0.8-5.3C17.2 35.1 15.1 40.9 12.5 44.3zM12.3 23.4c-1.1 0-2.2 0.5-2.9 1.4-0.8 0.9-1.1 2.2-0.8 3.4 0.3 1.2 1.1 2.2 2.2 2.7s2.5 0.3 3.6-0.4c-0.3-1.8-0.6-3.5-0.8-5.3C13.3 24.1 12.8 23.4 12.3 23.4zM14.5 66.9c-2.5-0.2-4.9-1.5-6.3-3.6-1.3-1.9-1.2-4.1 0.2-5.9s3.8-2.9 6.3-2.7l0.8-5.3c-5.2-0.2-9.9 3.8-11.3 8.8-1.4 5 1.1 10.2 5.9 12.3 4.8 2.1 10.1 0.4 13.1-3.4 0 0-0.1-0.1-0.1-0.1 -2.6 3.4-2.8 7-0.2 10.9 2.8 4.3 7.8 6.5 13.1 6.5 5.2 0 10-2.2 12.8-6.5 2.8-4.3 3-9.6 0.2-13.7 -1-1.5-2.3-2.8-3.8-3.8 -1.2-0.8-2.6-1.3-4-1.6 -3.1-0.6-6.3 0.2-9 2.2 -2.1 1.5-3.8 3.8-4.9 6.3l-0.1 0.1c-1.3-1.9-1.2-4.1 0.2-5.9 1.5-1.9 3.8-2.9 6.3-2.7l0.8-5.3c-5.2-0.2-9.9 3.8-11.3 8.8 -1.4 5 1.1 10.2 5.9 12.3 4.9 2.1 10.1 0.4 13.1-3.4 0 0-0.1-0.1-0.1-0.1c-2.6 3.4-2.8 7-0.2 10.9 2.8 4.3 7.8 6.5 13.1 6.5 5.2 0 10-2.2 12.8-6.5 2.8-4.3 3-9.6 0.2-13.7 -1.2-1.9-2.8-3.4-4.6-4.6 -1.5-1-3.2-1.7-5-2.1 -3.8-0.8-7.8 0.2-10.9 2.5 -2.5 1.9-4.4 4.5-5.6 7.5l-0.1 0.1c-1.3-1.9-1.2-4.1 0.2-5.9 1.5-1.9 3.8-2.9 6.3-2.7l0.8-5.3c-5.2-0.2-9.9 3.8-11.3 8.8 -1.4 5 1.1 10.2 5.9 12.3 4.9 2.1 10.1 0.4 13.1-3.4 0 0-0.1-0.1-0.1-0.1c-2.6 3.4-2.8 7-0.2 10.9 2.8 4.3 7.8 6.5 13.1 6.5 5.2 0 10-2.2 12.8-6.5 2.8-4.3 3-9.6 0.2-13.7 -1-1.5-2.3-2.8-3.8-3.8 -1.2-0.8-2.6-1.3-4-1.6 -3.1-0.6-6.3 0.2-9 2.2 -2.1 1.5-3.8 3.8-4.9 6.3l-0.1 0.1c-1.3-1.9-1.2-4.1 0.2-5.9 1.5-1.9 3.8-2.9 6.3-2.7l0.8-5.3c-5.2-0.2-9.9 3.8-11.3 8.8 -1.4 5 1.1 10.2 5.9 12.3C24.6 66.5 19.4 68.2 14.5 66.9z";
+        const tx = x - 10 * scale;
+        const ty = y - 28 * scale;
+        const sx = 0.4 * scale;
+        const sy = 0.4 * scale;
 
         path.setAttribute("d", pathData);
         path.setAttribute("transform", `translate(${tx}, ${ty}) scale(${sx}, ${sy})`);
@@ -1448,6 +1447,88 @@ let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisi
         return activeNotes;
     }
     // --- Static helper methods for duration calculation ---
+
+    /**
+     * Creates or updates the vertical playhead line element within the SVG.
+     */
+    createOrUpdatePlayhead() {
+        if (!this._svgRoot) return;
+        this.playheadElement = this._svgRoot.querySelector('#playhead-line');
+        if (!this.playheadElement) {
+            this.playheadElement = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            this.playheadElement.setAttribute("id", "playhead-line");
+            this.playheadElement.setAttribute("stroke", "rgba(255,0,0,0.7)");
+            this.playheadElement.setAttribute("stroke-width", "2");
+            this.playheadElement.style.pointerEvents = "none";
+            this._svgRoot.appendChild(this.playheadElement);
+        }
+    }
+
+    /**
+     * Updates the visual position of the playhead, highlights active notes, and handles auto-scrolling.
+     * This method is designed to be called during playback.
+     * @param {number} currentTick The current MIDI tick to display.
+     * @param {HTMLElement} [scrollContainer=null] The scrollable container for auto-scrolling.
+     */
+    updatePlayhead(tick, scrollContainer = null) {
+        if (!this._svgRoot) {
+            return;
+        }
+
+        const svg = this._svgRoot;
+        let playheadLine = svg.querySelector('#playhead-line');
+        if (!playheadLine) {
+            playheadLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            playheadLine.setAttribute('id', 'playhead-line');
+            playheadLine.setAttribute('stroke', 'rgba(255,0,0,0.7)');
+            playheadLine.setAttribute('stroke-width', '2');
+            playheadLine.style.pointerEvents = 'none';
+            svg.appendChild(playheadLine);
+        } else {
+            svg.querySelectorAll('g[data-element="true"].active').forEach(el => el.classList.remove('active'));
+        }
+
+        const pos = currentParsedMidi.header.tickToPosition(tick);
+        const currentMeasureNum = pos.measure;
+        const activeMeasure = svg.querySelector(`g[data-measure-number="${currentMeasureNum}"]`);
+
+        if (activeMeasure) {
+            const activeSystem = activeMeasure.closest('g[data-system-number]');
+            if (!activeSystem) return;
+
+            const systemX = parseFloat(activeSystem.getAttribute('x'));
+            const systemY = parseFloat(activeSystem.getAttribute('y'));
+            const systemHeight = parseFloat(activeSystem.getAttribute('height'));
+
+            const measureX = parseFloat(activeMeasure.getAttribute('x'));
+            const measureWidth = parseFloat(activeMeasure.getAttribute('width'));
+
+            const progress = pos.ticksPerMeasure > 0
+                ? Math.max(0, Math.min(1, pos.tickInMeasure / pos.ticksPerMeasure))
+                : 0;
+
+            const xPos = systemX + measureX + progress * measureWidth;
+            playheadLine.setAttribute('x1', xPos);
+            playheadLine.setAttribute('x2', xPos);
+            playheadLine.setAttribute('y1', systemY);
+            playheadLine.setAttribute('y2', systemY + systemHeight);
+
+            const notesToHighlight = customRenderer.selectNotesByTick(tick);
+            notesToHighlight.forEach(el => {
+                if (el instanceof SVGGElement) el.classList.add('active');
+            });
+        }
+    }
+
+    /**
+     * Resets the playhead to the beginning and scrolls to the top.
+     * @param {HTMLElement} [scrollContainer=null] The scrollable container to scroll.
+     */
+    resetPlayhead(scrollContainer = null) {
+        this.updatePlayheadPos(0);
+        this.lastScrolledSystem = null;
+        if (scrollContainer) scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
     static NOTE_TYPE_VALUES = [
         { name: 'maxima', val: 8 }, { name: 'long', val: 4 }, { name: 'breve', val: 2 },
