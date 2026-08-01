@@ -446,7 +446,8 @@ class MusicXMLSvgRenderer {
                             },
                             tieStart: pieceTieStart,
                             tieStop: pieceTieStop,
-                            divisions: currentStaffDivisions
+                            divisions: currentStaffDivisions,
+                            beatType: state.beatType || 4
                         }
                         allNotesInMeasure.push(noteData);
 
@@ -958,6 +959,8 @@ class MusicXMLSvgRenderer {
             }
         }
 
+        const beatDurationDivs = Math.max(1, (notes[0].divisions || 4) * (4 / (notes[0].beatType || 4)));
+
         return {
             x: x,
             stemX: stemX,
@@ -965,8 +968,8 @@ class MusicXMLSvgRenderer {
             stemDown: stemDown,
             type: firstNoteType,
             isBeamable: isBeamable,
-            // FIX: Pass beat index for correct beaming logic
-            beatIndex: Math.floor(lowestNote.onsetDiv / (notes[0].divisions || 4)),
+            beatIndex: Math.floor(lowestNote.onsetDiv / beatDurationDivs),
+            beatDurationDivs: beatDurationDivs,
             divisions: notes[0].divisions,
             flagElement: flagElement, // Keep for potential removal
             stemLine: stemLine
