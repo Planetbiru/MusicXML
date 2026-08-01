@@ -314,7 +314,12 @@ class MusicXMLSvgRenderer {
                 }
 
                 // Measure Number
-                this.drawText(systemStartX, currentY - 14 * scale, `${measureIdx + 1}`, `${Math.round(10 * scale)}px`, "#64748b", "start", true, "'Inter', sans-serif");
+                const measureNumberNode = partMeasures[0][measureIdx];
+                const measureNumberAttr = measureNumberNode?.getAttribute("number");
+                const displayMeasureNumber = measureNumberAttr && !isNaN(parseInt(measureNumberAttr, 10))
+                    ? parseInt(measureNumberAttr, 10)
+                    : measureIdx + 1;
+                this.drawText(systemStartX, currentY - 14 * scale, `${displayMeasureNumber}`, `${Math.round(10 * scale)}px`, "#64748b", "start", true, "'Inter', sans-serif");
             }
 
             // Tempo Markings from primary measure
@@ -355,7 +360,18 @@ class MusicXMLSvgRenderer {
                 const sY = currentY + currentStaffYOffset;
                 const state = staffState[s];
                 const mNode = partMeasures[pInfo.partIndex][measureIdx];
-                if (!mNode) continue;
+                if (!mNode) {
+                    // Compute full measure duration in divisions
+                    const beatFactor = 4 / state.beatType; // quarter‑note factor
+                    const fullMeasureDivisions = state.beats * state.divisions * beatFactor;
+                    // Determine appropriate rest glyph (whole or half) based on beats per measure
+                    const restType = state.beats >= 4 ? 'whole' : 'half';
+                    // Position the rest roughly in the middle of the measure
+                    const noteX = currentX + measureWidth / 2;
+                    this.drawRest(noteX - 2, sY, restType);
+                    // No notes to draw for this staff in this measure
+                    continue;
+                }
 
                 // FIX: This entire block is rewritten to handle internal note splitting for ties.
                 let currentDiv = 0; // Running cursor for horizontal position in divisions.
@@ -464,6 +480,49 @@ class MusicXMLSvgRenderer {
 
                 const measureDuration = state.beats * state.divisions;
                 const totalMeasureDivs = Math.max(measureDuration, currentDiv, 1);
+
+                if (allNotesInMeasure.length === 0) {
+                    allNotesInMeasure.push({
+                        isRest: true,
+                        staff: s,
+                        step: "C",
+                        octave: 4,
+                        alter: 0,
+                        accidental: null,
+                        type: MusicXMLSvgRenderer.getNoteType(measureDuration, currentStaffDivisions),
+                        stem: "up",
+                        lyric: null,
+                        onsetDiv: 0,
+                        duration: measureDuration,
+                        articulations: {},
+                        tieStart: false,
+                        tieStop: false,
+                        divisions: currentStaffDivisions,
+                        beatType: state.beatType || 4
+                    });
+                } else {
+                    const firstOnset = Math.min(...allNotesInMeasure.map(note => note.onsetDiv || 0));
+                    if (firstOnset > 0) {
+                        allNotesInMeasure.unshift({
+                            isRest: true,
+                            staff: s,
+                            step: "C",
+                            octave: 4,
+                            alter: 0,
+                            accidental: null,
+                            type: MusicXMLSvgRenderer.getNoteType(firstOnset, currentStaffDivisions),
+                            stem: "up",
+                            lyric: null,
+                            onsetDiv: 0,
+                            duration: firstOnset,
+                            articulations: {},
+                            tieStart: false,
+                            tieStop: false,
+                            divisions: currentStaffDivisions,
+                            beatType: state.beatType || 4
+                        });
+                    }
+                }
 
                 const columnsByOnset = {};
                 allNotesInMeasure.forEach(note => {
