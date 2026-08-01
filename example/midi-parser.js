@@ -268,11 +268,7 @@ class MidiParser {
             for (const n of notes) {
                 if (n.ticks < firstNoteTick) firstNoteTick = n.ticks;
             }
-
-            if (options.normalize && firstNoteTick !== Infinity) {
-                for (const n of notes) n.ticks -= firstNoteTick;
-                for (const l of lyrics) l.ticks -= firstNoteTick;
-            }
+            // (Normalization moved to global scope below)
 
             tracks.push({
                 name: trackName || `Track ${i + 1}`,
@@ -351,6 +347,53 @@ class MidiParser {
         tracks.forEach(t => {
             if (t.startTick < globalFirstTick) globalFirstTick = t.startTick;
         });
+
+        // Combine lyrics that fall within the same note's duration
+        tracks.forEach(t => {
+            const mergedLyrics = [];
+            if (t.lyrics.length > 0 && t.notes.length > 0) {
+                // Ensure sorted
+                t.notes.sort((a, b) => a.ticks - b.ticks);
+                t.lyrics.sort((a, b) => a.ticks - b.ticks);
+                
+                let lyricIdx = 0;
+                t.notes.forEach(note => {
+                    const nStart = note.ticks;
+                    const nEnd = note.ticks + note.durationTicks;
+                    
+                    while (lyricIdx < t.lyrics.length && t.lyrics[lyricIdx].ticks < nStart) {
+                        lyricIdx++;
+                    }
+                    
+                    let combined = "";
+                    while (lyricIdx < t.lyrics.length && t.lyrics[lyricIdx].ticks >= nStart && t.lyrics[lyricIdx].ticks < nEnd) {
+                        combined += (combined ? " " : "") + t.lyrics[lyricIdx].text;
+                        lyricIdx++;
+                    }
+                    if (combined) {
+                        mergedLyrics.push({ ticks: nStart, text: combined });
+                    }
+                });
+                t.lyrics = mergedLyrics;
+            }
+        });
+
+        // Always normalize globally by default if options.normalize is not explicitly false
+        if (options.normalize !== false && globalFirstTick !== Infinity && globalFirstTick > 0) {
+            tracks.forEach(t => {
+                t.notes.forEach(n => n.ticks -= globalFirstTick);
+                t.lyrics.forEach(l => l.ticks -= globalFirstTick);
+                t.controllers.forEach(c => c.ticks = Math.max(0, c.ticks - globalFirstTick));
+                t.pitchBends.forEach(pb => pb.ticks = Math.max(0, pb.ticks - globalFirstTick));
+                t.startTick -= globalFirstTick;
+            });
+            timeSignatures.forEach(ts => ts.ticks = Math.max(0, ts.ticks - globalFirstTick));
+            keySignatures.forEach(ks => ks.ticks = Math.max(0, ks.ticks - globalFirstTick));
+            tempos.forEach(tmp => tmp.ticks = Math.max(0, tmp.ticks - globalFirstTick));
+            channelProgramChanges.forEach(changes => changes.forEach(pc => pc.ticks = Math.max(0, pc.ticks - globalFirstTick)));
+            channelBankChanges.forEach(changes => changes.forEach(bc => bc.ticks = Math.max(0, bc.ticks - globalFirstTick)));
+            maxTicks -= globalFirstTick;
+        }
 
         const preparedTimeSignatures =
         (timeSignatures.length ? [...timeSignatures] : [{
@@ -533,7 +576,7 @@ class MidiParser {
                     // Tambahkan jumlah measure pada segmen ini
                     const segmentTicks = nextTick - current.ticks;
 
-                    measure += Math.floor(segmentTicks / ticksPerMeasure);
+                    measure += Math.ceil(segmentTicks / ticksPerMeasure);
                 }
 
                 // Fallback
