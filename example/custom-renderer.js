@@ -29,6 +29,10 @@ class MusicXMLSvgRenderer {
 
         // Base Layout Metrics
         this.baseLineSpacing = 9.5;
+        // System metadata for playhead mapping
+        this._systemMetadata = [];
+        // Cumulative tick counter (MIDI tick approximation)
+        this._cumulativeTick = 0;
         this.baseStaffSpacing = 90; // gap between staves
         this.basePartSpacing = 65; // additional gap between different parts within a system
         this.systemSpacing = 80; // Configurable gap between system rows (in pixels)
@@ -91,6 +95,8 @@ class MusicXMLSvgRenderer {
         this.svg.style.display = "block";
         this.svg.style.margin = "0 auto";
         this.container.appendChild(this.svg);
+        // Store reference to root SVG for overlay elements like playhead
+        this._svgRoot = this.svg;
 
         const svgRoot = this.svg;
         let currentSystemGroup = null;
@@ -229,8 +235,13 @@ class MusicXMLSvgRenderer {
 
         const activeTies = {};
 
+        // Declarations for system metadata tracking
+        let currentSystemMeta = null;
+        let systemRowWidth = 0;
         // Measure Iteration across maxMeasures
         for (let measureIdx = 0; measureIdx < totalMeasures; measureIdx++) {
+            // Track metadata for the current system
+            // Declarations moved outside the loop for proper scope
             const isSystemStart = (measureIdx % this.measuresPerLine === 0);
             // Declare offset variables here to be accessible throughout the measure loop
             let currentStaffYOffset = 0;
@@ -292,16 +303,38 @@ class MusicXMLSvgRenderer {
 
             // At System Start: Draw Continuous System Staff Lines & Connectors
             if (isSystemStart) {
+                // Finalize previous system metadata if exists
+                if (currentSystemMeta) {
+                    currentSystemMeta.endTick = this._cumulativeTick;
+                    currentSystemMeta.xEnd = systemStartX + systemRowWidth;
+                    currentSystemMeta.yEnd = currentY + calculatedStaffSystemHeight;
+                    this._systemMetadata.push(currentSystemMeta);
+                }
                 systemNumber += 1;
                 currentSystemGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
                 currentSystemGroup.setAttribute("id", `system-${systemNumber}`);
-                currentSystemGroup.setAttribute("data-system", `${systemNumber}`);
+                currentSystemGroup.setAttribute("data-system-number", `${systemNumber}`);
                 svgRoot.appendChild(currentSystemGroup);
                 this.svg = currentSystemGroup;
 
                 const remainingMeasures = totalMeasures - measureIdx;
                 const systemMeasuresInRow = Math.min(this.measuresPerLine, remainingMeasures);
-                const systemRowWidth = systemMeasuresInRow * measureWidth + 60 * scale;
+                systemRowWidth = systemMeasuresInRow * measureWidth + 60 * scale;
+
+                // Set geometry attributes on the system group for the playhead
+                currentSystemGroup.setAttribute("x", systemStartX);
+                currentSystemGroup.setAttribute("y", currentY);
+                currentSystemGroup.setAttribute("width", systemRowWidth);
+                currentSystemGroup.setAttribute("height", calculatedStaffSystemHeight);
+
+                // Initialize metadata for the new system
+                currentSystemMeta = {
+                    systemNumber: systemNumber,
+                    startTick: this._cumulativeTick,
+                    xStart: systemStartX,
+                    yStart: currentY,
+                    // end values will be set later
+                };
 
                 // Draw continuous 5 staff lines for each active staff in full system
                 for (let s = 1; s <= totalSystemStaves; s++) {
@@ -363,6 +396,20 @@ class MusicXMLSvgRenderer {
                 }
             }
 
+            // Create a group for the entire measure content
+            const measureGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            measureGroup.setAttribute("data-measure-number", measureIdx); // Use 0-based index
+            measureGroup.setAttribute("data-start-tick", this._cumulativeTick);
+            measureGroup.setAttribute("x", currentX);
+            measureGroup.setAttribute("width", measureWidth);
+            
+            // Temporarily append to the current system group to render into it
+            this.svg.appendChild(measureGroup);
+            
+            // All subsequent drawing for this measure will go into this new group
+            const originalSvgTarget = this.svg;
+            this.svg = measureGroup;
+
             // Measure Right Barline across all staves
             const isLastMeasureInScore = (measureIdx === totalMeasures - 1);
             this.drawBarLine(currentX + measureWidth, currentY, isLastMeasureInScore, calculatedStaffSystemHeight);
@@ -386,6 +433,7 @@ class MusicXMLSvgRenderer {
                 }
                 const sY = currentY + currentStaffYOffset;
                 const state = staffState[s];
+
                 const measureNumber = measureIdx + firstMeasureNumber;
                 const mNode = partMeasureMap[pInfo.partIndex].get(measureNumber);
                 if (!mNode) {
@@ -402,6 +450,8 @@ class MusicXMLSvgRenderer {
                 }
 
                 // FIX: This entire block is rewritten to handle internal note splitting for ties.
+// Determine measure duration (beats * divisions) using the first staff's state.
+let measureDuration = staffState[1] ? staffState[1].beats * staffState[1].divisions : 0;
                 let currentDiv = 0; // Running cursor for horizontal position in divisions.
                 let lastBaseDiv = 0; // For chord alignment
                 const allNotesInMeasure = []; // This will hold all noteData objects, including split ones.
@@ -506,7 +556,7 @@ class MusicXMLSvgRenderer {
                     lastBaseDiv = currentDiv; // For chord alignment
                 });
 
-                const measureDuration = state.beats * state.divisions;
+                // measureDuration is defined earlier; using the outer variable
                 const totalMeasureDivs = Math.max(measureDuration, currentDiv, 1);
 
                 if (allNotesInMeasure.length === 0) {
@@ -584,11 +634,28 @@ class MusicXMLSvgRenderer {
                 previousPartIndex = pInfo.partIndex;
             }
 
+            // Restore the original SVG target (the system group)
+            this.svg = originalSvgTarget;
+
+            // Set the end tick for the measure group
+            measureGroup.setAttribute("data-end-tick", this._cumulativeTick + (staffState[1].beats * staffState[1].divisions));
+
             // CRITICAL FIX: Advance currentX to the next measure column!
             currentX += measureWidth;
+            // Advance cumulative tick counter by this measure's duration
+            // Compute measure duration (beats * divisions) using first staff's state
+            const measureDuration = staffState[1].beats * staffState[1].divisions;
+            this._cumulativeTick += measureDuration;
         }
 
         this.svg = svgRoot;
+        // Finalize metadata for the last system after rendering completes
+        if (currentSystemMeta) {
+            currentSystemMeta.endTick = this._cumulativeTick;
+            currentSystemMeta.xEnd = systemStartX + systemRowWidth;
+            currentSystemMeta.yEnd = currentY + calculatedStaffSystemHeight;
+            this._systemMetadata.push(currentSystemMeta);
+        }
 
         // FIX: Correctly calculate viewBox to fit the rendered content without extra top space.
         const topMargin = 20 * scale; // Explicit top margin inside the SVG
@@ -1349,6 +1416,28 @@ class MusicXMLSvgRenderer {
         this.svg.appendChild(txt);
     }
 
+    /**
+     * Selects all note group elements that are active at a given MIDI tick.
+     * @param {number} tick The target MIDI tick.
+     * @returns {SVGGElement[]} An array of SVG group elements for the active notes.
+     */
+    selectNotesByTick(tick) {
+        if (!this._svgRoot) {
+            return [];
+        }
+
+        const activeNotes = [];
+        const allNoteElements = this._svgRoot.querySelectorAll('g[data-element-type="note"]');
+
+        allNoteElements.forEach(el => {
+            const start = parseFloat(el.getAttribute('data-start-tick'));
+            const end = parseFloat(el.getAttribute('data-end-tick'));
+            if (tick >= start && tick < end) {
+                activeNotes.push(el);
+            }
+        });
+        return activeNotes;
+    }
     // --- Static helper methods for duration calculation ---
 
     static NOTE_TYPE_VALUES = [
