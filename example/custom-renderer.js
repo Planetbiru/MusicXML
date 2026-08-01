@@ -1501,6 +1501,7 @@ class MusicXMLSvgRenderer {
         if (!this._svgRoot) {
             return;
         }
+        const scale = this.zoom || 1.0;
 
         const svg = this._svgRoot;
         let playheadLine = svg.querySelector('#playhead-line');
@@ -1534,11 +1535,12 @@ class MusicXMLSvgRenderer {
                 ? Math.max(0, Math.min(1, pos.tickInMeasure / pos.ticksPerMeasure))
                 : 0;
 
-            const xPos = systemX + measureX + (progress * measureWidth) - 23; // Adjust for SVG coordinate system
+            const xPos = systemX + measureX + (progress * measureWidth) - (24.75 * scale); // Adjust for SVG coordinate system
             playheadLine.setAttribute('x1', xPos);
             playheadLine.setAttribute('x2', xPos);
-            playheadLine.setAttribute('y1', systemY);
-            playheadLine.setAttribute('y2', systemY + systemHeight);
+            const extraPadding = this.lineSpacing * 2; // extend beyond system for ledger notes
+            playheadLine.setAttribute('y1', systemY - extraPadding);
+            playheadLine.setAttribute('y2', systemY + systemHeight + extraPadding);
 
             const notesToHighlight = customRenderer.selectNotesByTick(tick);
             notesToHighlight.forEach(el => {
