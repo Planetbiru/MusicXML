@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Rest length adjustments**: Improved handling of rests such as 1 + 1/4 notes and similar complex durations.
 
+### Note
+- The JavaScript-based features are experimental and may be moved to a separate repository in the future.
+
 ## v1.3.1 - 2026-07-26
 
 ### Changed
